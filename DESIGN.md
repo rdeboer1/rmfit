@@ -124,6 +124,11 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
   -> `audits/<kind>/PROMPT.md` with the segment table, active files, machine findings, spec roles / standing decisions,
   answered DECISIONS and the readme head; `--findings` / `--status KIND N confirmed|rejected|decision` on the subagents'
   `FINDINGS.md`).  test_audit_subagent.py PASS (login node).  First prompts written for 10B+a s5 (audits/).
+  First run on 10B+a s5 (three sonnet subagents, 6-15 min each): input 0/3/5, data 1/3/5, literature 0/5/2 (HIGH/MEDIUM/LOW).
+  Two top findings verified by the session: the June 9.7 % / March 3 % scale is nowhere in the objective (fixed norms, scale
+  terms removed from the covariance -- the recorded treatment, but the spec note said otherwise and was corrected), and the
+  MANA HPGe p3/a1 rows enter at ~1.2 % effective sigma against 3.2 % in the file (HIGH, for DeBoer).  The harness refuses
+  subagent report writes: they return the report as text and the session saves it (template says so now).
 - 2026-11-07 16:20  Fixture job 1700560: enginepin, keys, spec, audit, campaign_13n, levelscan PASS; test_campaign_spec_13n
   FAILED: the spec gate logged accept-pending and did not adopt, but the returned dict / ledger row / readme note were built
   before the gate ran and still said "accept".  Gate moved ahead of them in `_run_level_add`; rerun queued (job 1703121,

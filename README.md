@@ -34,6 +34,10 @@ Layout (design rationale and roadmap: `DESIGN.md` in this directory; the plan fi
 | `levelscan.py` | residual-driven level search: candidate energies from residual runs, template screen of every J^pi x width partition x sign pattern at each (`rmfit levelscan`); relocation of an existing level with a narrow energy window (`rmfit relocate`) |
 | `diagnose.py` | per-dataset tables, residual scans, runaway detection, figures |
 | `cli.py` | `rmfit ...` subcommands |
+| `enginepin.py` | the engine a campaign was started on (AZURE2_ROOT, `_azure2` .so md5, commit); refusal to run on another (2026-11-07) |
+| `spec.py` | the fit specification `spec.json` / `SPEC.md`: data-set roles and norms, window, frozen block, bounds, pre-authorized actions, standing decisions; `rmfit spec check\|render\|derive`, `init --spec` (2026-11-07) |
+| `decisions.py` | `DECISIONS.md`, the queue of questions outside the spec (`rmfit decisions`, `rmfit decide`); a level add the spec does not pre-authorize ends `accept-pending` with an entry here |
+| `audit.py` | `rmfit audit`: engine-free pre-flight checks of the model and data -> `AUDIT.md` (zero free widths, 1 keV level merges, nominal norms != 1, normError as a fraction, FLAG columns as errors, tiny errors, duplicates, spikes, cross-file duplicates, thresholds, `<targetInt>` on test segments, legacy .sav names, output path, engine pin) |
 | `covariance.py` | data covariance matrices (`covariance <file>`) and normalization groups (`normgroup <label>`): the engine's whitening redone on the evaluator's rows, the normgroup leader map (2026-10-22) |
 | `mixture.py` | joint fit of several projects (one compound nucleus each) to data they share -- natural-abundance or compound targets: one worker per member, member-tagged keys, abundance weights (fixed or free with a sum-to-one row), one normalization per shared data set; `freeze_and_exchange` writes every member back as a standalone stage-1 file with the others as `mixture` tables (`python3 -m rmfit.mixture <dir> init|polish|freeze|status`) |
 

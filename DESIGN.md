@@ -112,6 +112,12 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
 ## Progress log
 - 2026-11-07  Phase 0 built: git (7539e88 baseline, 7ef9e24 engine pin), `enginepin.py`, job-template guard,
   `install_shared.sh`, this file.  Sharded fixture job queued (tests/_queue_sharded).
+- 2026-11-07 15:30  Phase 1a built: `spec.py` (+ `templates/SPEC_TEMPLATE.json`, `rmfit spec check|render|derive`, `init --spec`,
+  spec_sha), `decisions.py` (`DECISIONS.md`, `rmfit decisions|decide`, level-add adoption gated by `pre_authorized.adopt_level`),
+  `audit.py` (`rmfit audit` -> AUDIT.md).  Regression: the audit reproduces 13C+a 10-2-26 (745 zero-width channels, nominal
+  norms, Cierjacks 0.02 % row = ~11,400 points), 3H+d Conner (FLAG column), 12C+p (normError fraction).  Live run on
+  10B+a s5: 0 HIGH, 2 MEDIUM.  Tests test_spec_decisions / test_audit pass on the login node; test_campaign_spec_13n queued.
+  Still Phase 1: `rmfit review` (1.3) and the audit `--kind input|data|literature` subagent templates (1.2b).
 - 2026-11-07 13:00  install_shared.sh verified with positive/negative controls (`--check-script`); two detector bugs fixed
   (pipefail + grep -q; pinned-root rule).  Skill section-7 note on branch skills/agentic-2026-11-07 (push pending DeBoer).
   Spec drafts for 10B+a s5 and 13C+a region D written (Phase 1 input).  Fixture job 1700297: enginepin + keys PASS on the

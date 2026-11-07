@@ -210,28 +210,32 @@ class FitSpec:
             if role in ("anchor", "free", "anchor_geometry") and not act:
                 out.append(Finding("MEDIUM", "spec-role-inactive", f"{ident!r} has role {role} but every matching segment is inactive"))
             norm = ds.get("norm") or {}
+            hits = {}            # (severity, code, message) -> [segment keys]: one finding per data set, not per segment
+
+            def hit(sev, code, msg, s):
+                hits.setdefault((sev, code, msg), []).append(s.key)
             for s in act:
                 if norm.get("fixed") is True and s.vary_norm:
-                    out.append(Finding("HIGH", "spec-norm-fixed", f"{ident!r} seg {s.key}: spec says the norm is FIXED, the .azr varies it"))
+                    hit("HIGH", "spec-norm-fixed", "spec says the norm is FIXED, the .azr varies it", s)
                 if norm.get("fixed") is False and not s.vary_norm:
-                    out.append(Finding("MEDIUM", "spec-norm-free", f"{ident!r} seg {s.key}: spec says the norm is free, the .azr fixes it"))
+                    hit("MEDIUM", "spec-norm-free", "spec says the norm is free, the .azr fixes it (t0 method with a covariance file?)", s)
                 if _isnum(norm.get("nominal")) and abs(s.norm - float(norm["nominal"])) > 1e-6:
-                    out.append(Finding("MEDIUM", "spec-norm-nominal", f"{ident!r} seg {s.key}: nominal norm {s.norm} in the .azr, spec {norm['nominal']}"))
+                    hit("MEDIUM", "spec-norm-nominal", f"nominal norm in the .azr != spec {norm['nominal']}", s)
                 if _isnum(norm.get("prior_sigma")) and s.vary_norm:
                     want = 100.0 * float(norm["prior_sigma"])
                     if abs(s.norm_error - want) > 0.05 * max(want, 1e-9) + 1e-6:
-                        out.append(Finding("MEDIUM", "spec-norm-prior", f"{ident!r} seg {s.key}: normError {s.norm_error} % in the .azr, "
-                                           f"spec prior_sigma {norm['prior_sigma']} = {want:.3g} %"))
+                        hit("MEDIUM", "spec-norm-prior", f"normError in the .azr != spec prior_sigma {norm['prior_sigma']} = {want:.3g} %", s)
                 w = ds.get("window")
                 if isinstance(w, (list, tuple)) and len(w) == 2 and all(_isnum(v) for v in w):
                     lo, hi = float(w[0]), float(w[1])
                     if s.energy_min < lo - 1e-6 or s.energy_max > hi + 1e-6:
-                        out.append(Finding("MEDIUM", "spec-window", f"{ident!r} seg {s.key}: .azr window [{s.energy_min}, {s.energy_max}] "
-                                           f"outside the spec window [{lo}, {hi}]"))
+                        hit("MEDIUM", "spec-window", f".azr window outside the spec window [{lo}, {hi}]", s)
                 if ds.get("covariance_file") and (s.covariance or "") and os.path.basename(s.covariance) != os.path.basename(ds["covariance_file"]):
-                    out.append(Finding("LOW", "spec-covariance", f"{ident!r} seg {s.key}: covariance {s.covariance!r} vs spec {ds['covariance_file']!r}"))
+                    hit("LOW", "spec-covariance", f"covariance file differs from the spec's {ds['covariance_file']!r}", s)
                 if ds.get("covariance_file") and not s.covariance:
-                    out.append(Finding("MEDIUM", "spec-covariance", f"{ident!r} seg {s.key}: spec names a covariance file, the segment has none"))
+                    hit("MEDIUM", "spec-covariance", "spec names a covariance file, the segment has none", s)
+            for (sev, code, msg), ks in hits.items():
+                out.append(Finding(sev, code, f"{ident!r}: {msg}", f"segments {_ranges(ks)} ({len(ks)} of {len(act)})"))
         # pairs
         pr = (self.data.get("model") or {}).get("pairs_required")
         if pr:
@@ -276,6 +280,21 @@ def _field_names(dotted):
 
 def _isnum(v):
     return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+def _ranges(keys):
+    """[23, 24, 25, 30] -> '23-25, 30'."""
+    ks = sorted(set(int(k) for k in keys))
+    out, start, prev = [], None, None
+    for k in ks + [None]:
+        if start is None:
+            start = prev = k
+        elif k is not None and k == prev + 1:
+            prev = k
+        else:
+            out.append(f"{start}-{prev}" if prev != start else f"{start}")
+            start = prev = k
+    return ", ".join(out)
 
 
 def pair_lines(model) -> dict:

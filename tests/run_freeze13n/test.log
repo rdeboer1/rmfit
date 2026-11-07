@@ -1,0 +1,52 @@
+Loading CRC_default/1.1
+Loading CRC_default/1.1
+Loading python/3.12.13
+  Loading requirement: tcl/8.6.17
+  true level: 3/2- 3.5032 MeV, channels [(1, 1, 55200.0), (2, 1, -0.5), (2, 2, 0.0)]
+08:04:06 objective: chi2 with errors scaled per file (baseline chi2/N = 1); reference chi2/N per data set from the plain baseline (1923839.3 / 593): artemov.dat 47.9, baumann_1618.dat 53911.2, baumann_1658.dat 1009.3, baumann_1708.dat 132.6, baumann_1738.dat 708.4, baumann_1758.dat 528.4, baumann_1779.dat 504.6, kettner_0.dat 673.2, kettner_55.dat 524.7, meyer_114.dat 649.4, meyer_144.dat 4730.7, meyer_84.dat 296.3, seagrave.dat 61.7, skowronski_fels.dat 1249.6, skowronski_luna_bgo.dat 257.6, skowronski_luna_hpge.dat 17.6
+08:04:16 init: baseline candidate 1 objective 593.000 (chi2 1923838.617 + pen 0.000), N=593, sanity 1 amplitude(s) above their theta2 cap
+  objective without the level: 593.0
+08:04:16   window [3.03, 4.03] MeV: 12 segments kept, 4 dropped, 10 levels fixed
+08:08:06   polish: 445.022 -> 364.575 (max_nfev, The maximum number of function evaluations is exceeded.; nfev=9 njev=8, 120s)
+08:08:06   window baseline objective 364.575
+08:10:57   3/2-: 4 sign patterns screened; best ++-:216, +++:217, +-+:350, +--:397
+08:15:00   3/2-: best pattern +++ objective 199.374 (delta -165.2, max_nfev)
+08:15:00 window scan: 3/2-:+++:-165
+08:15:00 full model with 3/2- @ 3.5332 MeV as 3/2-#2: add_3_2-_E3p533.azr
+08:17:25   freeze-broad: 4 level(s) wider than 1 keV held fixed while the new level is fitted: 1/2+#1 (34 keV), 1/2+#2 (5 keV), 3/2-#1 (1 keV), 5/2+#1 (49 keV)
+08:17:28 full model at the seeded level: objective 529.924 (incumbent 593.000)
+08:19:46   polish: 730.811 -> 557.813 (max_nfev, The maximum number of function evaluations is exceeded.; nfev=9 njev=7, 138s)
+08:19:46 pinned polish: 730.811 -> 557.813 (max_nfev)
+08:19:46   released stage: 3/2-#2 energy free within +-89 keV of 3.5332 MeV (Gamma ~ 29.7 keV)
+08:22:50     iteration 10: objective 255.442 (183s)
+08:24:26   polish: 557.813 -> 255.439 (converged, `ftol` termination condition is satisfied.; nfev=16 njev=15, 280s)
+08:24:26 released polish: 557.813 -> 255.439 (converged) [4 broad level(s) fixed]
+08:27:36     iteration 10: objective 133.466 (190s)
+08:29:12   polish: 255.439 -> 133.466 (converged, `ftol` termination condition is satisfied.; nfev=18 njev=15, 286s)
+08:29:12 release polish (broad levels freed): 255.439 -> 133.466 (converged)
+08:32:30     iteration 10: objective 477.720 (198s)
+08:34:59   polish: 797.326 -> 477.357 (max_nfev, The maximum number of function evaluations is exceeded.; nfev=26 njev=17, 347s)
+08:34:59 control polish (level off): 797.326 -> 477.357 (max_nfev)
+08:39:18   review figure: /tmp/1480712.1.long/rmfit_addE_7a8r4x0o/figures/leveladd_32-_E3.5332.png (12 panels)
+08:39:18 level 3/2- @ 3.5332 MeV: verified 133.466 vs incumbent 593.000 / control 477.357 (delta +343.9, tau 26, rho 0.00, max theta2 0.0429, energy 3.5026 = seed -30.6 keV, Gamma 5.194e+04 eV) -> accept
+08:39:18   73% of the summed dataset gains come from baumann_1618
+08:39:18 adopted structure 2 (add_3_2-_E3p533.azr) as the base model level 3/2- @ 3.5332 MeV accepted
+  outcome accept, delta 343.8906603852438, 37.3 min
+  ok    the add ran to a verdict
+  ok    the released stage announced a free energy window
+  ok    freeze-broad froze at least one level
+  ok    release polish ran after the frozen stage
+08:41:43 sharded evaluator up: 3 shards, 593 points, 14 free, 145s
+  ok    objective is scaled (magnitude ~ N)
+  ok    scales recorded in campaign.json
+  ok    the add variant exists
+  ok    the new level is in the variant with a free energy (levelFix 0)
+  reported: e_moved -0.03056602741724923, energy_fit 3.5026339725827507
+  ok    the move of the energy is reported
+  ok    the energy moved TOWARD the true value
+  ok    and landed within 15 keV of it
+  ok    a move inside the window is not 'relocated'
+
+ALL PASSED
+Mon Sep 28 08:41:44 AM EDT 2026 test exit 0
+Loading CRC_default/1.1

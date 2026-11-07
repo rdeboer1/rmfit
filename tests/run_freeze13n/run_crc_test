@@ -1,0 +1,14 @@
+#!/bin/csh
+#$ -pe smp 4
+#$ -q long
+#$ -N t13Nfreeze
+#$ -cwd
+#$ -j y
+#$ -o test.log
+source ${HOME}/.login
+module load gsl/gcc/2.8
+setenv OMP_NUM_THREADS 1
+setenv PYTHONPATH /groups/rdeboer1/user/rdeboer1/R-matrix
+cd /groups/rdeboer1/user/rdeboer1/R-matrix/rmfit/tests/run_freeze13n
+python3 ../test_freeze_broad_13n.py
+echo "`date` test exit $status"

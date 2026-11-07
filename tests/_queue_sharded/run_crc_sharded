@@ -1,0 +1,23 @@
+#!/bin/csh
+#$ -M rdeboer1@nd.edu
+#$ -m n
+#$ -q long
+#$ -pe smp 4
+#$ -N rmfit_sharded
+#$ -cwd
+#$ -j y
+#$ -o sharded.log
+# rmfit Sharded fixture (13N, 3 shards) after the Penalties.from_segments change of 2026-10-13:
+# test_keys.py (keys, incl. the new 'abundance' kind) and test_levelscan_13n.py (builds Sharded directly).
+source ${HOME}/.login
+module load gsl/gcc/2.8
+module unload python
+setenv PATH /software/p/python/3.12.13/gcc/11.5.0/bin:${PATH}
+setenv LD_LIBRARY_PATH /software/p/python/3.12.13/gcc/11.5.0/lib:${LD_LIBRARY_PATH}
+setenv PYTHONPATH /groups/rdeboer1/user/rdeboer1/R-matrix:${HOME}/AZURE2
+setenv OMP_NUM_THREADS 1
+echo "host `hostname` `date`"
+timeout 3600 python3 ../test_keys.py
+echo "`date` keys exit $status"
+timeout 36000 python3 ../test_levelscan_13n.py
+echo "`date` levelscan exit $status"

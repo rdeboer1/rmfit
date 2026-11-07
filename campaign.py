@@ -1293,6 +1293,18 @@ class Campaign:
                 self.log(f"  PROVISIONAL: within {near_same_jpi_kev:g} keV of the existing {', '.join(near)} -- a lineshape "
                          f"hypothesis (doublet vs. resolution/target convolution on the driving segments vs. one "
                          f"point); test the alternatives before adopting it as a level")
+            # The spec gate runs BEFORE the ledger row, the readme note and the returned dict are
+            # built (fixture job 1700560, 2026-11-07: the gate logged accept-pending but the
+            # result still said accept).
+            if outcome == "accept" and not self._spec_allows_adopt(best.jpi, cand, level_gamma_ev, delta, obj_ref, near, top_share):
+                outcome = "accept-pending"
+                did = self.decisions.add(f"adopt-level-{best.jpi}-{cand.energy:.3f}",
+                                         f"adopt the {best.jpi} level at {cand.energy + e_moved:.4f} MeV (gain {delta:+.1f} of {obj_ref:.0f}, "
+                                         f"Gamma {('%.4g eV' % level_gamma_ev) if level_gamma_ev is not None else 'n/a'}, structure {sid2})?",
+                                         evidence=f"ledger structure {sid2} candidate {ncid}; figures/leveladd_*E{cand.energy:.4f}*; REPORT.md",
+                                         options=("adopt", "reject", "test alternatives"), default="wait")
+                self.log(f"  accept NOT pre-authorized by spec.json -> recorded as accept-pending, decision {did} queued in DECISIONS.md")
+                self.ledger.log("decision", f"{did} level {best.jpi} @ {cand.energy} structure {sid2}")
             stats = dict(**_kstats, jpi=best.jpi, signs=best.signs, energy=cand.energy, delta=delta, tau=tau, rho=rho,
                          theta2=theta2, outcome=outcome, verified=sc.objective, control=fC.objective,
                          structure=sid2, candidate=ncid, scan=scan_summary, wall_min=(time.time() - t0) / 60,
@@ -1311,15 +1323,6 @@ class Campaign:
                       + (f"; at a bound: {', '.join(at_bound)}" if at_bound else "")
                       + f" -> {outcome}" + (" -- adopted as the base model" if outcome == "accept" else "")
                       + (f"; PROVISIONAL (within {near_same_jpi_kev:g} keV of {', '.join(near)}: lineshape hypothesis)" if near else ""))
-            if outcome == "accept" and not self._spec_allows_adopt(best.jpi, cand, level_gamma_ev, delta, obj_ref, near, top_share):
-                outcome = "accept-pending"
-                did = self.decisions.add(f"adopt-level-{best.jpi}-{cand.energy:.3f}",
-                                         f"adopt the {best.jpi} level at {cand.energy + e_moved:.4f} MeV (gain {delta:+.1f} of {obj_ref:.0f}, "
-                                         f"Gamma {('%.4g eV' % level_gamma_ev) if level_gamma_ev is not None else 'n/a'}, structure {sid2})?",
-                                         evidence=f"ledger structure {sid2} candidate {ncid}; figures/leveladd_*E{cand.energy:.4f}*; REPORT.md",
-                                         options=("adopt", "reject", "test alternatives"), default="wait")
-                self.log(f"  accept NOT pre-authorized by spec.json -> recorded as accept-pending, decision {did} queued in DECISIONS.md")
-                self.ledger.log("decision", f"{did} level {best.jpi} @ {cand.energy} structure {sid2}")
             if outcome == "accept":
                 self.adopt_structure(sid2, note=f"level {best.jpi} @ {cand.energy} MeV accepted")
             self.ledger.write_status_md()

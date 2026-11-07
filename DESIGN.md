@@ -118,7 +118,11 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
   norms, Cierjacks 0.02 % row = ~11,400 points), 3H+d Conner (FLAG column), 12C+p (normError fraction).  Live run on
   10B+a s5: 0 HIGH, 2 MEDIUM.  Tests test_spec_decisions / test_audit pass on the login node; test_campaign_spec_13n queued.
   Still Phase 1: `rmfit review` (1.3) and the audit `--kind input|data|literature` subagent templates (1.2b).
+- 2026-11-07 16:20  Fixture job 1700560: enginepin, keys, spec, audit, campaign_13n, levelscan PASS; test_campaign_spec_13n
+  FAILED: the spec gate logged accept-pending and did not adopt, but the returned dict / ledger row / readme note were built
+  before the gate ran and still said "accept".  Gate moved ahead of them in `_run_level_add`; rerun queued (job 1703121,
+  tests/_queue_spec/spec.log).  Skill now in this repository (297e17b, pushed): edit it here.
 - 2026-11-07 13:00  install_shared.sh verified with positive/negative controls (`--check-script`); two detector bugs fixed
-  (pipefail + grep -q; pinned-root rule).  Skill section-7 note on branch skills/agentic-2026-11-07 (push pending DeBoer).
+  (pipefail + grep -q; pinned-root rule).  Skill section-7 note pushed to AZURE2 dev 4d16764; since 16:10 the skill lives in THIS repository (`.claude/skills/rmfit-campaign/SKILL.md`, 297e17b).
   Spec drafts for 10B+a s5 and 13C+a region D written (Phase 1 input).  Fixture job 1700297: enginepin + keys PASS on the
   node; campaign + levelscan tests running.

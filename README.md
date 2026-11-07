@@ -18,7 +18,7 @@ hand, on a schedule a script can follow and an LLM agent can resume:
 - a **ledger** (SQLite + npz) of every candidate with provenance, and a `STATUS.md`
   a fresh session can read to continue a campaign.
 
-Layout (see the plan in the 13C+a campaign readme for the design rationale):
+Layout (design rationale and roadmap: `DESIGN.md` in this directory; the plan file the first campaign readme cites is gone):
 
 | module | role |
 |---|---|

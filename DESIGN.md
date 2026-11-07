@@ -56,7 +56,9 @@ decisions stay with the evaluator; the spec records them.
   (`13C+a/10-2-26_audit/audit_*.py`), target energies (`check_target_energies.py`), legacy `.sav` names
   (`convert_sav_names.py` regexes), absolute output paths, `<targetInt>` on test segments, engine pin, intEC age,
   1-keV level merges, clip check (`13C+a/9-30-26_merged/preflight.py`).  `--kind input|data|literature` = the
-  idle-time subagent audits with templated prompts and a structured FINDINGS.md.
+  idle-time subagent audits with templated prompts and a structured FINDINGS.md (DONE 2026-11-07: `audit_subagent.py`,
+  `templates/audit_{common,input,data,literature}.md`; rmfit writes the prompt, the session hands it to a background
+  subagent, verifies each row and marks it `--status`; `rmfit drive` will emit them from its AUDIT state).
 - `review.py` (`rmfit review`, post-fit "GUI eye", writes REVIEW.md + figures): existing pieces
   `diagnose.dataset_table/compare/theta2_table/residual_runs/window_delta`, `Evaluator.point_residuals`,
   `local.sanity`, `levelscan.review_figure`, `13C+a/9-30-26_merged/toppoints.py`; new detectors: norm vs
@@ -118,6 +120,10 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
   norms, Cierjacks 0.02 % row = ~11,400 points), 3H+d Conner (FLAG column), 12C+p (normError fraction).  Live run on
   10B+a s5: 0 HIGH, 2 MEDIUM.  Tests test_spec_decisions / test_audit pass on the login node; test_campaign_spec_13n queued.
   Still Phase 1: `rmfit review` (1.3) and the audit `--kind input|data|literature` subagent templates (1.2b).
+- 2026-11-07 16:25  Phase 1.2b built: `audit_subagent.py` + `templates/audit_*.md` (`rmfit <dir> audit --kind input|data|literature|all`
+  -> `audits/<kind>/PROMPT.md` with the segment table, active files, machine findings, spec roles / standing decisions,
+  answered DECISIONS and the readme head; `--findings` / `--status KIND N confirmed|rejected|decision` on the subagents'
+  `FINDINGS.md`).  test_audit_subagent.py PASS (login node).  First prompts written for 10B+a s5 (audits/).
 - 2026-11-07 16:20  Fixture job 1700560: enginepin, keys, spec, audit, campaign_13n, levelscan PASS; test_campaign_spec_13n
   FAILED: the spec gate logged accept-pending and did not adopt, but the returned dict / ledger row / readme note were built
   before the gate ran and still said "accept".  Gate moved ahead of them in `_run_level_add`; rerun queued (job 1703121,

@@ -30,6 +30,8 @@ Checks (code -> severity):
   legacy-sav            j=.._la=.. names in a .sav/.par next to the model (ignored by AZURE2)   HIGH
   intec-stale           output/intEC.* older than the .azr                                      LOW
   frames                A_y (isDiff 7) or differential data with angles > 180 / < 0             MEDIUM
+The three idle-time reviews (input file, data, literature) are subagent PROMPTS, not checks here:
+`rmfit <campaign> audit --kind input|data|literature|all` (audit_subagent.py, templates/audit_*.md).
 """
 import glob
 import os
@@ -386,10 +388,24 @@ def main(argv=None):
     ap.add_argument("--out", default=None)
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--no-target-energies", action="store_true")
+    ap.add_argument("--kind", default=None, choices=["input", "data", "literature", "all"],
+                    help="write audits/<kind>/PROMPT.md for a background subagent (next to the .azr, or under --campaign)")
     a = ap.parse_args(argv)
     cfg = None
     if a.campaign and os.path.exists(os.path.join(a.campaign, "campaign.json")):
         cfg = json.load(open(os.path.join(a.campaign, "campaign.json")))
+    if a.kind:
+        from . import audit_subagent as asub
+        machine = audit_model(a.azr, campaign_dir=a.campaign, campaign_cfg=cfg, run_target_energies=False)
+        spec = None
+        sp = os.path.join(a.campaign or os.path.dirname(os.path.abspath(a.azr)), "spec.json")
+        if os.path.exists(sp):
+            from .spec import FitSpec
+            spec = FitSpec.load(sp)
+        for kind in (asub.KINDS if a.kind == "all" else (a.kind,)):
+            r = asub.write_subagent_audit(kind, a.azr, a.campaign, spec, machine)
+            print(f"{kind}: prompt {r['prompt']}  report {r['report']}")
+        return 0
     fs = audit_model(a.azr, campaign_dir=a.campaign, campaign_cfg=cfg, run_target_energies=not a.no_target_energies)
     if a.json:
         print(json.dumps([f.__dict__ for f in fs], indent=1))

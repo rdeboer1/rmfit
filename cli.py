@@ -15,6 +15,8 @@ Commands (all idempotent and resumable from the ledger):
   engine                                                        the campaign's pinned engine vs the one this process imports (2026-11-07)
   spec check|render|derive [--spec spec.json]                   fit specification vs the .azr / campaign.json; SPEC.md; derived init config
   audit [--azr file] [--no-target-energies]                     pre-flight checks of the model and data -> AUDIT.md (no engine session)
+  audit --kind input|data|literature|all                        write audits/<kind>/PROMPT.md (+ FINDINGS.md skeleton) for a background subagent
+  audit --findings | --status KIND N confirmed|rejected|decision  the subagents' FINDINGS.md: unverified rows / mark one verified
   decisions                                                     pending entries of DECISIONS.md
   decide <id> "<choice>" [--by who] [--note ...]                answer one
 
@@ -137,10 +139,16 @@ def main(argv=None):
     p.add_argument("what", choices=["check", "render", "derive"])
     p.add_argument("--spec", default=None, help="path (default <campaign>/spec.json)")
     p.add_argument("--azr", default=None, help="model to check (default the campaign's base model)")
-    p = sub.add_parser("audit", help="pre-flight checks -> AUDIT.md")
+    p = sub.add_parser("audit", help="pre-flight checks -> AUDIT.md; --kind writes a subagent prompt; --findings lists their reports")
     p.add_argument("--azr", default=None, help="model (default the campaign's base model)")
     p.add_argument("--no-target-energies", action="store_true")
     p.add_argument("--json", action="store_true")
+    p.add_argument("--kind", default=None, choices=["input", "data", "literature", "all"],
+                   help="write audits/<kind>/PROMPT.md (+ empty FINDINGS.md) for a background subagent instead of running the machine checks")
+    p.add_argument("--findings", action="store_true", help="summarize audits/*/FINDINGS.md (unverified rows first)")
+    p.add_argument("--status", nargs=3, metavar=("KIND", "N", "STATUS"), default=None,
+                   help="mark finding N of audits/KIND/FINDINGS.md as confirmed | rejected | decision | candidate")
+    p.add_argument("--note", default="", help="with --status: short note written next to the status")
     p = sub.add_parser("decisions", help="pending entries of DECISIONS.md")
     p.add_argument("--all", action="store_true")
     p = sub.add_parser("decide", help="answer a DECISIONS.md entry")
@@ -190,6 +198,33 @@ def main(argv=None):
                 for f in findings:
                     print(f.line())
                 print("wrote", out, counts)
+        elif a.cmd == "audit" and (a.kind or a.findings or a.status):
+            from rmfit import audit_subagent as asub
+            if a.status:
+                kind, n, status = a.status
+                path = os.path.join(c.dir, "audits", kind, "FINDINGS.md")
+                ok = asub.set_status(path, int(n), status, a.note)
+                print(("marked" if ok else "NOT FOUND"), kind, n, status, path)
+                if ok:
+                    c.note(f"audit {kind} finding {n}: {status}" + (f" ({a.note})" if a.note else ""))
+            elif a.findings:
+                for sm in asub.findings_summary(c.dir):
+                    print(f"{sm['kind']}: {sm['n']} findings  {sm['by_severity']}  status {sm['by_status']}  ({sm['path']})")
+                    for r in sm["unverified"]:
+                        print(f"   #{r['n']} {r['severity']} candidate  {r['where']}: {r['what'][:110]}")
+                if not asub.findings_summary(c.dir):
+                    print("no audits/*/FINDINGS.md under", c.dir)
+            else:
+                from rmfit.audit import audit_model
+                azr = a.azr or c.base_azr
+                machine = audit_model(azr, campaign_dir=c.dir, campaign_cfg=c.cfg, run_target_energies=False)
+                kinds = asub.KINDS if a.kind == "all" else (a.kind,)
+                for kind in kinds:
+                    r = asub.write_subagent_audit(kind, azr, c.dir, c.spec, machine)
+                    print(f"{kind}: prompt {r['prompt']}  report {r['report']}")
+                print("Hand each PROMPT.md to a background subagent (Agent tool, a cheaper model); it writes FINDINGS.md; "
+                      "verify every row against the files, then `rmfit <dir> audit --status KIND N confirmed|rejected|decision`.")
+                c.note(f"audit --kind {a.kind}: subagent prompt(s) written under audits/ ({', '.join(kinds)})")
         elif a.cmd == "audit":
             from rmfit.audit import audit_model, write_audit
             azr = a.azr or c.base_azr

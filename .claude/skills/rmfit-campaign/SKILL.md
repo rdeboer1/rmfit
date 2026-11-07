@@ -181,6 +181,19 @@ campaign, anything the spec does not answer goes to **`DECISIONS.md`** (`rmfit d
 with a queued decision and is NOT adopted (the old automatic adoption only applies to campaigns without a spec).  Spec
 drafts to copy from: `10B+a/11-6-26_s5_highE/spec_draft.json`, `13C+a/11-06-26_merged_regionD/spec_draft.json`.
 
+The three idle-time reviews of section 3b are generated, not hand-written, since 2026-11-07:
+
+    python3 -m rmfit.cli <dir> audit --kind all            # audits/{input,data,literature}/PROMPT.md + empty FINDINGS.md
+    # hand each PROMPT.md to a background subagent (Agent tool, a cheaper model, at most three at once); it writes FINDINGS.md
+    python3 -m rmfit.cli <dir> audit --findings            # unverified (candidate) rows of every FINDINGS.md
+    python3 -m rmfit.cli <dir> audit --status data 1 confirmed --note "line 4007 checked"   # after YOU verified it against the files
+
+The prompt carries the segment table, the active data files, the machine AUDIT.md findings, the spec's data-set roles and
+standing decisions, the answered DECISIONS and the readme head, so the subagent does not re-report what is known; its table
+has a `Status` column that only the driving session changes (candidate -> confirmed | rejected | decision).  Rules of 3b
+still apply: findings are candidates until verified, nothing in a fit changes on the strength of a report, data treatment
+is the evaluator's.  Without a campaign: `python3 -m rmfit.audit <model>.azr --kind data` writes `audits/` next to the model.
+
 ## 3. The loop
 
 Every step is a job (`qsub -v RMFIT_CMD="..." run_crc_rmfit`, or `-hold_jid <id>` to queue

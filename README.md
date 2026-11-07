@@ -18,6 +18,9 @@ hand, on a schedule a script can follow and an LLM agent can resume:
 - a **ledger** (SQLite + npz) of every candidate with provenance, and a `STATUS.md`
   a fresh session can read to continue a campaign.
 
+Process guide (the Claude skill `rmfit-campaign`): `.claude/skills/rmfit-campaign/SKILL.md` in this repository,
+linked as `~/.claude/skills/rmfit-campaign`.  It lived in the AZURE2 repository until 2026-11-07.
+
 Layout (design rationale and roadmap: `DESIGN.md` in this directory; the plan file the first campaign readme cites is gone):
 
 | module | role |

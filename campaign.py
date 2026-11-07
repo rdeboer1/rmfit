@@ -27,6 +27,8 @@ from .model import single_variant, base_segments, rows_in_segment
 from .search import SearchConfig, sign_round, crossover_round, tau_flip
 from .structure import LevelCandidate, add_level_variant, scan_jpi_on_window, classify, JPI_GROUPS, resolve_jpis  # noqa: F401
 from . import enginepin
+from .spec import FitSpec
+from .decisions import DecisionQueue
 
 
 def _dc_from(cls, d):
@@ -59,6 +61,18 @@ class Campaign:
         self.engine, mismatch = enginepin.check(self.cfg.get("engine"), strict=enforce_engine, log=self.log)
         if mismatch and enforce_engine:
             self.note("ENGINE CHANGE allowed by RMFIT_ALLOW_ENGINE_CHANGE: " + mismatch)
+        # fit specification (spec.py) and the decisions queue (decisions.py), 2026-11-07
+        self.spec: Optional[FitSpec] = None
+        sp = os.path.join(self.dir, "spec.json")
+        if os.path.exists(sp):
+            try:
+                self.spec = FitSpec.load(sp)
+                if self.cfg.get("spec_sha") and self.spec.sha != self.cfg["spec_sha"]:
+                    self.log("WARNING spec.json changed since init (sha differs from campaign.json spec_sha): "
+                             "run `rmfit spec check`; re-init with --spec to re-derive the config")
+            except Exception as err:
+                self.log(f"WARNING spec.json unreadable: {err}")
+        self.decisions = DecisionQueue(os.path.join(self.dir, "DECISIONS.md"))
 
     # -- logging ------------------------------------------------------------------
 
@@ -222,7 +236,7 @@ class Campaign:
 
     @classmethod
     def init(cls, directory, base_azr, sav=None, flags=None, nshards=24, policy=None, search=None, note="",
-             objective=None, cov_reference=None):
+             objective=None, cov_reference=None, spec=None):
         """Create campaign.json, register the base model and verify the baseline.
 
         Data covariance with model-scaled (``relvector``) terms (2026-10-25, DeBoer: "use a fixed reference model"):
@@ -234,6 +248,32 @@ class Campaign:
         An existing campaign's reference is kept on re-init."""
         directory = os.path.abspath(directory)
         base_azr = os.path.abspath(base_azr)
+        os.makedirs(directory, exist_ok=True)
+        # spec (2026-11-07): copied to <dir>/spec.json, its flags/policy/search/objective/nshards used where the explicit
+        # arguments are absent, its sha recorded; `rmfit spec check` reports disagreements with the .azr before the baseline
+        spec_sha = None
+        if spec:
+            import shutil
+            spec_src = os.path.abspath(spec)
+            spec_dst = os.path.join(directory, "spec.json")
+            if os.path.abspath(spec_src) != os.path.abspath(spec_dst):
+                shutil.copy2(spec_src, spec_dst)
+            fs = FitSpec.load(spec_dst)
+            derived = fs.derive_campaign_cfg()
+            flags = flags if flags is not None else derived.get("flags")
+            policy = policy if policy else derived.get("policy")
+            search = search if search else derived.get("search")
+            objective = objective if objective else derived.get("objective")
+            if "nshards" in derived and nshards == 24:
+                nshards = derived["nshards"]
+            spec_sha = fs.sha
+            probs = fs.check(base_azr)
+            highs = [f for f in probs if f.severity == "HIGH"]
+            for f in probs:
+                print("spec check:", f.line())
+            if highs:
+                raise ValueError(f"spec check: {len(highs)} HIGH disagreement(s) between spec.json and the .azr -- fix one of them first: "
+                                 + "; ".join(f.message for f in highs[:3]))
         # an existing campaign.json keeps its policy / search / weights unless
         # new ones are given (re-running init must not silently reset them)
         prev = {}
@@ -249,6 +289,8 @@ class Campaign:
                    objective=(objective if objective else prev.get("objective", {})),
                    created=prev.get("created", time.strftime("%Y-%m-%d %H:%M")),
                    reinit=time.strftime("%Y-%m-%d %H:%M"))
+        if spec_sha:
+            cfg["spec_sha"] = spec_sha
         # engine pin: recorded once at the first init; re-pinned only with RMFIT_ALLOW_ENGINE_CHANGE=1
         if "engine" not in prev or os.environ.get("RMFIT_ALLOW_ENGINE_CHANGE", "") not in ("", "0"):
             cfg["engine"] = enginepin.fingerprint()
@@ -811,6 +853,29 @@ class Campaign:
         self.log(f"adopted structure {sid} ({s['name']}) as the base model {note}")
         self.ledger.log("adopt", f"structure {sid} {s['name']} {note}")
 
+    def _spec_allows_adopt(self, jpi, cand, gamma_ev, delta, obj_ref, near, top_share) -> bool:
+        """The spec's ``pre_authorized.adopt_level``: absent -> True (old behaviour); False -> never; a dict ->
+        rules max_gamma_kev, min_gain_rel, forbid_near_same_jpi (near list non-empty), max_top_dataset_share."""
+        if self.spec is None:
+            return True
+        rule = self.spec.pre_authorized.get("adopt_level", True)
+        if rule is True or rule is None:
+            return True
+        if rule is False:
+            return False
+        if isinstance(rule, dict):
+            ok = True
+            if gamma_ev is not None and rule.get("max_gamma_kev") and gamma_ev > 1e3 * float(rule["max_gamma_kev"]):
+                ok = False
+            if rule.get("min_gain_rel") and obj_ref and delta < float(rule["min_gain_rel"]) * obj_ref:
+                ok = False
+            if rule.get("forbid_near_same_jpi") and near:
+                ok = False
+            if rule.get("max_top_dataset_share") and top_share is not None and top_share > float(rule["max_top_dataset_share"]):
+                ok = False
+            return ok
+        return False
+
     def run_level_add(self, cand: LevelCandidate, *args, **kwargs) -> dict:
         """_run_level_add, with the policy's ``new_level_theta2_cap`` (2026-09-27) applied to the new level
         through a +-0.5 keV cap window at its seed energy: in force for the whole test, kept in
@@ -1246,6 +1311,15 @@ class Campaign:
                       + (f"; at a bound: {', '.join(at_bound)}" if at_bound else "")
                       + f" -> {outcome}" + (" -- adopted as the base model" if outcome == "accept" else "")
                       + (f"; PROVISIONAL (within {near_same_jpi_kev:g} keV of {', '.join(near)}: lineshape hypothesis)" if near else ""))
+            if outcome == "accept" and not self._spec_allows_adopt(best.jpi, cand, level_gamma_ev, delta, obj_ref, near, top_share):
+                outcome = "accept-pending"
+                did = self.decisions.add(f"adopt-level-{best.jpi}-{cand.energy:.3f}",
+                                         f"adopt the {best.jpi} level at {cand.energy + e_moved:.4f} MeV (gain {delta:+.1f} of {obj_ref:.0f}, "
+                                         f"Gamma {('%.4g eV' % level_gamma_ev) if level_gamma_ev is not None else 'n/a'}, structure {sid2})?",
+                                         evidence=f"ledger structure {sid2} candidate {ncid}; figures/leveladd_*E{cand.energy:.4f}*; REPORT.md",
+                                         options=("adopt", "reject", "test alternatives"), default="wait")
+                self.log(f"  accept NOT pre-authorized by spec.json -> recorded as accept-pending, decision {did} queued in DECISIONS.md")
+                self.ledger.log("decision", f"{did} level {best.jpi} @ {cand.energy} structure {sid2}")
             if outcome == "accept":
                 self.adopt_structure(sid2, note=f"level {best.jpi} @ {cand.energy} MeV accepted")
             self.ledger.write_status_md()

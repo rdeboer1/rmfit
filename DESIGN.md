@@ -112,3 +112,7 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
 ## Progress log
 - 2026-11-07  Phase 0 built: git (7539e88 baseline, 7ef9e24 engine pin), `enginepin.py`, job-template guard,
   `install_shared.sh`, this file.  Sharded fixture job queued (tests/_queue_sharded).
+- 2026-11-07 13:00  install_shared.sh verified with positive/negative controls (`--check-script`); two detector bugs fixed
+  (pipefail + grep -q; pinned-root rule).  Skill section-7 note on branch skills/agentic-2026-11-07 (push pending DeBoer).
+  Spec drafts for 10B+a s5 and 13C+a region D written (Phase 1 input).  Fixture job 1700297: enginepin + keys PASS on the
+  node; campaign + levelscan tests running.

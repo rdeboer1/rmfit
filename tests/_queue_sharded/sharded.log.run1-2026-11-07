@@ -1,0 +1,519 @@
+Loading CRC_default/1.1
+Loading CRC_default/1.1
+Loading python/3.12.15
+  Loading requirement: tcl/8.6.17
+Unloading python/3.12.15
+  Unloading useless requirement: tcl/8.6.17
+host d32cepyc188.crc.nd.edu Sat Nov  7 12:28:15 PM EST 2026
+fingerprint: /users/rdeboer1/AZURE2 .so d043f96b (e281ba7, pyazr 2.9.0)
+check: ok
+12:28:19 WARNING engine pin mismatch: campaign pinned /nowhere/AZURE2_frozen_deadbeef .so ffffffff (e281ba7, pyazr 2.9.0); this process imports /users/rdeboer1/AZURE2 .so d043f96b (e281ba7, pyazr 2.9.0). Objectives are not comparable across engines.  Run from the pinned root (the job script sets AZURE2_ROOT from campaign.json), or set RMFIT_ALLOW_ENGINE_CHANGE=1 to continue and record the change.
+campaign refusal / job script: ok
+test_enginepin: PASS
+Sat Nov  7 12:28:19 PM EST 2026 enginepin exit 0
+test_keys: ok
+Sat Nov  7 12:28:19 PM EST 2026 keys exit 0
+12:28:21 init: engine pinned /users/rdeboer1/AZURE2 .so d043f96b (e281ba7, pyazr 2.9.0) (new pin)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Coulomb table: 1687825 lookups, 0 outside the table (exact routine used)
+12:28:35 init: baseline candidate 1 objective 336480.023 (chi2 336480.023 + pen 0.000), N=593, sanity 1 amplitude(s) above their theta2 cap
+  ok    init produced a verified baseline
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Coulomb table: 3578 lookups, 0 outside the table (exact routine used)
+Coulomb table: 232594 lookups, 0 outside the table (exact routine used)
+Coulomb table: 1469962 lookups, 0 outside the table (exact routine used)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Coulomb table: 2034 lookups, 0 outside the table (exact routine used)
+Coulomb table: 6386 lookups, 0 outside the table (exact routine used)
+Coulomb table: 1696350 lookups, 0 outside the table (exact routine used)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+rmfit shards (Jacobian balancing): round 1: slowest shard 2.16 s (alpha 5.01, beta 0.00), repacked for 0.841 s; round 2: slowest shard 2.47 s (alpha 5.11, beta 0.00), repacked for 0.868 s; a parallel resid+Jacobian now takes 2.15 s (52 s)
+12:29:52 sharded evaluator up: 3 shards, 593 points, 15 free, 77s
+12:29:52 polish policy: shifts_free=False
+12:29:52 tighten: largest theta^2 excess 1.1 -> 1 stages, cap scales 1
+12:30:13     iteration 10: objective 70976.238 (21s)
+12:30:16   polish: 273268.019 -> 70976.238 (converged, `ftol` termination condition is satisfied.; nfev=12 njev=11, 24s)
+12:30:16 polish stage 1/1 (cap scale 1): 273268.019 -> 70976.238 (converged; nfev 12; at bound 1; 0.4 min)
+12:30:16   at bound: g[1/2+#1 p1 L0 S0.5]=2.282
+12:30:16   worst datasets:
+| dataset | chi2/N | chi2 | N | segments |
+|---|---:|---:|---:|---|
+| skowronski_luna_bgo | 720.57 | 12970.3 | 18 | 7 |
+| skowronski_fels | 541.84 | 40637.8 | 75 | 8 |
+| baumann_1658 | 173.16 | 4155.7 | 24 | 12 |
+| baumann_1779 | 62.88 | 1886.5 | 30 | 16 |
+| baumann_1618 | 56.37 | 1409.2 | 25 | 11 |
+| meyer_144 | 55.09 | 3305.4 | 60 | 5 |
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Coulomb table: 1687717 lookups, 0 outside the table (exact routine used)
+12:30:29 verified candidate 3: objective 70976.238 (chi2 70976.220 + pen 0.018) 
+  ok    polish improved the incumbent
+12:30:29   frozen pre-screen of 1 same-channel patterns (1 pair flips, 0 enumerated) in 0s; 1 kept (per group <= 15: half by frozen objective, half by exposure); best frozen flip g[3/2-#1 p2 L1 S0.5] & g[3/2-#2 p2 L1 S0.5] 150707
+12:30:29   round: 12 proposals GN-screened (1 channel pairs pre-screened) over 3 J^pi groups; incumbent 70976.238
+12:30:57     screened 10/12 (28s) last: flip g[3/2-#1 p2 L2 S0.5] & g[3/2-#2 p2 L2 S0.5]: flip 74235.1 -> gn 71010.8
+12:31:03   screen: 0 of 12 improve after one GN step; best flip g[3/2-#2 p2 L2 S0.5] 70983.4, flip g[3/2-#1 p2 L2 S0.5] & g[3/2-#2 p2 L2 S0.5] 71010.8, flip g[3/2-#2 p2 L1 S0.5] 71026.9, flip g[3/2-#1 p2 L2 S0.5] 71033.1, flip g[3/2-#1 p2 L2 S0.5] & g[3/2-#2 p2 L1 S0.5] 71448.0
+12:31:09   polish: 70976.239 -> 70976.238 (converged, `ftol` termination condition is satisfied.; nfev=4 njev=3, 7s)
+12:31:09   control polish of the incumbent: 70976.238 -> 70976.238 (converged); flips are judged against 70976.238
+12:31:09   polish flip g[3/2-#2 p2 L2 S0.5] (screen 70983.4)
+12:31:24   polish: 70983.402 -> 70976.239 (converged, `ftol` termination condition is satisfied.; nfev=8 njev=7, 15s)
+12:31:30   polish: 70976.239 -> 70976.238 (converged, `ftol` termination condition is satisfied.; nfev=4 njev=3, 6s)
+12:31:30     -> worse: objective 70976.238 (gain -0.0, tau 3821)
+12:31:30   polish flip g[3/2-#1 p2 L2 S0.5] & g[3/2-#2 p2 L2 S0.5] (screen 71010.8)
+12:31:43   polish: 71010.784 -> 70976.239 (converged, `ftol` termination condition is satisfied.; nfev=7 njev=6, 13s)
+12:31:50   polish: 70976.239 -> 70976.238 (converged, `ftol` termination condition is satisfied.; nfev=4 njev=3, 6s)
+12:31:50     -> worse: objective 70976.238 (gain -0.0, tau 3821)
+12:31:50   polish flip g[3/2-#2 p2 L1 S0.5] (screen 71026.9)
+12:32:05   polish: 71026.933 -> 70976.239 (converged, `ftol` termination condition is satisfied.; nfev=8 njev=7, 15s)
+12:32:11   polish: 70976.239 -> 70976.238 (converged, `ftol` termination condition is satisfied.; nfev=4 njev=3, 6s)
+12:32:11     -> marginal: objective 70976.238 (gain +0.0, tau 3821)
+12:32:11   round done in 1.7 min: 70976.238 -> 70976.238 (0 accepted, 0 reverted, 0 kept)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Coulomb table: 1687717 lookups, 0 outside the table (exact routine used)
+12:32:24 verified candidate 7: objective 70976.238 (chi2 70976.220 + pen 0.018) 
+  ok    sign round ran
+12:32:24   J^pi groups (given): 1/2+ 3/2-
+12:32:24   window [2.50, 3.50] MeV: 10 segments kept, 6 dropped, 9 levels fixed
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Coulomb table: 458926 lookups, 0 outside the table (exact routine used)
+Coulomb table: 926 lookups, 0 outside the table (exact routine used)
+Coulomb table: 542 lookups, 0 outside the table (exact routine used)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Coulomb table: 1238 lookups, 0 outside the table (exact routine used)
+Coulomb table: 1038 lookups, 0 outside the table (exact routine used)
+Coulomb table: 458270 lookups, 0 outside the table (exact routine used)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+rmfit shards (Jacobian balancing): round 1: slowest shard 0.66 s (alpha 5.15, beta 0.00), repacked for 0.33 s; round 2: slowest shard 0.672 s (alpha 5.14, beta 0.00), repacked for 0.525 s; a parallel resid+Jacobian now takes 0.64 s (37 s)
+12:33:19     iteration 10: objective 2690.872 (6s)
+12:33:20   polish: 44342.643 -> 2690.872 (converged, `ftol` termination condition is satisfied.; nfev=13 njev=12, 8s)
+Coulomb table: 434642 lookups, 0 outside the table (exact routine used)
+Coulomb table: 28290 lookups, 0 outside the table (exact routine used)
+Coulomb table: 3034 lookups, 0 outside the table (exact routine used)
+12:33:20   window baseline objective 2690.872
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Coulomb table: 645482 lookups, 0 outside the table (exact routine used)
+Coulomb table: 954 lookups, 0 outside the table (exact routine used)
+Coulomb table: 570 lookups, 0 outside the table (exact routine used)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Coulomb table: 1266 lookups, 0 outside the table (exact routine used)
+Coulomb table: 1066 lookups, 0 outside the table (exact routine used)
+Coulomb table: 644826 lookups, 0 outside the table (exact routine used)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+rmfit shards (Jacobian balancing): round 1: slowest shard 0.979 s (alpha 5.16, beta 0.00), repacked for 0.49 s; round 2: slowest shard 0.985 s (alpha 5.17, beta 0.00), repacked for 0.771 s; a parallel resid+Jacobian now takes 0.943 s (37 s)
+12:34:11   1/2+: 1 sign patterns screened; best +:5234
+12:34:34   1/2+: best pattern + objective 4444.188 (delta +1753.3, max_nfev)
+Coulomb table: 622621 lookups, 0 outside the table (exact routine used)
+Coulomb table: 29245 lookups, 0 outside the table (exact routine used)
+Coulomb table: 5053 lookups, 0 outside the table (exact routine used)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Coulomb table: 648626 lookups, 0 outside the table (exact routine used)
+Coulomb table: 954 lookups, 0 outside the table (exact routine used)
+Coulomb table: 570 lookups, 0 outside the table (exact routine used)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Coulomb table: 1266 lookups, 0 outside the table (exact routine used)
+Coulomb table: 1066 lookups, 0 outside the table (exact routine used)
+Coulomb table: 647970 lookups, 0 outside the table (exact routine used)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+rmfit shards (Jacobian balancing): round 1: slowest shard 1.01 s (alpha 5.16, beta 0.00), repacked for 0.504 s; round 2: slowest shard 0.984 s (alpha 5.15, beta 0.00), repacked for 0.782 s; a parallel resid+Jacobian now takes 0.943 s (37 s)
+12:35:26   3/2-: 2 sign patterns screened; best +-:840509967, ++:873457728
+12:36:03   3/2-: best pattern +- objective 2633.655 (delta -57.2, converged)
+Coulomb table: 627325 lookups, 0 outside the table (exact routine used)
+Coulomb table: 30805 lookups, 0 outside the table (exact routine used)
+Coulomb table: 6613 lookups, 0 outside the table (exact routine used)
+12:36:03 window scan: 3/2-:+-:-57; 1/2+:+:+1753
+12:36:03 full model with 3/2- @ 3.0 MeV as 3/2-#3: add_3_2-_E3p000.azr
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Coulomb table: 3606 lookups, 0 outside the table (exact routine used)
+Coulomb table: 232766 lookups, 0 outside the table (exact routine used)
+Coulomb table: 2179958 lookups, 0 outside the table (exact routine used)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Coulomb table: 231614 lookups, 0 outside the table (exact routine used)
+Coulomb table: 2694 lookups, 0 outside the table (exact routine used)
+Coulomb table: 2181546 lookups, 0 outside the table (exact routine used)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+rmfit shards (Jacobian balancing): round 1: slowest shard 3.37 s (alpha 5.10, beta 0.00), repacked for 1.27 s; round 2: slowest shard 3.36 s (alpha 5.10, beta 0.00), repacked for 1.27 s; a parallel resid+Jacobian now takes 3.39 s (63 s)
+12:37:33 full model at the seeded level: objective 70876.861 (incumbent 70976.238)
+12:38:09     iteration 10: objective 70861.161 (36s)
+12:38:41   polish: 70876.862 -> 70854.477 (max_nfev, The maximum number of function evaluations is exceeded.; nfev=26 njev=19, 68s)
+12:38:41 pinned polish: 70876.862 -> 70854.477 (max_nfev)
+12:38:41   released stage: 3/2-#3 energy free within +-50 keV of 3.0000 MeV (Gamma ~ 0.0 keV)
+12:39:23     iteration 10: objective 70852.609 (42s)
+12:40:00     iteration 20: objective 70852.365 (79s)
+12:40:05   polish: 70854.477 -> 70852.357 (max_nfev, The maximum number of function evaluations is exceeded.; nfev=41 njev=21, 84s)
+12:40:05 released polish: 70854.477 -> 70852.357 (max_nfev)
+12:40:15   polish: 70976.240 -> 70976.239 (converged, `ftol` termination condition is satisfied.; nfev=4 njev=3, 10s)
+12:40:15 control polish (level off): 70976.240 -> 70976.239 (converged)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Coulomb table: 2397818 lookups, 0 outside the table (exact routine used)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Coulomb table: 2397825 lookups, 0 outside the table (exact routine used)
+12:40:45   control on a fresh single session: 70976.239 (its polish, sharded: 70976.239); level - control on the same session -123.9 (objective)
+12:40:45   chi2 with / without the level inside E_R +- m Gamma (E_R 3.0000 MeV, Gamma 0.0 keV; plain data chi2, same evaluator):
+12:40:45     +-1 Gamma  Ex 3.000-3.000  N      0  without         0.0  with         0.0  diff      +0.0   outside    -123.9
+12:40:45     +-2 Gamma  Ex 3.000-3.000  N      0  without         0.0  with         0.0  diff      +0.0   outside    -123.9
+12:40:45     +-3 Gamma  Ex 3.000-3.000  N      0  without         0.0  with         0.0  diff      +0.0   outside    -123.9
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Coulomb table: 2397821 lookups, 0 outside the table (exact routine used)
+12:41:03   review figure: /tmp/1700297.1.long/rmfit_camp_rcs9lz9f/figures/leveladd_32-_E3.0000.png (4 panels)
+12:41:03 level 3/2- @ 3.0 MeV: verified 70852.357 vs incumbent 70976.238 / control 70976.239 (delta +123.9, tau 2293, rho 0.13, max theta2 4.9e-12, energy 3.0000 = seed +0.0 keV, Gamma 2.083e-06 eV) -> collapse
+12:41:03   84% of the summed dataset gains come from seagrave
+Coulomb table: 6455 lookups, 0 outside the table (exact routine used)
+Coulomb table: 2186683 lookups, 0 outside the table (exact routine used)
+Coulomb table: 237019 lookups, 0 outside the table (exact routine used)
+  ok    level-add round produced an outcome
+   level add: {'jpi': '3/2-', 'delta': 123.88069402397377, 'outcome': 'collapse'}
+12:41:03 dataset off: meyer_84 -> 1 segments deactivated; their chi2 in the incumbent 1596.6
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Coulomb table: 3278 lookups, 0 outside the table (exact routine used)
+Coulomb table: 1470146 lookups, 0 outside the table (exact routine used)
+Coulomb table: 232538 lookups, 0 outside the table (exact routine used)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Coulomb table: 2410 lookups, 0 outside the table (exact routine used)
+Coulomb table: 5258 lookups, 0 outside the table (exact routine used)
+Coulomb table: 1696438 lookups, 0 outside the table (exact routine used)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+rmfit shards (Jacobian balancing): round 1: slowest shard 2.18 s (alpha 5.04, beta 0.00), repacked for 0.859 s; round 2: slowest shard 2.44 s (alpha 5.06, beta 0.00), repacked for 0.86 s; a parallel resid+Jacobian now takes 2.55 s (47 s)
+12:42:33   polish: 69379.628 -> 69376.457 (converged, `ftol` termination condition is satisfied.; nfev=8 njev=7, 18s)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Coulomb table: 1687717 lookups, 0 outside the table (exact routine used)
+12:42:47 dataset off meyer_84: per-dataset change of the rest (frozen -> refitted; rho 0.98):
+      skowronski_fels                        40637.9 ->     40551.8       -86.1  (N 75)
+      baumann_1779                            1886.4 ->      1864.2       -22.2  (N 30)
+      skowronski_luna_bgo                    12970.3 ->     12958.6       -11.7  (N 18)
+      baumann_1618                            1409.1 ->      1403.7        -5.5  (N 25)
+      skowronski_luna_hpge                    1744.7 ->      1743.2        -1.5  (N 32)
+      baumann_1738                             432.8 ->       436.0        +3.2  (N 38)
+      baumann_1758                             183.5 ->       186.8        +3.3  (N 36)
+      baumann_1708                             535.2 ->       538.7        +3.5  (N 25)
+      meyer_114                                450.0 ->       455.4        +5.4  (N 32)
+      kettner_0                                490.0 ->       510.1       +20.2  (N 50)
+      baumann_1658                            4155.7 ->      4178.4       +22.7  (N 24)
+      kettner_55                               625.1 ->       653.4       +28.4  (N 67)
+      meyer_144                               3305.4 ->      3342.4       +37.0  (N 60)
+12:42:47 dataset off meyer_84: rest of the data 69379.6 -> 69376.5 after refit (extra recovery +3.2 = 0.00% of the rest; the dataset's own chi2 was 1596.6)
+Coulomb table: 1051 lookups, 0 outside the table (exact routine used)
+Coulomb table: 1701351 lookups, 0 outside the table (exact routine used)
+Coulomb table: 2967 lookups, 0 outside the table (exact routine used)
+  ok    dataset-off test reports an extra recovery
+   dataset off: {'own_chi2': 1596.5933478793718, 'rest_before': 69379.6448187634, 'rest_after': 69376.45746730214, 'extra_recovery': 3.187351461252547}
+  ok    report written
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Coulomb table: 1687828 lookups, 0 outside the table (exact routine used)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Coulomb table: 1696282 lookups, 0 outside the table (exact routine used)
+12:43:15 exported candidate 7 -> /tmp/1700297.1.long/rmfit_camp_rcs9lz9f/export.azr (+ .sav); objective 70976.251; round-trip {'objective_rel': 1.7783277826240585e-07, 'levels_rel': 1.775763221865845e-07, 'levels_only_chi2': 71078.75702470483}
+  ok    export verified
+Coulomb table: 5840 lookups, 0 outside the table (exact routine used)
+Coulomb table: 1474048 lookups, 0 outside the table (exact routine used)
+Coulomb table: 241896 lookups, 0 outside the table (exact routine used)
+   total 894s; STATUS.md:
+# rmfit campaign status (2026-11-07 12:42)
+
+## structure 1: 13N.azr
+- file: `/tmp/1700297.1.long/rmfit_camp_rcs9lz9f/13N.azr`  candidates: 7
+- best verified: candidate 7 objective 70976.238
+- best unverified (sharded): candidate 6 objective 70976.238
+- note: 13N test
+
+## structure 2: add_3_2-_E3p000.azr
+- file: `/tmp/1700297.1.long/rmfit_camp_rcs9lz9f/variants/add_3_2-_E3p000.azr`  candidates: 2
+- best verified: candidate 8 objective 70852.357
+- note: +3/2- @ 3.0 MeV (test)
+
+## recent rounds
+- #1 polish (structure 1, 11-07 12:30): {"start": 336480.0227467122, "end": 70976.23816881579, "status"
+
+all campaign checks passed
+Sat Nov  7 12:43:15 PM EST 2026 campaign exit 0
+  ok    the 3/2- 3.5032 level is gone from the file
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Coulomb table: 3548 lookups, 0 outside the table (exact routine used)
+Coulomb table: 226060 lookups, 0 outside the table (exact routine used)
+Coulomb table: 1078012 lookups, 0 outside the table (exact routine used)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Coulomb table: 5224 lookups, 0 outside the table (exact routine used)
+Coulomb table: 225580 lookups, 0 outside the table (exact routine used)
+Coulomb table: 1077160 lookups, 0 outside the table (exact routine used)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+rmfit shards (Jacobian balancing): round 1: slowest shard 1.53 s (alpha 4.98, beta 0.00), repacked for 0.63 s; round 2: slowest shard 1.52 s (alpha 4.96, beta 0.00), repacked for 0.636 s; a parallel resid+Jacobian now takes 1.54 s (53 s)
+  model without the 3/2- level at the original parameters: 1924094.0
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Coulomb table: 3578 lookups, 0 outside the table (exact routine used)
+Coulomb table: 226090 lookups, 0 outside the table (exact routine used)
+Coulomb table: 1662154 lookups, 0 outside the table (exact routine used)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Coulomb table: 226758 lookups, 0 outside the table (exact routine used)
+Coulomb table: 4386 lookups, 0 outside the table (exact routine used)
+Coulomb table: 1660742 lookups, 0 outside the table (exact routine used)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+rmfit shards (Jacobian balancing): round 1: slowest shard 2.43 s (alpha 4.99, beta 0.00), repacked for 0.926 s; round 2: slowest shard 2.46 s (alpha 5.01, beta 0.00), repacked for 0.968 s; a parallel resid+Jacobian now takes 2.74 s (55 s)
+  ok    the dummy's open particle channel has a Wigner width from the engine
+   x0-based / Wigner-based reference amplitude for g[3/2-#2 p1 L1 S0.5]: 1
+Coulomb table: 473 lookups, 0 outside the table (exact routine used)
+Coulomb table: 1885418 lookups, 0 outside the table (exact routine used)
+Coulomb table: 3722 lookups, 0 outside the table (exact routine used)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Coulomb table: 1687714 lookups, 0 outside the table (exact routine used)
+   exact-parameter template: 1924094.0 -> 230133.8; the full model at its own parameters: 336480.0
+  ok    the removed level's own parameters through the dummy recover most of the loss
+A. pure removal
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Coulomb table: 1290684 lookups, 0 outside the table (exact routine used)
+   Ex 3.436 MeV  chi2 in runs 1347938  25 pts  segments [11]
+   Ex 3.541 MeV  chi2 in runs 615370  551 pts  segments [3, 4, 5, 9, 10, 12, 13, 14, 15]
+   Ex 3.572 MeV  chi2 in runs 562650  547 pts  segments [2, 4, 5, 13, 14, 15, 16]
+   Ex 3.542 MeV  chi2 in runs 516013  444 pts  segments [4, 5, 13, 14, 15]
+   Ex 3.484 MeV  chi2 in runs 99357  107 pts  segments [3, 9, 10, 12]
+  ok    A. pure removal: a candidate within 80 keV of the removed level
+   screening grid 5/20 applied to 2 <targetInt> line(s)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+**WARNING: Denominator less than zero while transforming
+    J^pi=11/2+, E=3.4362 MeV (J-group 11, level 1)
+  The transformation may not have been successful for this level.
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+**WARNING: Denominator less than zero while transforming
+    J^pi=11/2+, E=3.4362 MeV (J-group 11, level 1)
+  The transformation may not have been successful for this level.
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+**WARNING: Denominator less than zero while transforming
+    J^pi=11/2+, E=3.4362 MeV (J-group 11, level 1)
+  The transformation may not have been successful for this level.
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Coulomb table: 4336 lookups, 0 outside the table (exact routine used)
+Coulomb table: 47200 lookups, 0 outside the table (exact routine used)
+Coulomb table: 339908 lookups, 0 outside the table (exact routine used)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+**WARNING: Denominator less than zero while transforming
+    J^pi=11/2+, E=3.4362 MeV (J-group 11, level 1)
+  The transformation may not have been successful for this level.
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+**WARNING: Denominator less than zero while transforming
+    J^pi=11/2+, E=3.4362 MeV (J-group 11, level 1)
+  The transformation may not have been successful for this level.
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+**WARNING: Denominator less than zero while transforming
+    J^pi=11/2+, E=3.4362 MeV (J-group 11, level 1)
+  The transformation may not have been successful for this level.
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Coulomb table: 46256 lookups, 0 outside the table (exact routine used)
+Coulomb table: 5796 lookups, 0 outside the table (exact routine used)
+Coulomb table: 339140 lookups, 0 outside the table (exact routine used)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+**WARNING: Denominator less than zero while transforming
+    J^pi=11/2+, E=3.4362 MeV (J-group 11, level 1)
+  The transformation may not have been successful for this level.
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+**WARNING: Denominator less than zero while transforming
+    J^pi=11/2+, E=3.4362 MeV (J-group 11, level 1)
+  The transformation may not have been successful for this level.
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+**WARNING: Denominator less than zero while transforming
+    J^pi=11/2+, E=3.4362 MeV (J-group 11, level 1)
+  The transformation may not have been successful for this level.
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+rmfit shards (Jacobian balancing): round 1: slowest shard 0.65 s (alpha 5.48, beta 0.00), repacked for 0.254 s; round 2: slowest shard 0.633 s (alpha 5.47, beta 0.00), repacked for 0.248 s; a parallel resid+Jacobian now takes 0.643 s (45 s)
+   variant ex 3.436213; dummy labels {'1/2+': '1/2+#3', '1/2-': '1/2-#3', '3/2+': '3/2+#2', '3/2-': '3/2-#2', '5/2+': '5/2+#3', '5/2-': '5/2-#2', '7/2+': '7/2+#2', '7/2-': '7/2-#2', '9/2+': '9/2+#1', '9/2-': '9/2-#1', '11/2+': '11/2+#1', '11/2-': '11/2-#1'}; nonzero dummy widths in x_map: []; incumbent keys absent from the variant: []; objective at x_map 1924141.8 vs incumbent 1924094.0
+   variant at its own file values: 633063.6; non-dummy keys where x_map != file value: 0 e.g. []
+  ok    A. pure removal: zero-amplitude dummy levels change the objective by < 0.2%
+  template screen at Ex 3.4362 MeV: incumbent 1924141.8; Gamma_total 60000 eV x [0.5, 1.0, 2.0]
+  two-stage screen: every shape at scales [1.0, 0.5] and the candidate energy, then the best 3 shapes per J^pi at all 3 scales x 5 offsets
+    1/2+: 1 open particle channels; x0-based / Wigner-based reference amplitude 1..1
+    1/2+: 1 channels, 12 shapes; 24 stage-1 + 39 refinement evaluations in 6s; best frozen prior 1/2+@2.368, photon signs [1] signs [1] x0.5 @3.406 -1259349.4
+    1/2-: 1 open particle channels; x0-based / Wigner-based reference amplitude 1..1
+    1/2-: 1 channels, 12 shapes; 24 stage-1 + 39 refinement evaluations in 6s; best frozen prior 1/2-@0.000, photon signs [-1] signs [1] x0.5 @3.376 +4628499.2
+    3/2+: 1 open particle channels; x0-based / Wigner-based reference amplitude 1..1
+    3/2+: 1 channels, 16 shapes; 32 stage-1 + 39 refinement evaluations in 7s; best frozen prior 3/2+@20.000, photon signs [-1, -1] signs [1] x0.5 @3.496 -818750.7
+    3/2-: 1 open particle channels; x0-based / Wigner-based reference amplitude 1..1
+    3/2-: 1 channels, 16 shapes; 32 stage-1 + 39 refinement evaluations in 7s; best frozen prior 3/2-@20.000, photon signs [1, -1] signs [1] x0.5 @3.496 -1550196.2
+    5/2+: 1 open particle channels; x0-based / Wigner-based reference amplitude 1..1
+    5/2+: 1 channels, 24 shapes; 48 stage-1 + 39 refinement evaluations in 9s; best frozen prior 5/2+@3.545, photon signs [1, -1] signs [1] x0.5 @3.496 +120229.5
+    5/2-: 1 open particle channels; x0-based / Wigner-based reference amplitude 1..1
+    5/2-: 1 channels, 16 shapes; 32 stage-1 + 39 refinement evaluations in 7s; best frozen prior 5/2-@20.000, photon signs [-1, 1] signs [1] x0.5 @3.496 +53700.5
+    7/2+: 1 open particle channels; x0-based / Wigner-based reference amplitude 1..1
+    7/2+: 1 channels, 4 shapes; 8 stage-1 + 39 refinement evaluations in 5s; best frozen channel 0 only, photon signs [1] signs [1] x2 @3.406 +8975.9
+    7/2-: 1 open particle channels; x0-based / Wigner-based reference amplitude 1..1
+    7/2-: 1 channels, 4 shapes; 8 stage-1 + 39 refinement evaluations in 5s; best frozen channel 0 only, photon signs [-1] signs [1] x0.5 @3.406 +499492.9
+    9/2+: 1 open particle channels; x0-based / Wigner-based reference amplitude 1..1
+    9/2+: 1 channels, 2 shapes; 4 stage-1 + 26 refinement evaluations in 3s; best frozen channel 0 only signs [1] x0.5 @3.466 +26654.0
+    9/2-: 1 channel(s) with Gamma_W < 1 eV left out of the templates: g[9/2-#1 p1 L5 S0.5] (0.53 eV)
+    9/2-: 0 open particle channels
+    11/2+: 1 channel(s) with Gamma_W < 1 eV left out of the templates: g[11/2+#1 p1 L6 S0.5] (0.0037 eV)
+    11/2+: 0 open particle channels
+    11/2-: 1 channel(s) with Gamma_W < 1 eV left out of the templates: g[11/2-#1 p1 L5 S0.5] (0.53 eV)
+    11/2-: 0 open particle channels
+  550 patterns frozen-evaluated in 56s; 36 below the incumbent; best frozen: 3/2- prior 3/2-@20.000, photon signs [1, -1] @3.496 373945.6, 3/2- prior 3/2-@20.000 flipped, photon signs [-1, 1] @3.496 373945.6, 3/2- channel 0 only, photon signs [1, -1] @3.496 373945.6
+  GN screen of the best 12 in 9s; best after GN: 3/2- prior 3/2-@20.000, photon signs [1, -1] signs [1] @3.496 152752.6 (gain +1771389.2), 3/2- prior 3/2-@20.000 flipped, photon signs [-1, 1] signs [-1] @3.496 152752.6 (gain +1771389.2), 3/2- channel 0 only, photon signs [1, -1] signs [1] @3.496 373945.6 (frozen, not GN-stepped: +1550196.2), 1/2+ prior 1/2+@2.368, photon signs [1] signs [1] @3.406 567265.6 (gain +1356876.2), 1/2+ prior 1/2+@2.368 flipped, photon signs [-1] signs [-1] @3.406 567265.6 (gain +1356876.2)
+Coulomb table: 7502 lookups, 0 outside the table (exact routine used)
+Coulomb table: 343056 lookups, 0 outside the table (exact routine used)
+Coulomb table: 50944 lookups, 0 outside the table (exact routine used)
+   ranking: 3/2- prior 3/2-@20.000, photon signs [1, -1] @3.496 gain +1771389; 1/2+ prior 1/2+@2.368, photon signs [1] @3.406 gain +1356876; 3/2+ prior 3/2+@20.000, photon signs [-1, -1] @3.496 gain +1130385; 5/2- prior 5/2-@20.000, photon signs [-1, 1] @3.496 gain +54290; 7/2+ channel 0 only, photon signs [1] @3.406 gain -8976
+  ok    A. pure removal: some pattern improves on the incumbent
+  ok    A. pure removal: 3/2- ranks first
+  ok    candidate carries signed widths
+  re-polished without the level: 261869.7 (converged)
+Coulomb table: 227250 lookups, 0 outside the table (exact routine used)
+Coulomb table: 1082474 lookups, 0 outside the table (exact routine used)
+Coulomb table: 2582 lookups, 0 outside the table (exact routine used)
+B. re-polished removal (informational)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Coulomb table: 1290686 lookups, 0 outside the table (exact routine used)
+   Ex 3.525 MeV  chi2 in runs 172291  308 pts  segments [3, 4, 5, 13, 14, 15]
+   Ex 3.550 MeV  chi2 in runs 160484  267 pts  segments [5, 14, 15]
+   Ex 3.454 MeV  chi2 in runs 74660  178 pts  segments [3, 4, 5, 9, 10, 11, 12, 13]
+   Ex 3.459 MeV  chi2 in runs 62854  137 pts  segments [5, 9, 10, 11, 12]
+   Ex 3.692 MeV  chi2 in runs 54935  130 pts  segments [2, 3, 4, 5, 9, 10, 16]
+  ok    B. re-polished removal (informational): a candidate within 80 keV of the removed level
+   screening grid 5/20 applied to 2 <targetInt> line(s)
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+**WARNING: Denominator less than zero while transforming
+    J^pi=11/2+, E=3.5248 MeV (J-group 11, level 1)
+  The transformation may not have been successful for this level.
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+**WARNING: Denominator less than zero while transforming
+    J^pi=11/2+, E=3.5248 MeV (J-group 11, level 1)
+  The transformation may not have been successful for this level.
+Coulomb table: /users/rdeboer1/.azure2/coulomb_table.bin (l = 0..10, 100 nodes per decade, eta*rho <= 150)
+**WARNING: Denominator less than zero while transforming
+    J^pi=11/2+, E=3.5248 MeV (J-group 11, level 1)
+  The transformation may not have been successful for this level.
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+Note: the sub-point grids of segments with external capture are not re-placed (their capture integrals are computed once).
+   variant ex 3.524778; dummy labels {'1/2+': '1/2+#3', '1/2-': '1/2-#3', '3/2+': '3/2+#2', '3/2-': '3/2-#2', '5/2+': '5/2+#3', '5/2-': '5/2-#2', '7/2+': '7/2+#2', '7/2-': '7/2-#2', '9/2+': '9/2+#1', '9/2-': '9/2-#1', '11/2+': '11/2+#1', '11/2-': '11/2-#1'}; nonzero dummy widths in x_map: []; incumbent keys absent from the variant: []; objective at x_map 261863.4 vs incumbent 261869.7
+   variant at its own file values: 1974926.7; non-dummy keys where x_map != file value: 11 e.g. [('g[1/2-#1 p1 L1 S0.5]', 1.1747025677869498, 1.2719430784698467), ('E[1/2+#1]', 2.3686436054528706, 2.3682), ('g[1/2+#1 p1 L0 S0.5]', 2.2817447512772344, 2.3903885087883094), ('g[1/2+#1 p2 L1 S0.5]', 0.16969224442114897, 0.2208346985920363)]
+  ok    B. re-polished removal (informational): zero-amplitude dummy levels change the objective by < 0.2%
+  template screen at Ex 3.5248 MeV: incumbent 261863.4; Gamma_total 60000 eV x [0.5, 1.0, 2.0]
+  two-stage screen: every shape at scales [1.0, 0.5] and the candidate energy, then the best 3 shapes per J^pi at all 3 scales x 5 offsets
+    1/2+: 1 open particle channels; x0-based / Wigner-based reference amplitude 1..1
+    1/2+: 1 channels, 12 shapes; 24 stage-1 + 39 refinement evaluations in 6s; best frozen prior 1/2+@2.368, photon signs [1] signs [1] x0.5 @3.465 +158206.3
+    1/2-: 1 open particle channels; x0-based / Wigner-based reference amplitude 1..1
+    1/2-: 1 channels, 12 shapes; 24 stage-1 + 39 refinement evaluations in 6s; best frozen prior 1/2-@0.000, photon signs [1] signs [1] x0.5 @3.585 +5409513.2
+    3/2+: 1 open particle channels; x0-based / Wigner-based reference amplitude 1..1
+    3/2+: 1 channels, 16 shapes; 32 stage-1 + 39 refinement evaluations in 6s; best frozen prior 3/2+@20.000, photon signs [-1, -1] signs [1] x1 @3.465 +3070077.0
+    3/2-: 1 open particle channels; x0-based / Wigner-based reference amplitude 1..1
+    3/2-: 1 channels, 16 shapes; 32 stage-1 + 39 refinement evaluations in 6s; best frozen prior 3/2-@20.000, photon signs [1, -1] signs [1] x0.5 @3.555 +4316338.5
+    5/2+: 1 open particle channels; x0-based / Wigner-based reference amplitude 1..1
+    5/2+: 1 channels, 24 shapes; 48 stage-1 + 39 refinement evaluations in 8s; best frozen prior 5/2+@3.545, photon signs [-1, 1] signs [1] x0.5 @3.495 +2218785.7
+    5/2-: 1 open particle channels; x0-based / Wigner-based reference amplitude 1..1
+    5/2-: 1 channels, 16 shapes; 32 stage-1 + 39 refinement evaluations in 6s; best frozen prior 5/2-@20.000, photon signs [-1, 1] signs [1] x0.5 @3.525 +364430.7
+    7/2+: 1 open particle channels; x0-based / Wigner-based reference amplitude 1..1
+    7/2+: 1 channels, 4 shapes; 8 stage-1 + 39 refinement evaluations in 4s; best frozen channel 0 only, photon signs [-1] signs [1] x2 @3.495 -5499.3
+    7/2-: 1 open particle channels; x0-based / Wigner-based reference amplitude 1..1
+    7/2-: 1 channels, 4 shapes; 8 stage-1 + 39 refinement evaluations in 4s; best frozen channel 0 only, photon signs [-1] signs [1] x0.5 @3.525 +443166.5
+    9/2+: 1 open particle channels; x0-based / Wigner-based reference amplitude 1..1
+    9/2+: 1 channels, 2 shapes; 4 stage-1 + 26 refinement evaluations in 3s; best frozen channel 0 only signs [1] x0.5 @3.495 +846.1
+    9/2-: 1 channel(s) with Gamma_W < 1 eV left out of the templates: g[9/2-#1 p1 L5 S0.5] (0.78 eV)
+    9/2-: 0 open particle channels
+    11/2+: 1 channel(s) with Gamma_W < 1 eV left out of the templates: g[11/2+#1 p1 L6 S0.5] (0.0058 eV)
+    11/2+: 0 open particle channels
+    11/2-: 1 channel(s) with Gamma_W < 1 eV left out of the templates: g[11/2-#1 p1 L5 S0.5] (0.78 eV)
+    11/2-: 0 open particle channels
+  550 patterns frozen-evaluated in 49s; 13 below the incumbent; best frozen: 7/2+ channel 0 only, photon signs [-1] @3.495 256364.1, 7/2+ channel 0 only, photon signs [1] @3.495 256505.4, 7/2+ channel 0 only, photon signs [-1] @3.495 256505.4
+  GN screen of the best 12 in 8s; best after GN: 7/2+ channel 0 only, photon signs [1] signs [1] @3.495 256142.7 (gain +5720.7), 7/2+ channel 0 only, photon signs [-1] signs [1] @3.495 256171.3 (gain +5692.2), 7/2+ channel 0 only, photon signs [-1] signs [-1] @3.495 256505.4 (frozen, not GN-stepped: +5358.0), 7/2+ channel 0 only, photon signs [1] signs [1] @3.495 256639.8 (frozen, not GN-stepped: +5223.6), 7/2+ channel 0 only, photon signs [-1] signs [-1] @3.495 256639.8 (frozen, not GN-stepped: +5223.6)
+Coulomb table: 7322 lookups, 0 outside the table (exact routine used)
+Coulomb table: 295908 lookups, 0 outside the table (exact routine used)
+Coulomb table: 50764 lookups, 0 outside the table (exact routine used)
+   ranking: 7/2+ channel 0 only, photon signs [1] @3.495 gain +5721; 9/2+ channel 0 only @3.495 gain -582; 1/2+ prior 1/2+@2.368, photon signs [1] @3.465 gain -8817; 5/2- prior 5/2-@20.000, photon signs [-1, 1] @3.525 gain -50732; 7/2- channel 0 only, photon signs [-1] @3.525 gain -132314
+   B: 3/2- ranks 8 of 9
+ALL OK
+Sat Nov  7 12:50:31 PM EST 2026 levelscan exit 0
+Loading CRC_default/1.1

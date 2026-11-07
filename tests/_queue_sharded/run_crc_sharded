@@ -23,7 +23,13 @@ timeout 600 python3 ../test_enginepin.py
 echo "`date` enginepin exit $status"
 timeout 3600 python3 ../test_keys.py
 echo "`date` keys exit $status"
+timeout 600 python3 ../test_spec_decisions.py
+echo "`date` spec exit $status"
+timeout 600 python3 ../test_audit.py
+echo "`date` audit exit $status"
 timeout 36000 python3 ../test_campaign_13n.py
 echo "`date` campaign exit $status"
+timeout 36000 python3 ../test_campaign_spec_13n.py
+echo "`date` campaign-spec exit $status"
 timeout 36000 python3 ../test_levelscan_13n.py
 echo "`date` levelscan exit $status"

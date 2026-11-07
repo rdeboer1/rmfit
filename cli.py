@@ -13,12 +13,16 @@ Commands (all idempotent and resumable from the ledger):
   export [--path file.azr]                                      bake the incumbent for the GUI
   log "text"                                                    append a note to the readme
   engine                                                        the campaign's pinned engine vs the one this process imports (2026-11-07)
+  spec check|render|derive [--spec spec.json]                   fit specification vs the .azr / campaign.json; SPEC.md; derived init config
+  audit [--azr file] [--no-target-energies]                     pre-flight checks of the model and data -> AUDIT.md (no engine session)
+  decisions                                                     pending entries of DECISIONS.md
+  decide <id> "<choice>" [--by who] [--note ...]                answer one
 
 Engine pin (2026-11-07): ``init`` records the imported engine (AZURE2_ROOT, _azure2 .so md5, commit) in
 campaign.json; every evaluating command refuses to run on another engine unless RMFIT_ALLOW_ENGINE_CHANGE=1.
 status/report/log/engine only warn.
 """
-READ_ONLY_CMDS = {"status", "report", "log", "engine"}
+READ_ONLY_CMDS = {"status", "report", "log", "engine", "spec", "audit", "decisions", "decide"}
 
 import argparse
 import json
@@ -51,6 +55,8 @@ def main(argv=None):
     p.add_argument("--cov-reference", default=None,
                    help="relvector covariance: fix its model at this .npz (another campaign's cov_reference.npz) "
                         "instead of the seed's own (default; 2026-10-25)")
+    p.add_argument("--spec", default=None, help="spec.json (rmfit/spec.py): flags/policy/search/objective/nshards derived from it "
+                                                "unless given explicitly; copied into the campaign; HIGH disagreements with the .azr refuse init")
     p = sub.add_parser("status")
     p.add_argument("--json", action="store_true")
     p = sub.add_parser("polish")
@@ -127,6 +133,21 @@ def main(argv=None):
     p.add_argument("--top", type=int, default=3,
                    help="remove: how many of the cheapest-to-remove levels get an honest refit")
     p = sub.add_parser("engine", help="show the pinned engine and the imported one")
+    p = sub.add_parser("spec", help="fit specification: check / render / derive")
+    p.add_argument("what", choices=["check", "render", "derive"])
+    p.add_argument("--spec", default=None, help="path (default <campaign>/spec.json)")
+    p.add_argument("--azr", default=None, help="model to check (default the campaign's base model)")
+    p = sub.add_parser("audit", help="pre-flight checks -> AUDIT.md")
+    p.add_argument("--azr", default=None, help="model (default the campaign's base model)")
+    p.add_argument("--no-target-energies", action="store_true")
+    p.add_argument("--json", action="store_true")
+    p = sub.add_parser("decisions", help="pending entries of DECISIONS.md")
+    p.add_argument("--all", action="store_true")
+    p = sub.add_parser("decide", help="answer a DECISIONS.md entry")
+    p.add_argument("id")
+    p.add_argument("choice")
+    p.add_argument("--by", default="")
+    p.add_argument("--note", default="")
     p = sub.add_parser("log")
     p.add_argument("text")
     p = sub.add_parser("perturb", help="recovery benchmark: a sibling campaign from a sign-perturbed incumbent")
@@ -145,13 +166,57 @@ def main(argv=None):
         c = Campaign.init(a.campaign, a.base, sav=a.sav, nshards=a.nshards, note=a.note,
                           policy=_json_arg(a.policy), search=_json_arg(a.search),
                           flags=(_json_arg(a.flags) if a.flags else None), objective=_json_arg(a.objective),
-                          cov_reference=a.cov_reference)
+                          cov_reference=a.cov_reference, spec=a.spec)
         print(open(os.path.join(c.dir, "STATUS.md")).read())
         print("job script:", c.write_job_script())
         return
     c = Campaign(a.campaign, enforce_engine=a.cmd not in READ_ONLY_CMDS)
     try:
-        if a.cmd == "engine":
+        if a.cmd == "spec":
+            from rmfit.spec import FitSpec, write_findings_md
+            sp = a.spec or os.path.join(c.dir, "spec.json")
+            fs = FitSpec.load(sp)
+            if a.what == "render":
+                out = os.path.join(c.dir, "SPEC.md")
+                open(out, "w").write(fs.render_md())
+                print("wrote", out)
+            elif a.what == "derive":
+                print(json.dumps(fs.derive_campaign_cfg(), indent=1))
+            else:
+                findings = fs.check(a.azr or c.base_azr, campaign_cfg=c.cfg)
+                out = os.path.join(c.dir, "SPEC_CHECK.md")
+                counts = write_findings_md(out, "Spec check (rmfit spec check)", findings,
+                                           [f"spec `{sp}` vs model `{a.azr or c.base_azr}` and campaign.json", ""])
+                for f in findings:
+                    print(f.line())
+                print("wrote", out, counts)
+        elif a.cmd == "audit":
+            from rmfit.audit import audit_model, write_audit
+            azr = a.azr or c.base_azr
+            fs = audit_model(azr, campaign_dir=c.dir, campaign_cfg=c.cfg, run_target_energies=not a.no_target_energies)
+            if a.json:
+                print(json.dumps([f.__dict__ for f in fs], indent=1))
+            else:
+                for f in sorted(fs, key=lambda f: {"HIGH": 0, "MEDIUM": 1, "LOW": 2, "INFO": 3}.get(f.severity, 9)):
+                    print(f.line())
+            counts = write_audit(fs, os.path.join(c.dir, "AUDIT.md"), azr)
+            print("wrote", os.path.join(c.dir, "AUDIT.md"), counts)
+            c.note(f"audit: {', '.join(f'{k} {v}' for k, v in counts.items())} (AUDIT.md)")
+        elif a.cmd == "decisions":
+            items = c.decisions.all() if a.all else c.decisions.pending()
+            for d in items:
+                print(f"{d.id} [{d['status']}] {d['when']} {d['slug']}: {d.get('question', '')}")
+                if d.get("options"):
+                    print(f"    options: {d['options']}   default: {d.get('default_if_unanswered', 'wait')}")
+                if d.get("answer"):
+                    print(f"    answer: {d['answer']} ({d.get('answered_by', '')}, {d.get('answered', '')})")
+            if not items:
+                print("no pending decisions")
+        elif a.cmd == "decide":
+            d = c.decisions.answer(a.id, a.choice, by=a.by, note=a.note)
+            c.note(f"decision {d.id} ({d['slug']}): {a.choice}" + (f" -- {a.by}" if a.by else "") + (f"; {a.note}" if a.note else ""))
+            print(f"{d.id} answered: {a.choice}")
+        elif a.cmd == "engine":
             from rmfit import enginepin
             rec = c.cfg.get("engine")
             print("pinned:  ", enginepin.short(rec) if rec else "(none: campaign made before 2026-11-07)")

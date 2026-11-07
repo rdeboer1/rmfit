@@ -15,6 +15,9 @@
   norm, nominal norm != 1, dead channel, data outside the window); LOW = cosmetic or small; INFO = for the record.
 - Write ONE report, `$report`, in the format below, and nothing else outside `$out_dir/`.  Finish with a one-paragraph
   summary at the top (counts by severity, the single most important finding).
+- If the harness refuses the report write ("Subagents should return findings as text"), return the COMPLETE report as
+  your reply, verbatim in the format below; the driving session saves it to `$report` unchanged.  Do not work around
+  the refusal with a shell command.
 
 ## Report format (`$report`)
 

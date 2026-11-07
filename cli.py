@@ -12,7 +12,14 @@ Commands (all idempotent and resumable from the ledger):
   verify <cid>                                                  re-score a ledger candidate on a fresh single session
   export [--path file.azr]                                      bake the incumbent for the GUI
   log "text"                                                    append a note to the readme
+  engine                                                        the campaign's pinned engine vs the one this process imports (2026-11-07)
+
+Engine pin (2026-11-07): ``init`` records the imported engine (AZURE2_ROOT, _azure2 .so md5, commit) in
+campaign.json; every evaluating command refuses to run on another engine unless RMFIT_ALLOW_ENGINE_CHANGE=1.
+status/report/log/engine only warn.
 """
+READ_ONLY_CMDS = {"status", "report", "log", "engine"}
+
 import argparse
 import json
 import os
@@ -119,6 +126,7 @@ def main(argv=None):
     p.add_argument("--pinned-nfev", type=int, default=60)
     p.add_argument("--top", type=int, default=3,
                    help="remove: how many of the cheapest-to-remove levels get an honest refit")
+    p = sub.add_parser("engine", help="show the pinned engine and the imported one")
     p = sub.add_parser("log")
     p.add_argument("text")
     p = sub.add_parser("perturb", help="recovery benchmark: a sibling campaign from a sign-perturbed incumbent")
@@ -141,9 +149,15 @@ def main(argv=None):
         print(open(os.path.join(c.dir, "STATUS.md")).read())
         print("job script:", c.write_job_script())
         return
-    c = Campaign(a.campaign)
+    c = Campaign(a.campaign, enforce_engine=a.cmd not in READ_ONLY_CMDS)
     try:
-        if a.cmd == "status":
+        if a.cmd == "engine":
+            from rmfit import enginepin
+            rec = c.cfg.get("engine")
+            print("pinned:  ", enginepin.short(rec) if rec else "(none: campaign made before 2026-11-07)")
+            print("imported:", enginepin.short(c.engine))
+            print("match" if (not rec or rec.get("so_md5") == c.engine.get("so_md5")) else "MISMATCH")
+        elif a.cmd == "status":
             st = c.ledger.status()
             if a.json:
                 print(json.dumps(st, default=str))

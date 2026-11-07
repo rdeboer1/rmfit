@@ -26,6 +26,7 @@ from .local import BoundsPolicy, FitResult, default_bounds, polish, polish_refre
 from .model import single_variant, base_segments, rows_in_segment
 from .search import SearchConfig, sign_round, crossover_round, tau_flip
 from .structure import LevelCandidate, add_level_variant, scan_jpi_on_window, classify, JPI_GROUPS, resolve_jpis  # noqa: F401
+from . import enginepin
 
 
 def _dc_from(cls, d):
@@ -34,7 +35,9 @@ def _dc_from(cls, d):
 
 
 class Campaign:
-    def __init__(self, directory):
+    def __init__(self, directory, enforce_engine=True):
+        """``enforce_engine``: refuse to open on an engine other than the pinned one (``campaign.json["engine"]``,
+        2026-11-07); the CLI passes False for status/report/log, which only warn."""
         self.dir = os.path.abspath(directory)
         with open(os.path.join(self.dir, "campaign.json")) as f:
             self.cfg = json.load(f)
@@ -52,6 +55,10 @@ class Campaign:
         self.ledger = Ledger(os.path.join(self.dir, "ledger.sqlite"))
         self._sharded: Optional[Sharded] = None
         self._log_fh = None
+        # engine pin (enginepin.py): a campaign is one engine; objectives across engines are not comparable
+        self.engine, mismatch = enginepin.check(self.cfg.get("engine"), strict=enforce_engine, log=self.log)
+        if mismatch and enforce_engine:
+            self.note("ENGINE CHANGE allowed by RMFIT_ALLOW_ENGINE_CHANGE: " + mismatch)
 
     # -- logging ------------------------------------------------------------------
 
@@ -161,6 +168,7 @@ class Campaign:
         text = (text.replace("{email}", f"{getpass.getuser()}@nd.edu")
                     .replace("{jobname}", "rmfit_" + self.reaction_name().replace("+", ""))
                     .replace("{campaign_dir}", self.dir)
+                    .replace("{engine_guard}", enginepin.guard_lines_csh(self.cfg.get("engine")))
                     .replace("{pythonpath}", os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
         with open(path, "w") as f:
             f.write(text)
@@ -241,6 +249,9 @@ class Campaign:
                    objective=(objective if objective else prev.get("objective", {})),
                    created=prev.get("created", time.strftime("%Y-%m-%d %H:%M")),
                    reinit=time.strftime("%Y-%m-%d %H:%M"))
+        # engine pin: recorded once at the first init; re-pinned only with RMFIT_ALLOW_ENGINE_CHANGE=1
+        if "engine" not in prev or os.environ.get("RMFIT_ALLOW_ENGINE_CHANGE", "") not in ("", "0"):
+            cfg["engine"] = enginepin.fingerprint()
         if cov_reference:
             import shutil
             shutil.copy2(os.path.abspath(cov_reference), os.path.join(directory, "cov_reference.npz"))
@@ -248,6 +259,8 @@ class Campaign:
         with open(cj, "w") as f:
             json.dump(cfg, f, indent=2)
         c = cls(directory)
+        c.log(f"init: engine pinned {enginepin.short(c.cfg['engine'])}" +
+              (" (new pin)" if "engine" not in prev else " (kept)"))
         if cov_reference:
             c.log(f"init: relvector covariance model fixed at the reference {os.path.abspath(cov_reference)} "
                   f"(copied to cov_reference.npz)")

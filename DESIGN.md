@@ -128,6 +128,7 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
   FAILED: the spec gate logged accept-pending and did not adopt, but the returned dict / ledger row / readme note were built
   before the gate ran and still said "accept".  Gate moved ahead of them in `_run_level_add`; rerun queued (job 1703121,
   tests/_queue_spec/spec.log).  Skill now in this repository (297e17b, pushed): edit it here.
+  16:26 job 1703121: test_campaign_spec_13n PASS on the node (level add -> accept-pending, D-002 queued, not adopted; 811 s).
 - 2026-11-07 13:00  install_shared.sh verified with positive/negative controls (`--check-script`); two detector bugs fixed
   (pipefail + grep -q; pinned-root rule).  Skill section-7 note pushed to AZURE2 dev 4d16764; since 16:10 the skill lives in THIS repository (`.claude/skills/rmfit-campaign/SKILL.md`, 297e17b).
   Spec drafts for 10B+a s5 and 13C+a region D written (Phase 1 input).  Fixture job 1700297: enginepin + keys PASS on the

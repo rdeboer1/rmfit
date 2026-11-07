@@ -191,10 +191,33 @@ def _split_quoted(line: str) -> List[str]:
     return out
 
 
+def parse_seg_list(text: str) -> List[int]:
+    """The segment keys of a ``<targetInt>`` key field, read as AZURE2 reads it (TargetEffect::GetSegmentsList):
+    comma-separated keys and inclusive ranges, ``"41,47-50,54-56"`` -> [41, 47, 48, 49, 50, 54, 55, 56].
+
+    2026-11-07 (DeBoer approved): rmfit used to read only plain comma lists.  A range made ``int("47-50")``
+    raise, ``target_effects`` swallowed the error and ``_TINT_RE`` did not match, so every entry with a range
+    was left out of every shard and its segments were evaluated UNINTEGRATED in sharded runs (11B+a: 37
+    such entries; 11B+a/10-27-26_HE_claude/readme, 10-31 13:40)."""
+    out: List[int] = []
+    for item in text.strip().strip('"').replace(" ", "").replace("\t", "").split(","):
+        if not item:
+            continue
+        if "-" in item:
+            lo, hi = item.split("-", 1)
+            a, b = int(lo), int(hi)
+            if b < a:
+                raise ValueError(f"<targetInt> segment range {item!r} runs backwards")
+            out.extend(range(a, b + 1))
+        else:
+            out.append(int(item))
+    return out
+
+
 def parse_target_effect(line: str) -> TargetEffectSpec:
     t = _split_quoted(line)
     enabled = t[0] == "1"
-    keys = [int(k) for k in t[1].strip('"').replace(" ", "").split(",") if k]
+    keys = parse_seg_list(t[1])
     num_points = int(float(t[2]))
     is_conv = int(float(t[3])) == 1
     sigma = float(t[4])
@@ -242,7 +265,12 @@ def target_effects(text: str) -> List[TargetEffectSpec]:
     for line in block_lines(text, "targetInt"):
         try:
             out.append(parse_target_effect(line))
-        except (ValueError, IndexError):
+        except (ValueError, IndexError) as e:
+            # an ENABLED entry rmfit cannot read would drop target integration from its segments without a
+            # word (the 2026-11-07 range bug): say so instead of skipping quietly
+            if line.split()[:1] == ["1"]:
+                print(f"rmfit WARNING: <targetInt> entry not understood ({e}); its segments get no target "
+                      f"effect in rmfit: {line.strip()[:120]}", flush=True)
             continue
     return out
 
@@ -425,23 +453,28 @@ def segment_class(seg: Segment) -> str:
 DEFAULT_WEIGHTS = {"2->2:differential": 8.5, "2->1:differential": 2.3}
 
 
-_TINT_RE = re.compile(r'^(\s*\d+\s+)"([\d,\s]*)"(.*)$', re.S)
+_TINT_RE = re.compile(r'^(\s*\d+\s+)"([\d,\s\-]*)"(.*)$', re.S)     # ranges ("47-50") read since 2026-11-07
 
 
 def target_int_entries(text: str) -> List[Tuple[bool, List[int], str]]:
     """The <targetInt> entries as ``(enabled, [segment keys], line)``.
 
-    An entry's key field is a quoted, comma-separated list of segment keys
-    (``"8,9"``), matched by number against *both* the data and the test
-    segments (``EData::ReadTargetEffectsFile``).
+    An entry's key field is a quoted list of segment keys and inclusive
+    ranges (``"8,9"``, ``"41,47-50"``; :func:`parse_seg_list`), matched by
+    number against *both* the data and the test segments
+    (``EData::ReadTargetEffectsFile``).  :func:`retarget_int_line` writes
+    plain comma lists, which AZURE2 reads the same way.
     """
     out = []
     for line in block_lines(text, "targetInt"):
         m = _TINT_RE.match(line)
         if not m:
+            if line.split()[:1] == ["1"]:
+                print(f"rmfit WARNING: <targetInt> key field not understood; entry left out of the shards: "
+                      f"{line.strip()[:120]}", flush=True)
             continue
         enabled = m.group(1).split()[0] == "1"
-        keys = [int(k) for k in m.group(2).replace(" ", "").split(",") if k]
+        keys = parse_seg_list(m.group(2))
         out.append((enabled, keys, line))
     return out
 
@@ -645,6 +678,11 @@ def write_shard(base_azr: str, name: str, pieces: List[Piece], workdir: str) -> 
         if mine:
             new_tint.append(retarget_int_line(line, mine))
     text = replace_block(text, "targetInt", new_tint)
+    # measured scattering lengths are a property of the whole model, not of a shard: the evaluator
+    # carries them as residual rows once (engine.ScatLenRows, 2026-11-07); a shard that kept the block
+    # would add the engine's term once per shard on the scalar path
+    if "<scatteringLengths>" in text and "</scatteringLengths>" in text:
+        text = replace_block(text, "scatteringLengths", [])
     outdir = os.path.join(workdir, f"output_{name}")
     text = set_output_dir_text(text, outdir)
     for f in ("intEC.dat", "intEC.extrap"):

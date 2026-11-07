@@ -258,6 +258,93 @@ class ParkWall:
         return cls(list(labels), [by.get(lab, []) for lab in labels])
 
 
+def _jpi_text(s: float, parity: int) -> str:
+    """J^pi label of an s-wave channel (J = s), as rmfit level labels write it ("3/2+", "1-")."""
+    t = f"{int(round(2 * s))}/2" if abs(s - round(s)) > 1e-6 else f"{int(round(s))}"
+    return t + ("+" if parity > 0 else "-")
+
+
+@dataclass
+class ScatLenRows:
+    """Measured s-wave scattering lengths (``<scatteringLengths>``) as residual rows (2026-11-07, DeBoer:
+    "make those rmfit changes so we can proceed").
+
+    The engine adds ``((Re a - value)/sigma)^2`` (and the same for Im a when ``im_sigma`` > 0) per active line
+    to its scalar chi-squared (pyazr ``azure2.scattering_length_chi2``), but rmfit builds its objective from
+    residual rows, and pyazr's ``residual_jacobian`` has no scattering-length rows -- so before this, every
+    residual-path objective (Park mode, convolution pieces, normgroups, covariances, weights) left the term
+    out, and the plain sharded path counted it once per shard (shards kept the block).  Now: shards drop the
+    block (``model.write_shard``), the evaluator adds one row per constrained part here, and a model with
+    active lines always takes the residual path.  ``a`` is the channel spin's a0, or for ``s < 0`` the coherent
+    combination ``sum_s (2s+1) i1i2 a0_s`` of the pair.  a0 depends only on the levels of the J^pi groups of
+    the pair's s-wave channels (``cols``); its Jacobian rows come from the worker's ``scatlen_jac`` (central
+    differences, steps as ``park_jac``).  The rows go after the prior rows and before the Park wall rows, are
+    never weighted, and count in ``penalty``.
+    """
+    lines: list                       # active pyazr ScatteringLengthLine
+    i1i2: Dict[int, float]            # pair key -> 1/((2j1+1)(2j2+1))
+    chans: List[Tuple[int, float]]    # (pair, s) of every row of the worker's scatlen array, in order
+    parts: List[Tuple[int, int]]      # one per residual row: (line index, 0 = Re / 1 = Im)
+    cols: List[int]                   # free R-matrix columns that move a0 of a constrained pair
+
+    @classmethod
+    def build(cls, azr, keys, n_rmatrix, i1i2, sample):
+        """``sample``: the worker's ``scatlen`` array at any vector (channel layout only); None if the
+        model has no active line."""
+        from pyazr import AzrModel
+        lines = [e for e in AzrModel.from_file(azr).scattering_lengths if e.active]
+        if not lines:
+            return None
+        F = np.asarray(sample, float).reshape(-1, 6)
+        chans = [(int(r[0]), float(r[1])) for r in F]
+        parts = []
+        for i, e in enumerate(lines):
+            if e.s < 0:
+                if not any(p == e.pair for p, _ in chans):
+                    raise RuntimeError(f"<scatteringLengths>: pair {e.pair} has no s-wave channel in the model")
+                if e.pair not in i1i2:
+                    raise RuntimeError(f"<scatteringLengths>: no i1i2 factor for pair {e.pair} (pyazr too old?)")
+            elif not any(p == e.pair and abs(s - e.s) < 1e-6 for p, s in chans):
+                raise RuntimeError(f"<scatteringLengths>: pair {e.pair} has no s-wave channel spin {e.s}")
+            if e.sigma > 0:
+                parts.append((i, 0))
+            if e.im_sigma > 0:
+                parts.append((i, 1))
+        pairs = {e.pair for e in lines}
+        jpis = {_jpi_text(float(r[1]), int(r[2])) for r in F if int(r[0]) in pairs}
+        cols = [j for j, k in enumerate(keys[:n_rmatrix]) if str(k.level).split("#")[0] in jpis]
+        return cls(lines, dict(i1i2), chans, parts, cols)
+
+    def _weights(self, i):
+        """Coefficients of the worker's channel rows in line i's length ``a``."""
+        e = self.lines[i]
+        if e.s < 0:
+            w = self.i1i2[e.pair]
+            return np.array([(2 * s + 1) * w if p == e.pair else 0.0 for p, s in self.chans])
+        return np.array([1.0 if (p == e.pair and abs(s - e.s) < 1e-6) else 0.0 for p, s in self.chans])
+
+    def residuals(self, F):
+        F = np.asarray(F, float).reshape(-1, 6)
+        if F.shape[0] != len(self.chans):
+            raise RuntimeError(f"scatlen gave {F.shape[0]} channels, expected {len(self.chans)}")
+        out = np.empty(len(self.parts))
+        for r, (i, part) in enumerate(self.parts):
+            e = self.lines[i]
+            a = float(self._weights(i) @ F[:, 3 + part])
+            out[r] = (a - e.value) / e.sigma if part == 0 else (a - e.im_value) / e.im_sigma
+        return out
+
+    def jacobian(self, D, ncols_total):
+        """``D``: the worker's ``scatlen_jac`` for ``self.cols`` (len(cols), n_channels, 2) -> rows (nrows, nfree)."""
+        Jm = np.zeros((len(self.parts), ncols_total))
+        D = np.asarray(D, float)
+        for r, (i, part) in enumerate(self.parts):
+            e = self.lines[i]
+            sig = e.sigma if part == 0 else e.im_sigma
+            Jm[r, self.cols] = (D[:, :, part] @ self._weights(i)) / sig
+        return Jm
+
+
 @dataclass
 class ObjectiveSpec:
     """How data residuals enter the objective (campaign.json ``objective``).
@@ -658,6 +745,45 @@ class Evaluator:
             return 0.0
         return float(np.sum(np.asarray(r, float)[-len(self.park.labels):] ** 2))
 
+    scat: Optional[ScatLenRows] = None
+
+    def _init_scat(self, worker, m_, azr):
+        """The measured scattering-length rows of the model (None without an active line)."""
+        from pyazr import AzrModel
+        if not any(e.active for e in AzrModel.from_file(azr).scattering_lengths):
+            self.scat = None
+            return
+        sample = worker.call("scatlen", np.asarray(self.x0, float)[m_])
+        self.scat = ScatLenRows.build(azr, self.keys, self.n_rmatrix, worker.info.get("pair_i1i2", {}), sample)
+        print(f"rmfit: {len(self.scat.parts)} scattering-length row(s) from <scatteringLengths> "
+              f"({len(self.scat.cols)} R-matrix columns move them)", flush=True)
+
+    def _scat_rows(self, x, jac=False):
+        """The measured scattering-length rows (and their Jacobian rows) at ``x``."""
+        x = np.asarray(x, float)
+        w, m_ = self._park_handle()          # a worker holding the whole R-matrix block
+        r = self.scat.residuals(w.call("scatlen", x[m_]))
+        if not jac:
+            return r, None
+        if not self.scat.cols:
+            return r, np.zeros((r.size, x.size))
+        inv = {int(g): s for s, g in enumerate(m_)}
+        D = w.call("scatlen_jac", (x[m_], [inv[c] for c in self.scat.cols]))
+        return r, self.scat.jacobian(D, x.size)
+
+    def scat_value(self, r) -> float:
+        """The scattering-length rows' share of the objective (they sit just before the Park wall rows)."""
+        if self.scat is None:
+            return 0.0
+        r = np.asarray(r, float)
+        end = r.size - (len(self.park.labels) if self.park is not None else 0)
+        return float(np.sum(r[end - len(self.scat.parts):end] ** 2))
+
+    def extra_penalty_value(self, r) -> float:
+        """Rows the engine keeps inside its scalar chi-squared but rmfit counts in ``penalty``: Park's J > 0 wall
+        and the measured scattering lengths."""
+        return self.park_value(r) + self.scat_value(r)
+
     def rows_objective(self, r) -> float:
         """The objective from a (weighted) residual vector as ``residuals`` returns it."""
         r = np.asarray(r, float)
@@ -779,7 +905,7 @@ class Evaluator:
             data = self._plain_data_rows(r)
             chi2 = float(np.sum(data ** 2))
             seg = self._segment_chi2_from_rows(data)
-        pen = self.penalties.value(x) + self.park_value(r)
+        pen = self.penalties.value(x) + self.extra_penalty_value(r)
         pri = self.prior.value(x) if self.prior is not None else 0.0
         obj = self.rows_objective(r) if not self.spec.plain else chi2 + pen + pri
         c2s = (self.cov.chi2_self(self._cov_memo_get(r)[2]) if self.cov is not None and self.cov.has_reference
@@ -871,6 +997,7 @@ class SingleSession(Evaluator):
         self.prior = None
         self.park = (ParkWall.build(self.keys, self.n_rmatrix, info.get("park_levels"))
                      if self.flags.get("use_park") else None)
+        self._init_scat(self.worker, np.arange(len(self.keys)), self.azr)
         self.cov = None
         self._cov_check = False
         if run_azr != self.azr:
@@ -893,7 +1020,8 @@ class SingleSession(Evaluator):
         # the engine freezes the relvector model at this evaluation; with a fixed reference, rmfit's objective uses
         # the reference instead, so compare the engine with the rows frozen at this point (chi2_self)
         chi2 = (self.cov.chi2_self(self._cov_memo_get(r)[2]) if self.cov.has_reference
-                else self.rows_chi2(r)) + self.park_value(r)     # the engine's chi2 contains the J > 0 wall
+                else self.rows_chi2(r)) + self.extra_penalty_value(r)   # the engine's chi2 holds the J > 0 wall
+                                                                        # and the scattering lengths
         chk = _Worker(self.azr, self.cwd, self.flags, None, name=f"{self.name}_covcheck").start()
         try:
             ck = chk.info["keys"]
@@ -919,7 +1047,7 @@ class SingleSession(Evaluator):
 
     def objective(self, x):
         x = np.asarray(x, float)
-        if not self.spec.plain or self.cov is not None or self.park is not None:
+        if not self.spec.plain or self.cov is not None or self.park is not None or self.scat is not None:
             r, _ = self.residuals(x, jac=False)
             return self.rows_objective(r)
         chi2 = self._call("eval", x)
@@ -944,6 +1072,11 @@ class SingleSession(Evaluator):
             parts.append(self.prior.residuals(x))
             if jac:
                 Jparts.append(self.prior.jacobian(x.size))
+        if self.scat is not None:
+            rs, Js = self._scat_rows(x, jac)
+            parts.append(rs)
+            if jac:
+                Jparts.append(Js)
         if self.park is not None:
             rp, Jp = self._park_rows(x, jac)
             parts.append(rp)
@@ -1014,6 +1147,8 @@ class Sharded(Evaluator):
         self.prior = None
         self.park = (ParkWall.build(self.keys, self.n_rmatrix, self.workers[0].info.get("park_levels"))
                      if self.flags.get("use_park") else None)
+        # the shards carry no <scatteringLengths> (model.write_shard); the rows come from the base model's lines
+        self._init_scat(self.workers[0], self.maps[0], self.base_azr)
         self.timings: List[float] = []
         self._init_covariance()
         self._init_objective(objective)
@@ -1279,7 +1414,8 @@ class Sharded(Evaluator):
     def objective(self, x):
         x = np.asarray(x, float)
         t0 = time.time()
-        if self.has_conv or not self.spec.plain or self.follow or self.cov is not None or self.park is not None:
+        if (self.has_conv or not self.spec.plain or self.follow or self.cov is not None or self.park is not None
+                or self.scat is not None):
             r, _ = self.residuals(x, jac=False)
             self.timings.append(time.time() - t0)
             return self.rows_objective(r)
@@ -1364,6 +1500,11 @@ class Sharded(Evaluator):
             rows.append(self.prior.residuals(x))
             if jac:
                 Jrows.append(self.prior.jacobian(nfree))
+        if self.scat is not None:
+            rs, Js = self._scat_rows(x, jac)
+            rows.append(rs)
+            if jac:
+                Jrows.append(Js)
         if self.park is not None:
             rp, Jp = self._park_rows(x, jac)
             rows.append(rp)

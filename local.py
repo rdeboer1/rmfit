@@ -266,8 +266,9 @@ def particle_thresholds(azr_path: str) -> tuple:
 
 
 def _park_value(ev, r) -> float:
-    """Park's J > 0 wall rows' share of a residual vector (0 outside Park mode; engine.ParkWall)."""
-    f = getattr(ev, "park_value", None)
+    """The penalty rows the engine keeps in its scalar chi2: Park's J > 0 wall (engine.ParkWall) and, since
+    2026-11-07, the measured scattering lengths (engine.ScatLenRows); 0 when the model has neither."""
+    f = getattr(ev, "extra_penalty_value", None) or getattr(ev, "park_value", None)
     return float(f(r)) if f is not None else 0.0
 
 
@@ -636,8 +637,11 @@ def polish(ev: Evaluator, x0, free: Optional[np.ndarray] = None,
 
     floors = list(getattr(bounds, "floors", None) or [])
 
+    n_ev = {"rows": None}             # the evaluator's own rows; the floor rows go after them
+
     def _resid(x, jac, want=None):
         r, J = _ev_residuals(ev, x, jac, want)
+        n_ev["rows"] = r.size
         if floors:
             rf, Jf = floor_rows(floors, x, n, jac=jac)
             r = np.concatenate([r, rf])
@@ -653,6 +657,11 @@ def polish(ev: Evaluator, x0, free: Optional[np.ndarray] = None,
     if floors:
         say("  total-width floor(s): " + "; ".join(f"{f.level} >= {f.gmin / 1e3:g} keV (now {f.gamma(x0) / 1e3:.1f} keV, "
                                                   f"{f.cols.size} channels)" for f in floors))
+
+    def _ev_rows(rr):
+        # 2026-11-07: the engine-side penalty rows (Park wall, scattering lengths) sit at the END of the
+        # evaluator's rows, so they must be read before the floor rows are appended
+        return rr[:n_ev["rows"]] if n_ev["rows"] is not None else rr
     start_obj = ev.rows_objective(r0)
     cols = np.where(free)[0]
     alive = np.max(np.abs(J0[:, cols]), axis=0) > 0
@@ -662,7 +671,7 @@ def polish(ev: Evaluator, x0, free: Optional[np.ndarray] = None,
         say(f"  {len(dead)} dead columns dropped: " + ", ".join(str(ev.keys[c]) for c in dead[:6]))
     if cols.size == 0:
         return FitResult(x0, start_obj, ev.rows_chi2(r0),
-                         ev.penalties.value(x0) + _park_value(ev, r0), ev.prior.value(x0) if ev.prior else 0.0,
+                         ev.penalties.value(x0) + _park_value(ev, _ev_rows(r0)), ev.prior.value(x0) if ev.prior else 0.0,
                          "converged", "nothing to fit", 1, 1, free, dead, [],
                          time.time() - t0, start_obj)
 
@@ -722,7 +731,7 @@ def polish(ev: Evaluator, x0, free: Optional[np.ndarray] = None,
                          counts["f"], counts["j"], free, dead, [], time.time() - t0, start_obj)
     obj = ev.rows_objective(r)
     chi2 = ev.rows_chi2(r)
-    pen = ev.penalties.value(x) + _park_value(ev, r)
+    pen = ev.penalties.value(x) + _park_value(ev, _ev_rows(r))
     pri = ev.prior.value(x) if ev.prior is not None else 0.0
     status = "converged" if res.status in (1, 2, 3, 4) else ("max_nfev" if res.status == 0 else "crashed")
     hit = []
@@ -732,7 +741,7 @@ def polish(ev: Evaluator, x0, free: Optional[np.ndarray] = None,
             hit.append(int(c))
     if obj > start_obj:                      # never hand back something worse
         x, obj, chi2, pen, pri = x0, start_obj, ev.rows_chi2(r0), \
-            ev.penalties.value(x0) + _park_value(ev, r0), (ev.prior.value(x0) if ev.prior else 0.0)
+            ev.penalties.value(x0) + _park_value(ev, _ev_rows(r0)), (ev.prior.value(x0) if ev.prior else 0.0)
         status, hit = "rejected", []
     say(f"  polish: {start_obj:.3f} -> {obj:.3f} ({status}, {res.message.strip()}; "
         f"nfev={counts['f']} njev={counts['j']}, {time.time()-t0:.0f}s)")

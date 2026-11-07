@@ -2376,3 +2376,17 @@ CODE FIX, same day (DeBoer: "go ahead with the rmfit code fix"; backups `rmfit/{
 - Test `rmfit/tests/test_jpi_default.py` (pure python, seconds; fixture `tests/fixtures/jpi_integer/10Ba_c8.azr`).  It
   cannot import from the old code; run there, the old default wrote the 12 half-integer dummies.
 - Frozen `run_snapshot/` copies made before this date keep the old behaviour, so give them `--jpi`.
+
+## 2026-11-07 -- <targetInt> ranges were dropped from shards; scattering lengths were missing from the rows (11B+a)
+
+DeBoer: "make those rmfit changes so we can proceed" (11B+a broad-level J^pi study).  Two silent gaps, both in commit 31baefc:
+- A `<targetInt>` key field with ranges (`"41,47-50,54-56"`, which AZURE2 reads) was skipped by rmfit, so those segments ran
+  UNINTEGRATED in every shard; on the 11B+a paper fit 42 of 62 integrated data segments (the HE session lost a day to it on
+  10-31).  `model.parse_seg_list` now reads ranges; an enabled entry that still fails prints "rmfit WARNING".
+- `<scatteringLengths>` (measured scattering lengths, e.g. the Koester n+14N line) lives in the engine's scalar chi2 only:
+  every residual-path objective ignored it and the plain sharded path counted it once per shard.  `engine.ScatLenRows` now adds
+  one row per constrained part (penalty, before the Park rows); shards drop the block; such a model always takes the residual path.
+- Also: `local.polish` read the Park wall rows after its floor rows had been appended; fixed.
+Rule: before trusting a sharded number on a new model, compare it with the CLI's mode-1 total INCLUDING every penalty term the CLI
+prints (norm, shift, Park, scattering length); a missing term or segment is invisible otherwise.  Test tests/test_scatlen_ranges.py;
+record 11B+a/11-07-26_rmfit_fix/readme.

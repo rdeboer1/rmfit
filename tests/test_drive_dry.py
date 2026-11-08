@@ -188,7 +188,7 @@ def main():
         json.dump(dict(candidates=[dict(energy=3.0, jpi="1/2+", hypothesis="test level A"),
                                    dict(energy=3.2, jpi="3/2-"),                       # no hypothesis: skipped
                                    dict(energy=3.4, jpi="3/2-", hypothesis="test level B"),
-                                   dict(energy=3.6, jpi="1/2+", hypothesis="test level C"),
+                                   dict(energy=3.6, jpi="1/2+", hypothesis="test level C", width_kev=120.0),   # broad: tested first
                                    dict(energy=3.8, jpi="1/2+", hypothesis="test level D")]),
                   open(os.path.join(tmp, "candidates.json"), "w"))
         d6.state["state"] = "TIGHTEN"
@@ -206,6 +206,7 @@ def main():
         adds = [c for c in stub.calls if c[0] == "add"]
         check("STRUCTURE_ADD skipped the candidate without a hypothesis", all(abs(c[1] - 3.2) > 1e-6 for c in adds), str(adds))
         check("STRUCTURE_ADD stopped after two marginal/worse in a row (budget 3 tests)", len(adds) == 3, str(adds))
+        check("STRUCTURE_ADD tested the broad candidate first (width_kev), then bank order", [c[1] for c in adds] == [3.6, 3.0, 3.4], str(adds))
         check("SIGN_POST ran after the accepted level", [s for s, r in hist].count("SIGN_POST") >= 2 or any(
             s == "SIGN_POST" and r == "stay" for s, r in hist), str(hist))
         offs = [c for c in stub.calls if c[0] == "off"]

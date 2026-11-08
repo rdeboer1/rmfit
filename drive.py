@@ -852,9 +852,11 @@ class Driver:
             self.counters["marginal_in_a_row"] = 0
             return "next", f"{marg} marginal adds in a row: the queue ends here ({len(bank) - len(tested)} untested)"
         nxt = None
-        for i, cand in enumerate(bank):
-            if i in tested:
-                continue
+        # broad first (DeBoer: Gamma > 10 keV first, narrow alignment later; DESIGN.md 2.2): a candidate's width is its
+        # width_kev, else the sum of its seed channel widths; unknown widths keep the bank's order after the known ones
+        order = sorted((i for i in range(len(bank)) if i not in tested), key=lambda i: (-_cand_width_kev(bank[i]), i))
+        for i in order:
+            cand = bank[i]
             if not (cand.get("hypothesis") or cand.get("note")):
                 self.log(f"candidate {i} ({cand.get('energy')} {cand.get('jpi')}) has no hypothesis: skipped (every structure candidate needs one)")
                 self.state["tested_candidates"].append(i)
@@ -971,6 +973,14 @@ PLAN_TEXT = {
     "EXPORT": "export + report",
     "CYCLE": "another pass from TIGHTEN if the cycle gained >= cycle_gain_rel_min and cycles < cycles_max, else DONE",
 }
+
+
+def _cand_width_kev(cand) -> float:
+    w = cand.get("width_kev")
+    if _isnum(w):
+        return float(w)
+    g = sum(abs(float(ch.get("gamma", 0.0))) for ch in (cand.get("channels") or []) if _isnum(ch.get("gamma", 0.0)))
+    return g / 1e3 if g > 0 else -1.0
 
 
 def _isnum(v):

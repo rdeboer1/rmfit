@@ -56,7 +56,12 @@ DEFAULT_BUDGET = dict(polish_nfev=150, polish_rounds_max=4, sign_rounds_max=4, l
                       pinned_nfev=60, dataset_off_max=2, dataset_off_nfev=100, ladder_nfev=100, cycles_max=3,
                       node_hours_max=0, grid_check=True, figures=6)
 DEFAULT_STOP = dict(polish_gain_rel_min=5e-4, sign_rounds_without_accept=2, level_adds_marginal_in_a_row=2,
-                    cycle_gain_rel_min=1e-3, dataset_off_extra_pct=5.0, reproduce_rtol=1e-3)
+                    cycle_gain_rel_min=1e-3, dataset_off_extra_pct=5.0, reproduce_rtol=1e-3,
+                    # sign rounds only after the polish converged (skill section 3, step 1 "when done" before step 2): a flip
+                    # is credited with what it gains beyond the control polish, and an unconverged incumbent moves by more
+                    # than any flip (7Be benchmark attempt 2, 2026-11-08: 18 sign rounds, 0 accepted, while the polishes
+                    # still gained 1-2 % per round).  0 disables the gate.
+                    sign_after_converged_polish=1)
 
 SYMBOLS = ["n", "H", "He", "Li", "Be", "B", "C", "N", "O", "F", "Ne", "Na", "Mg", "Al", "Si", "P", "S", "Cl", "Ar", "K",
            "Ca", "Sc", "Ti", "V", "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga", "Ge", "As", "Se", "Br", "Kr", "Rb", "Sr",
@@ -795,20 +800,27 @@ class Driver:
             self.save()
         if n >= int(self.budget["polish_rounds_max"]):
             self.counters["polish_rounds"] = 0
-            return "next", f"budget.polish_rounds_max {self.budget['polish_rounds_max']} reached"
+            self.counters["polish_converged"] = 0
+            return "next", f"budget.polish_rounds_max {self.budget['polish_rounds_max']} reached before convergence (last gain {100*float(self.counters.get('polish_last_gain', 0)):.3f} %)"
         before = self._incumbent_obj()
         fr = c.run_polish(max_nfev=int(self.budget["polish_nfev"]), tighten=(n == 0), note="rmfit drive TIGHTEN")
         after = self._incumbent_obj()
         gain = (before - after) / max(abs(before), 1e-300)
         self.counters["polish_rounds"] = n + 1
+        self.counters["polish_last_gain"] = gain
         msg = f"round {n+1}: {before:.3f} -> {after:.3f} ({100*gain:.3f} %, {fr.status}, {fr.nfev} evaluations)"
         if gain < float(self.stop["polish_gain_rel_min"]) or fr.status == "crashed":
             self.counters["polish_rounds"] = 0
+            self.counters["polish_converged"] = 1 if fr.status != "crashed" else 0
             return "next", msg + " -> converged" if fr.status != "crashed" else msg
         return "stay", msg
 
     def _sign_state(self, label):
         c = self.campaign
+        if int(self.stop.get("sign_after_converged_polish", 1)) and self.counters.get("polish_converged", 1) == 0 \
+                and not self.counters.get(f"{label}_rounds"):
+            return "next", (f"polish not converged (last gain {100*float(self.counters.get('polish_last_gain', 0)):.3f} %): sign rounds "
+                            f"deferred to the next cycle (stop_rules.sign_after_converged_polish)")
         n = int(self.counters.get(f"{label}_rounds", 0))
         noacc = int(self.counters.get(f"{label}_noaccept", 0))
         if n >= int(self.budget["sign_rounds_max"]):

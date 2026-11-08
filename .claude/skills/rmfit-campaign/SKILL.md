@@ -281,7 +281,9 @@ applied to a working copy `<stem>_drive.azr`, free widths at exactly zero are se
 ENSDF states of the residual nuclei that open below the window top without a pair are listed, `candidates.json` is built
 from ENSDF broad-first when absent -- every candidate needs a `hypothesis`), then the loop `TIGHTEN SIGN SHIFTS_FREE
 STRUCTURE_ADD SIGN_POST DATASET_OFF REVIEW EXPORT CYCLE` (section 3 steps 1-7 with section 4's stopping rules: polish rounds
-until the gain is below `polish_gain_rel_min`; sign rounds until `sign_rounds_without_accept`; level adds until
+until the gain is below `polish_gain_rel_min` -- size `budget.polish_nfev` to the model, 150 is far too few for 200 free
+parameters; sign rounds only once the polish converged (`sign_after_converged_polish`, else they are deferred to the next
+cycle: 7Be 2026-11-08, 18 rounds accepted nothing on a moving incumbent) and until `sign_rounds_without_accept`; level adds until
 `level_adds_marginal_in_a_row`, adoption per `pre_authorized.adopt_level`; the Botek test on the worst chi2/N sets, result
 recorded, never excluded; review HIGH flags wait for the evaluator; another pass while a cycle gains `cycle_gain_rel_min`
 and `cycles_max` allows).  `DRIVE.md` is rewritten after every state; `drive_state.json` is the checkpoint (`--state S`

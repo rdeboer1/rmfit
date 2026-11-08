@@ -110,9 +110,8 @@ def ladder_variants(base_azr: str, workdir: str, cutoffs: Sequence[float] = LADD
     """One variant per ladder step: data up to the cutoff, levels above it fixed."""
     os.makedirs(workdir, exist_ok=True)
     base_dir = os.path.dirname(os.path.abspath(base_azr))
-    dst = os.path.join(workdir, "data")
-    if not os.path.exists(dst):
-        os.symlink(os.path.join(base_dir, "data"), dst)
+    from .model import link_data_dirs
+    link_data_dirs(base_azr, workdir)
     out = []
     for i, cut in enumerate(cutoffs):
         name = f"step{i+1}_Ex{cut:g}"

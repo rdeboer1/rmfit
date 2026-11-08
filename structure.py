@@ -436,9 +436,8 @@ def scan_jpi_on_window(base_azr: str, workdir: str, cand: LevelCandidate, flags:
     jpis = resolve_jpis(base_azr, jpis, log=log)
     os.makedirs(workdir, exist_ok=True)
     base_dir = os.path.dirname(os.path.abspath(base_azr))
-    dst = os.path.join(workdir, "data")
-    if not os.path.exists(dst):
-        os.symlink(os.path.join(base_dir, "data"), dst)
+    from .model import link_data_dirs
+    link_data_dirs(base_azr, workdir)
     ex_lo, ex_hi = cand.energy - half_width, cand.energy + half_width
     win = os.path.join(workdir, "window_base.azr")
     info = window_variant(base_azr, win, ex_lo, ex_hi, level_margin=0.3,

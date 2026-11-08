@@ -727,10 +727,8 @@ def freeze_and_exchange(ev: Mixture, x, outdir: str, step: Optional[float] = Non
     for k, m in enumerate(members):
         mdir = os.path.join(outdir, m.name)
         os.makedirs(mdir, exist_ok=True)
-        dst = os.path.join(mdir, "data")
-        src = os.path.join(os.path.dirname(m.azr), "data")
-        if not os.path.lexists(dst) and os.path.exists(src):
-            os.symlink(src, dst)
+        from .model import link_data_dirs
+        link_data_dirs(m.azr, mdir)
         os.makedirs(os.path.join(mdir, "output"), exist_ok=True)
         xk = ev.member_x(x, k, shared_norms=True)
         out_azr = os.path.join(mdir, f"{m.name}.azr")

@@ -276,11 +276,8 @@ def template_variant(base_azr: str, path: str, ex: float, jpis: Optional[Sequenc
     # same idiom as structure.window_screen and windows.ladder_step
     wdir = os.path.dirname(os.path.abspath(path))
     os.makedirs(wdir, exist_ok=True)
-    dst = os.path.join(wdir, "data")
-    if not os.path.exists(dst):
-        src = os.path.join(os.path.dirname(os.path.abspath(base_azr)), "data")
-        if os.path.exists(src):
-            os.symlink(src, dst)
+    from .model import link_data_dirs
+    link_data_dirs(base_azr, wdir)
     mdl.write(path)
     return dict(path=path, ex=ex, levels=levels, gamma_ref_ev=gamma_ref_ev, gamma_ref_photon_ev=gamma_ref_photon_ev)
 

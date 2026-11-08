@@ -616,6 +616,53 @@ def pack_units(units: List[List[Piece]], nshards: int) -> List[List[Piece]]:
             for b in bins]
 
 
+
+# -- data directories ----------------------------------------------------------
+
+def data_dirs(azr_path: str) -> List[str]:
+    """Directories, relative to the model, that hold the files its segment lines read.
+
+    Every ``<segmentsData>`` / ``<segmentsTest>`` line (active or not) names its file relative to the ``.azr``;
+    the first path component of each such name that is an existing directory beside the model is returned, with
+    ``data`` always first.  Before 2026-11-07 every rmfit working directory (shards, single-session variants,
+    windows, level-scan and mixture members) linked ``data/`` only, so a model reading ``akdata/`` or ``thermal/``
+    lost those segments there (11B+a paper fit: 4 of 75; pyazr then refused the segment count)."""
+    base_dir = os.path.dirname(os.path.abspath(azr_path))
+    text = open(azr_path, encoding="latin-1").read()
+    out = ["data"]
+    for blk in ("segmentsData", "segmentsTest"):
+        m = re.search(rf"<{blk}>(.*?)</{blk}>", text, re.S)
+        if not m:
+            continue
+        for line in m.group(1).splitlines():
+            for tok in line.split():
+                tok = tok.strip('"')
+                if "/" not in tok or os.path.isabs(tok):
+                    continue
+                first = os.path.normpath(tok).split(os.sep)[0]
+                if first in ("", ".", "..") or first in out:
+                    continue
+                if os.path.isdir(os.path.join(base_dir, first)):
+                    out.append(first)
+    return out
+
+
+def link_data_dirs(azr_path: str, workdir: str, src_dir: Optional[str] = None) -> List[str]:
+    """Link every directory of :func:`data_dirs` from ``src_dir`` (default: the model's own directory) into
+    ``workdir``, so a copy of the model written there finds all its files.  Existing entries are left alone.
+    Returns the names linked or already present."""
+    src_dir = os.path.abspath(src_dir or os.path.dirname(os.path.abspath(azr_path)))
+    os.makedirs(workdir, exist_ok=True)
+    done = []
+    for sub in data_dirs(azr_path):
+        src, dst = os.path.join(src_dir, sub), os.path.join(workdir, sub)
+        if os.path.isdir(src) and not os.path.lexists(dst):
+            os.symlink(src, dst)
+        if os.path.lexists(dst):
+            done.append(sub)
+    return done
+
+
 def write_shard(base_azr: str, name: str, pieces: List[Piece], workdir: str) -> ShardSpec:
     """Write ``<workdir>/<name>.azr`` holding only ``pieces`` as its data."""
     from .covariance import NormGroups, norm_field, strip_keywords
@@ -623,11 +670,8 @@ def write_shard(base_azr: str, name: str, pieces: List[Piece], workdir: str) -> 
     base_dir = os.path.dirname(os.path.abspath(base_azr))
     groups = NormGroups.from_azr(base_azr)
     os.makedirs(workdir, exist_ok=True)
-    # data files are referenced relative to the .azr: link the data dir
-    for sub in ("data",):
-        src, dst = os.path.join(base_dir, sub), os.path.join(workdir, sub)
-        if os.path.isdir(src) and not os.path.exists(dst):
-            os.symlink(src, dst)
+    # data files are referenced relative to the .azr: link every directory they live in (data/ and any other)
+    link_data_dirs(base_azr, workdir)
     lines = []
     for i, p in enumerate(pieces, start=1):
         if p.kind == "conv":
@@ -872,9 +916,7 @@ def single_variant(base_azr: str, name: str, workdir: str) -> str:
     text = open(base_azr).read()
     base_dir = os.path.dirname(os.path.abspath(base_azr))
     os.makedirs(workdir, exist_ok=True)
-    dst = os.path.join(workdir, "data")
-    if not os.path.exists(dst):
-        os.symlink(os.path.join(base_dir, "data"), dst)
+    link_data_dirs(base_azr, workdir)
     # a covariance file named relative to the model but outside data/ is linked too
     from .covariance import line_keyword, segment_lines
     for t in segment_lines(base_azr):

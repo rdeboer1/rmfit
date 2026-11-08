@@ -1526,10 +1526,8 @@ class Campaign:
         cid, x, obj, keys = self.incumbent()
         out_dir = os.path.abspath(out_dir)
         os.makedirs(out_dir, exist_ok=True)
-        for sub in ("data",):
-            dst = os.path.join(out_dir, sub)
-            if not os.path.exists(dst):
-                os.symlink(os.path.join(self.dir, sub), dst)
+        from .model import link_data_dirs
+        link_data_dirs(self.base_azr, out_dir, src_dir=self.dir)
         base_name = os.path.basename(self.base_azr)
         base_copy = os.path.join(out_dir, base_name)
         text = open(self.base_azr).read()

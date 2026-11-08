@@ -124,6 +124,13 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
 
 ## Progress log
 
+- 2026-11-07 23:30  Phase 1.4 DONE: the evaluator's standing rules (retrospective section 5) and the recurring traps
+  written where sessions read them -- archive CLAUDE.md "Standing rules from the evaluator" (frame first, minimal bug
+  reproduction, audit before fitting, data treatment with the evaluator, scope, norms, structure search, GUI/in-place
+  editing and copied-.azr paths, log axes, cluster limits, acknowledgement wording); azure2-eval Golden rules gained
+  Ex-vs-E_cm, the minimal-reproduction rule and the copied-.azr paths (held checkout + branch skills/agentic-2026-11-07).
+  Phase 1 complete.  Next: Phase 2, `rmfit drive`.
+
 - 2026-11-07 23:00  Phase 1.3 `rmfit review` built, tested (engine-free, 13N output), calibrated on the archived 13C+a and
   17O+a cases (see the 1.3 entry above).  Not a decision maker: every flag is a candidate with the number behind it, in
   CLAUDE.md's per-point wording.  Engine path (`rmfit <dir> review [--grid-check]`) first run on 10B+a s5 (job 1708099 + login node; it caught the

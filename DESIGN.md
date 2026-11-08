@@ -67,6 +67,17 @@ decisions stay with the evaluator; the spec records them.
   grid vs a converged grid via `Campaign.set_grid_setting`; level width vs sub-point spacing); per-point summary
   (CLAUDE.md wording) + top-k chi2 carriers; provisional narrow / one-dataset levels.  Calibrate on the cases
   DeBoer's eye found: 11B+a bumpiness, 17O+a an2 grid, 13C+a high-Ex average, 10B+a ND5U25 norm 1.32 at fit/data 0.64.
+  DONE 2026-11-07 (`review.py`, `tests/test_review.py`): table from `AZUREOut_*.out` (engine-free, any archived fit; the
+  13N test output reproduces chiSquared.out per segment) or from a campaign's single session; detectors per-point /
+  top-points / norm-opposite / norm-{angle,energy}-trend / residual-run / average-not-structure /
+  broad-level-averages-peaks / fit-zigzag / level-below-resolution / one-dataset-level / grid-exploited (`--grid-check`).
+  Calibration on the archived cases: 13C+a 9-17-26 gui_review -> the 12.5 MeV poles, 1/2+ 12.759 (57 MeV), 1/2- 11.468,
+  7/2+ 11.507, 5/2+ 12.626 all HIGH/MEDIUM `broad-level-averages-peaks` (the two levels DeBoer kept, 7/2- 11.436 and
+  3/2- 10.927, are flagged too: a real 0.5-2 MeV level in a dense region looks the same to this detector -- the
+  evaluator's call); 17O+a an2 -> 5/2+ 8.1617 (13 eV) and 5/2- 8.2636 (0.8 eV) MEDIUM `level-below-resolution` under the
+  Best target integration (plus four more of the same kind); 11B+a 8-27-26 -> the archived output is post-fix, so the
+  zigzag detector is calibrated on a synthetic saw-tooth only; 10B+a ND5U25 -> synthetic norm-opposite test + the
+  stage-1b campaign through the engine path (job 1708099).
 
 ### Phase 2 -- close the loop (~10 agent-days + 2 weeks calendar)
 - `drive.py` (`rmfit drive`): resumable state machine PIN_CHECK -> AUDIT -> REPRODUCE -> SPEC_CHECK ->
@@ -112,6 +123,11 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
 (density, Doppler, thickness, screening) in shards; `structure add` exit status on a failed scan.
 
 ## Progress log
+
+- 2026-11-07 23:00  Phase 1.3 `rmfit review` built, tested (engine-free, 13N output), calibrated on the archived 13C+a and
+  17O+a cases (see the 1.3 entry above).  Not a decision maker: every flag is a candidate with the number behind it, in
+  CLAUDE.md's per-point wording.  Engine path (`rmfit <dir> review [--grid-check]`) first run on 10B+a s5 and stage 1b as
+  job 1708099.  Remaining in Phase 1: 1.4 (rules into docs).
 - 2026-11-07  Phase 0 built: git (7539e88 baseline, 7ef9e24 engine pin), `enginepin.py`, job-template guard,
   `install_shared.sh`, this file.  Sharded fixture job queued (tests/_queue_sharded).
 - 2026-11-07 15:30  Phase 1a built: `spec.py` (+ `templates/SPEC_TEMPLATE.json`, `rmfit spec check|render|derive`, `init --spec`,

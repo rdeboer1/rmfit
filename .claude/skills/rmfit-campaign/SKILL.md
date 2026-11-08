@@ -209,7 +209,7 @@ readme; read both before the next step.
 | 5 | `structure dataset-off --file <substr>` for the worst chi2/N sets | deactivate + refit; reports the extra recovery of the *other* sets beyond the set's own chi2 (the Botek test) | a table for the evaluator |
 | 6 | `round --rounds 2` after any structure change | signs may change with the structure | as in 2 |
 | 6b | `crossover --donor <cid> [--donor-dir <other campaign>]` | basin crossover: apply another good fit's sign pattern per channel / J^pi group / all and polish every proposal; use it whenever the ledger (or a sibling campaign, e.g. a recovery benchmark) holds a second verified basin | every donor pattern polished; verified union |
-| 7 | `export`, then GUI review | bake the incumbent to `<reaction>.azr` + `.sav`, verified in a fresh process | CLI mode 1 with the `.sav` as external file reproduces the totals |
+| 7 | `review [--grid-check]`, `export`, then GUI review | bake the incumbent to `<reaction>.azr` + `.sav`, verified in a fresh process | CLI mode 1 with the `.sav` as external file reproduces the totals |
 
 `candidates.json` (write it before step 4): `{"candidates": [{"energy": Ex_MeV, "jpi":
 "5/2+" or null to scan, "energy_fixed": true, "channels": [{"pair": n, "L": l, "S": s,
@@ -417,6 +417,16 @@ Cost: 11 J^π = 4 node jobs × 6-8 h; the anatomy and the window screen are logi
   chi2/N is far above the rest, or whose removal recovers more than its own chi2 in
   the others, is an evaluation question (normalization, energy calibration, resolution),
   not a fitting question.
+- **Run `rmfit <dir> review` before judging a fit by eye** (2026-11-07, DESIGN.md 1.3): `REVIEW.md` + `figures/review_*.png`
+  hold the checks DeBoer makes in the GUI -- per-point summary per data set (fraction within 1 / 2 sigma, median |r|, how
+  many points carry half of the chi2 and where), the top chi2 carriers, every norm against its segment's own optimum n*
+  (a free norm on the other side of 1 from n* was pulled by a group / covariance / prior), n* trends with angle or energy
+  inside one experiment (a shape problem dressed as a scale), residual runs with the level inside or missing,
+  residuals that vanish when blurred over 50 keV (the fit follows the average), MeV-wide levels spanning visible
+  unfitted peaks, a zigzag of the calculated curve (bumpiness), levels narrower than 2 % of the data spacing under a
+  target integration (`--grid-check` re-scores on a converged grid), levels seen by one data set only.  Engine-free on
+  any finished CLI run: `python3 -m rmfit.review <file.azr> [--output DIR]`.  Flags are candidates, not verdicts: look
+  at the figure before writing a readme line, and leave data treatment to the evaluator.
 - **Check every fitted norm against the set's fit/data ratio** (the norm multiplies the data and its errors, so at a
   sensible minimum fit/data ≈ norm). A norm that moved the other way (10B+α stage 1b, 2026-10-25: June ND5U25 norm 1.32
   with the fit at 0.64 of those data) points to a data-scaled `vector` in that set's covariance acting as a hidden

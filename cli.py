@@ -17,6 +17,8 @@ Commands (all idempotent and resumable from the ledger):
   audit [--azr file] [--no-target-energies]                     pre-flight checks of the model and data -> AUDIT.md (no engine session)
   audit --kind input|data|literature|all                        write audits/<kind>/PROMPT.md (+ FINDINGS.md skeleton) for a background subagent
   audit --findings | --status KIND N confirmed|rejected|decision  the subagents' FINDINGS.md: unverified rows / mark one verified
+  review [--grid-check] [--figures N] [--top K]                 post-fit "GUI eye" on the incumbent -> REVIEW.md + figures/review_*.png (2026-11-07);
+                                                                engine-free on any finished CLI run: python3 -m rmfit.review <file.azr> [--output DIR]
   decisions                                                     pending entries of DECISIONS.md
   decide <id> "<choice>" [--by who] [--note ...]                answer one
 
@@ -149,6 +151,11 @@ def main(argv=None):
     p.add_argument("--status", nargs=3, metavar=("KIND", "N", "STATUS"), default=None,
                    help="mark finding N of audits/KIND/FINDINGS.md as confirmed | rejected | decision | candidate")
     p.add_argument("--note", default="", help="with --status: short note written next to the status")
+    p = sub.add_parser("review", help="post-fit review of the incumbent (per-point summary, norm direction/trends, residual runs, "
+                                      "average-vs-structure, zigzag, level support) -> REVIEW.md + figures/review_*.png")
+    p.add_argument("--grid-check", action="store_true", help="re-score the incumbent on a converged target-integration grid (20/50)")
+    p.add_argument("--figures", type=int, default=6, help="figures for the N worst data sets (0 = none)")
+    p.add_argument("--top", type=int, default=20, help="rows in the top-points / runs tables")
     p = sub.add_parser("decisions", help="pending entries of DECISIONS.md")
     p.add_argument("--all", action="store_true")
     p = sub.add_parser("decide", help="answer a DECISIONS.md entry")
@@ -237,6 +244,12 @@ def main(argv=None):
             counts = write_audit(fs, os.path.join(c.dir, "AUDIT.md"), azr)
             print("wrote", os.path.join(c.dir, "AUDIT.md"), counts)
             c.note(f"audit: {', '.join(f'{k} {v}' for k, v in counts.items())} (AUDIT.md)")
+        elif a.cmd == "review":
+            from rmfit.review import review_campaign
+            r = review_campaign(c, grid_check=a.grid_check, figures=a.figures, top=a.top)
+            for f in r["findings"]:
+                print(f.line())
+            print("wrote", r["path"], r["counts"])
         elif a.cmd == "decisions":
             items = c.decisions.all() if a.all else c.decisions.pending()
             for d in items:

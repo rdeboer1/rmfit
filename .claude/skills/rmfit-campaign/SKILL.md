@@ -2390,3 +2390,15 @@ DeBoer: "make those rmfit changes so we can proceed" (11B+a broad-level J^pi stu
 Rule: before trusting a sharded number on a new model, compare it with the CLI's mode-1 total INCLUDING every penalty term the CLI
 prints (norm, shift, Park, scattering length); a missing term or segment is invisible otherwise.  Test tests/test_scatlen_ranges.py;
 record 11B+a/11-07-26_rmfit_fix/readme.
+
+## 2026-11-07 -- data files outside data/ were lost in every working directory; bake when the fit started from a file (11B+a)
+
+DeBoer: "Yes, fix it in rmfit".  Shards, single-session variants, windows, level-scan variants and mixture members linked
+`data/` only, so the 11B+a paper fit's `akdata/` and `thermal/` segments (4 of 75) were missing there; pyazr refused the
+segment count, so it failed loudly.  `model.link_data_dirs` now links every directory the segment lines read (commit 56d5469,
+tests/test_data_dirs.py).  Same campaign, a process trap, not a code bug: `init --sav` seeds the FREE parameters only, and
+fixed ones come from the `.azr`.  The paper fit had been started from an external start.sav, so its `.azr` still held an old
+fixed proton width (10.702 MeV: ~180 eV vs the fitted 494 meV) and the baseline came out 993,417 instead of 10,889.55.  Bake
+first (section 2, prerequisite 2) whenever the fit you build on was run with an external parameter file; pyazr's
+`azure2.load_sav` docstring explains the split.  A check of your own that feeds a single-session vector to a Sharded evaluator
+must map it with `keys.take`: the two order the free parameters differently.  Record: 11B+a/11-07-26_jpi_study/readme.

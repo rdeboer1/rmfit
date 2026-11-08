@@ -369,6 +369,32 @@ class Campaign:
             cid = c.ledger.add_candidate(sid, x, keys, move=dict(kind="baseline"), status="verified")
             c.ledger.record(cid, sc, "verified", evaluator="single")
             rep = sanity(ev, x, c.policy, default_bounds(ev, x, c.policy))
+        # the archived chiSquared.out in the base model's output directory (skill section 2 item 2: reproduce the last
+        # finished fit before building on it).  A seed that does not reproduce it is on the wrong flags, the wrong or a
+        # positional .sav, or a stale output/ (7Be benchmark 2026-11-08: ignore_externals False gave chi2 6879 for the
+        # archived 5089; the campaign and its perturbation benchmark were built on the wrong objective).  Plain chi2 is
+        # compared (the per-segment scores stay plain whatever the objective); a warning, not a refusal.
+        try:
+            from .review import output_dir_of, read_chisq_out
+            odir = output_dir_of(base_azr)
+            cs = os.path.join(odir, "chiSquared.out") if odir else ""
+            if cs and os.path.exists(cs):
+                tab = read_chisq_out(cs)
+                ref_chi2 = sum(d["chi2"] for d in tab.values())
+                ref_n = sum(d["n"] for d in tab.values())
+                plain = sum(sc.segment_chi2.values()) if getattr(sc, "segment_chi2", None) else sc.chi2
+                rel = abs(plain - ref_chi2) / max(abs(ref_chi2), 1e-300)
+                msg = (f"init: archived {os.path.relpath(cs, directory)} chi2 {ref_chi2:.3f} (N {ref_n}) vs the seed's plain chi2 "
+                       f"{plain:.3f} (N {sc.npts}): {100 * rel:.4f} %")
+                if rel > 1e-3 or ref_n != sc.npts:
+                    c.log("WARNING " + msg + " -- the seed does NOT reproduce the archived fit: check the flags (ignore_externals, "
+                          "long wavelength, Brune), the .sav (positional names after a level change) and whether output/ is stale, "
+                          "before building on it (skill section 2 item 2)")
+                    c.note("WARNING at init: " + msg + "; the seed does not reproduce the archived fit")
+                else:
+                    c.log(msg + " -- reproduces")
+        except Exception as err:              # a diagnostic must never stop an init
+            c.log(f"init: archived chiSquared.out comparison skipped ({err})")
         c.log(f"init: baseline candidate {cid} objective {sc.objective:.3f} (chi2 {sc.chi2:.3f} + pen {sc.penalty:.3f}), "
               f"N={sc.npts}, sanity {rep.summary()}")
         c.note(f"campaign initialised on {os.path.basename(base_azr)}: baseline objective {sc.objective:.3f} "

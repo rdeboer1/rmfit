@@ -77,7 +77,7 @@ decisions stay with the evaluator; the spec records them.
   evaluator's call); 17O+a an2 -> 5/2+ 8.1617 (13 eV) and 5/2- 8.2636 (0.8 eV) MEDIUM `level-below-resolution` under the
   Best target integration (plus four more of the same kind); 11B+a 8-27-26 -> the archived output is post-fix, so the
   zigzag detector is calibrated on a synthetic saw-tooth only; 10B+a ND5U25 -> synthetic norm-opposite test + the
-  stage-1b campaign through the engine path (job 1708099).
+  stage-1b campaign cannot be re-opened (covariance reference predates 2026-10-26).  First campaign run: 10B+a s5 (grid check -0.00 %; HIGH: the 2- 14.708 / 15.022 poles over six unfitted peaks; the fixed ND5U/MANA norms' n*).  Worked examples: `R-matrix/agentic/11-7-26_claude/review_calibration/`.
 
 ### Phase 2 -- close the loop (~10 agent-days + 2 weeks calendar)
 - `drive.py` (`rmfit drive`): resumable state machine PIN_CHECK -> AUDIT -> REPRODUCE -> SPEC_CHECK ->
@@ -126,8 +126,8 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
 
 - 2026-11-07 23:00  Phase 1.3 `rmfit review` built, tested (engine-free, 13N output), calibrated on the archived 13C+a and
   17O+a cases (see the 1.3 entry above).  Not a decision maker: every flag is a candidate with the number behind it, in
-  CLAUDE.md's per-point wording.  Engine path (`rmfit <dir> review [--grid-check]`) first run on 10B+a s5 and stage 1b as
-  job 1708099.  Remaining in Phase 1: 1.4 (rules into docs).
+  CLAUDE.md's per-point wording.  Engine path (`rmfit <dir> review [--grid-check]`) first run on 10B+a s5 (job 1708099 + login node; it caught the
+  closed-channel ANC-as-width bug, fixed in ab6577f).  Remaining in Phase 1: 1.4 (rules into docs).
 - 2026-11-07  Phase 0 built: git (7539e88 baseline, 7ef9e24 engine pin), `enginepin.py`, job-template guard,
   `install_shared.sh`, this file.  Sharded fixture job queued (tests/_queue_sharded).
 - 2026-11-07 15:30  Phase 1a built: `spec.py` (+ `templates/SPEC_TEMPLATE.json`, `rmfit spec check|render|derive`, `init --spec`,

@@ -279,11 +279,21 @@ States: build phase `PIN_CHECK AUDIT REPRODUCE SPEC_CHECK SCALE_ANCHOR SEED_CHAN
 INIT` (section 2 prerequisites and "First fits": the archived chiSquared.out must reproduce, the spec's data-set roles are
 applied to a working copy `<stem>_drive.azr`, free widths at exactly zero are seeded at `model.seed_frac` (0.01) gamma_W,
 ENSDF states of the residual nuclei that open below the window top without a pair are listed, `candidates.json` is built
-from ENSDF broad-first when absent -- every candidate needs a `hypothesis`), then the loop `TIGHTEN SIGN SHIFTS_FREE
-STRUCTURE_ADD SIGN_POST DATASET_OFF REVIEW EXPORT CYCLE` (section 3 steps 1-7 with section 4's stopping rules: polish rounds
+from ENSDF broad-first when absent -- every candidate needs a `hypothesis`), then the loop `TIGHTEN SIGN POPULATION
+SHIFTS_FREE STRUCTURE_ADD SIGN_POST DATASET_OFF REVIEW EXPORT CYCLE` (section 3 steps 1-7 with section 4's stopping rules: polish rounds
 until the gain is below `polish_gain_rel_min` -- size `budget.polish_nfev` to the model, 150 is far too few for 200 free
 parameters; sign rounds only once the polish converged (`sign_after_converged_polish`, else they are deferred to the next
-cycle: 7Be 2026-11-08, 18 rounds accepted nothing on a moving incumbent) and until `sign_rounds_without_accept`; level adds until
+cycle: 7Be 2026-11-08, 18 rounds accepted nothing on a moving incumbent) and until `sign_rounds_without_accept`; then
+POPULATION, the basin-crossing stage (`Campaign.run_population`, CLI `population`): `budget.restarts_per_cycle` sign-perturbed
+restarts of the incumbent (random 6-12 high-exposure flips, <= 3 per J^pi, 20 % jitter), each polished sign-locked then
+released to convergence in rounds of `restart_nfev` (0 = `polish_nfev`), plus the control, then `crossover_passes` passes of
+`crossover` moves from the best member with every other as donor, each pattern polished, the winner polished to convergence
+-- judged on polished objectives only; an improvement is a new basin and SIGN_POST finishes its last signs; a round gaining
+less than `population_gain_rel_min` switches the stage off until a structure change (`population_rounds_max` caps it).  Why
+(7Be benchmark 2026-11-08, bench readme): the sign rounds left a basin 13.5 % above the reference, sign distance 17; the
+reference's 17-flip pattern starts at three times the incumbent's objective and polishes down to it, while no single, pair,
+channel or group flip gained more than 2.6 even with a 600-evaluation polish -- local proposals do not cross basins, a
+population of polished basins and crossover between them does (six restarts + one pass: 6002.6 -> 5325.7); level adds until
 `level_adds_marginal_in_a_row`, adoption per `pre_authorized.adopt_level`; the Botek test on the worst chi2/N sets, result
 recorded, never excluded; review HIGH flags wait for the evaluator; another pass while a cycle gains `cycle_gain_rel_min`
 and `cycles_max` allows).  `DRIVE.md` is rewritten after every state; `drive_state.json` is the checkpoint (`--state S`
@@ -2448,6 +2458,24 @@ fixed proton width (10.702 MeV: ~180 eV vs the fitted 494 meV) and the baseline 
 first (section 2, prerequisite 2) whenever the fit you build on was run with an external parameter file; pyazr's
 `azure2.load_sav` docstring explains the split.  A check of your own that feeds a single-session vector to a Sharded evaluator
 must map it with `keys.take`: the two order the free parameters differently.  Record: 11B+a/11-07-26_jpi_study/readme.
+
+## 2026-11-08 (evening) -- POPULATION: restarts + crossover become a drive stage (7Be benchmark post-mortem)
+
+The first recovery benchmark on 7Be (6Li+p/3He+a/AZURE2_evaluation/11-8-26_drive_bench, readme) ran the drive from an
+8-flip perturbation of the 10-20-26 reference (5290.09): the loop did everything asked -- 24 converged-or-budget polishes
+of 600 evaluations, sign rounds only after convergence, six cycles, zero decisions -- and stopped at 6002.6, sign
+distance 17.  The polish itself had left the perturbed basin for a third one.  Post-mortem (diag3.py): with the reference's
+17 relative signs imposed, an ordinary polish converges toward the reference (5334.8 after 6,000 evaluations, distance 0);
+every one of the 17 flips alone, and every per-channel / per-J^pi pattern of the reference, gains at most 2.6 even with a
+600-evaluation polish (most lose 5-64).  The 17-flip pattern starts at 18,745, three times the incumbent: no screen ranks
+it.  Then pop3.py, no oracle: six sign-perturbed restarts of the 6002.6 vector polished to convergence (5439-5885, all in
+other basins), crossover from the best with the others as donors, each pattern polished 600: 5439 -> 5325.7 in one pass
+(a 3-flip 7/2- pattern from another restart), the second pass found nothing more.  Rules that follow: (1) sign rounds are
+for the LAST few signs of a basin, not for crossing basins; (2) crossing needs a population of independently polished
+basins and crossover between them, judged on polished objectives only (DeBoer's "several fits in parallel and merge",
+measured); (3) a multi-flip proposal's unpolished objective says nothing -- only a full polish does.  Built as
+`Campaign.run_population` / `rmfit <dir> population` and the drive's POPULATION state (section 3a), on by default with 4
+restarts per cycle; `budget.restarts_per_cycle: 0` turns it off.
 
 ## 2026-11-08 -- `rmfit drive`: the loop is closed in code (first version)
 

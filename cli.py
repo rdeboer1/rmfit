@@ -7,6 +7,9 @@ Commands (all idempotent and resumable from the ledger):
   polish [--nfev N] [--shifts-free] [--refreeze-every N]        warm-start continuation of the incumbent
   round [--jpi 5/2+ 3/2- ...] [--rounds N] [--top-k K]          sign round(s); touch <dir>/STOP to end the loop after the current round
   crossover --donor CID [--donor-dir DIR]                       basin crossover: the donor's sign pattern per channel/group/all, all polished
+  population [--restarts K] [--flips 6,8,10,12] [--nfev N] [--passes P] [--jitter J] [--seed S]
+                                                                restarts + crossover (2026-11-08): K sign-perturbed restarts of the incumbent
+                                                                polished to convergence, crossover between them; the basin-crossing stage
   levelscan [--ex E ...] [--top K] [--gamma keV] [--refit N]    residual-driven level search: template screen of every J^pi at the residual peaks
   relocate --level 9/2+#1 --ex 8.4654 [--window keV]           move an existing level and re-polish with its energy confined near --ex
   verify <cid>                                                  re-score a ledger candidate on a fresh single session
@@ -179,6 +182,16 @@ def main(argv=None):
     p.add_argument("--note", default="")
     p = sub.add_parser("log")
     p.add_argument("text")
+    p = sub.add_parser("population", help="restarts + crossover: K sign-perturbed restarts of the incumbent polished to convergence, crossover between them")
+    p.add_argument("--restarts", type=int, default=4)
+    p.add_argument("--flips", default="6,8,10,12", help="flip counts drawn per restart (comma list) or one integer")
+    p.add_argument("--per-group", type=int, default=3)
+    p.add_argument("--nfev", type=int, default=600)
+    p.add_argument("--rounds-max", type=int, default=8)
+    p.add_argument("--passes", type=int, default=2)
+    p.add_argument("--jitter", type=float, default=0.2)
+    p.add_argument("--seed", type=int, default=None)
+    p.add_argument("--note", default="")
     p = sub.add_parser("perturb", help="recovery benchmark: a sibling campaign from a sign-perturbed incumbent")
     p.add_argument("--out", required=True)
     p.add_argument("--flips", type=int, default=8)
@@ -317,6 +330,11 @@ def main(argv=None):
                     break
         elif a.cmd == "crossover":
             c.run_crossover(a.donor, donor_dir=a.donor_dir, note=a.note)
+        elif a.cmd == "population":
+            fl = [int(v) for v in str(a.flips).split(",")]
+            st = c.run_population(restarts=a.restarts, n_flips=(fl[0] if len(fl) == 1 else tuple(fl)), per_group=a.per_group,
+                                  nfev=a.nfev, rounds_max=a.rounds_max, passes=a.passes, jitter=a.jitter, seed=a.seed, note=a.note)
+            print(json.dumps(st, default=str, indent=1))
         elif a.cmd == "levelscan":
             grid = None if str(a.grid).lower() == "none" else [float(v) for v in a.grid.split(",")]
             gamma_kev = None if str(a.gamma).lower() == "auto" else float(a.gamma)

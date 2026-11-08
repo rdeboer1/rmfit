@@ -560,6 +560,127 @@ class Campaign:
                                                          log=self.log, label=label)
         return self._record_round(rid, cid, ev, obj, x_best, obj_best, stat, trials, kind="crossover round")
 
+    def run_population(self, restarts=4, n_flips=(6, 8, 10, 12), per_group=3, top_moves=40, jitter=0.2,
+                       nfev=600, rounds_max=8, gain_tol=5e-4, passes=2, seed=None, note="") -> dict:
+        """Restarts + crossover: the basin-crossing stage (2026-11-08, 7Be benchmark post-mortem).
+
+        The sign rounds judge single and paired flips on short screens; the 7Be post-mortem (6Li+p/3He+a/.../11-8-26_drive_bench,
+        diag3) showed that the way from a 6002 basin to the 5290 reference was a coordinated 17-flip pattern whose unpolished
+        objective was three times the incumbent's -- no single, pair, channel or group flip gained more than 2.6 even with a
+        600-evaluation polish, while a population of six sign-perturbed restarts of the incumbent, each polished to convergence,
+        plus crossover between them reached 5326 in one pass (pop3).  So: ``restarts`` sign-perturbed copies of the incumbent
+        (a random set of ``n_flips`` flips among the ``top_moves`` highest-exposure amplitudes, at most ``per_group`` per J^pi,
+        widths jittered by ``jitter``), each polished sign-locked once and then released in rounds of ``nfev`` until the gain is
+        below ``gain_tol`` (at most ``rounds_max``); the control (the incumbent polished the same way) joins them; then up to
+        ``passes`` crossover passes from the best member with every other member as donor (moves.crossover_moves: the donor's
+        pattern per channel / per J^pi group / all), each pattern polished once, the winner polished to convergence.  Everything
+        is judged on polished objectives.  Every member is a ledger candidate (status "population"); only the final best is
+        verified and becomes the incumbent if it beats it."""
+        from .moves import exposure, single_flips, random_flip_set, apply, crossover_moves
+        from .keys import sign_distance
+        cid, x, obj, keys = self.incumbent()
+        ev = self.sharded
+        xs = take(x, keys, ev.keys, ev.x0)
+        fixed = ev.fixed_amplitudes
+        pos = {k: j for j, k in enumerate(ev.keys)}
+        rid = self.ledger.start_round(self.structure_id, "population",
+                                      note or f"{restarts} restarts, {passes} crossover passes")
+        rng = np.random.default_rng(rid if seed is None else seed)
+        t0 = time.time()
+        n_pol = [0]
+
+        def rounds(x0, label, first_bounds=None, max_rounds=rounds_max):
+            xx = np.asarray(x0, float)
+            prev = float(ev.objective(xx))
+            for i in range(max_rounds):
+                b = first_bounds if (i == 0 and first_bounds is not None) else default_bounds(ev, xx, self.policy)
+                f = polish(ev, xx, bounds=b, policy=self.policy, max_nfev=nfev)
+                n_pol[0] += 1
+                gain = (prev - f.objective) / prev if prev else 0.0
+                self.log(f"    {label} round {i+1}: {prev:.3f} -> {f.objective:.3f} ({100*gain:.3f} %, {f.status}, "
+                         f"{(time.time()-t0)/60:.0f} min)")
+                xx, prev = f.x, float(f.objective)
+                if f.status == "crashed" or gain < gain_tol:
+                    break
+            return xx, prev
+
+        def member(name, xv, ov, kind):
+            mcid = self.ledger.add_candidate(self.structure_id, xv, ev.keys, move=dict(kind=kind, round=rid, name=name),
+                                             parent=cid, status="population")
+            self.ledger.record(mcid, ev.score(xv), "global")
+            return dict(name=name, x=xv, obj=ov, cid=mcid)
+
+        self.log(f"population round #{rid}: incumbent {cid} {obj:.3f}; {restarts} restarts of {n_flips} flips (<= {per_group} per "
+                 f"J^pi group from the {top_moves} highest-exposure amplitudes, jitter {jitter}), polish {nfev} x <= {rounds_max} "
+                 f"until < {100*gain_tol:.2f} %, then <= {passes} crossover passes")
+        pop = []
+        xc, oc = rounds(xs, "control")
+        pop.append(member("control", xc, oc, "population_control"))
+        expo = exposure(ev, xs)
+        moves = single_flips(xs, ev.keys, exposure_map=expo, fixed=fixed)[:top_moves]
+        for i in range(int(restarts)):
+            n = int(n_flips) if isinstance(n_flips, (int, np.integer)) else int(rng.choice(list(n_flips)))
+            chosen = random_flip_set(moves, rng, n, per_group=per_group)
+            xp = xs.copy()
+            for mv in chosen:
+                xp = apply(xp, ev.keys, mv)
+            if jitter > 0:
+                for j, k in enumerate(ev.keys):
+                    if k.kind == "width" and xp[j] != 0:
+                        xp[j] *= rng.uniform(1 - jitter, 1 + jitter)
+            lock = {k: (1 if xp[pos[k]] > 0 else -1) for mv in chosen for k in mv.targets}
+            b1 = default_bounds(ev, xs, self.policy, sign_lock=lock)
+            xp = b1.clip(xp)
+            self.log(f"  restart {i+1}: {len(chosen)} flips " + ", ".join(str(m.targets[0]) for m in chosen)
+                     + f"; raw {ev.objective(xp):.1f}")
+            x1, _ = rounds(xp, f"restart {i+1} locked", first_bounds=b1, max_rounds=1)
+            x2, o2 = rounds(x1, f"restart {i+1}")
+            d = sign_distance(x2, xs, ev.keys, fixed)[0]
+            self.log(f"  restart {i+1}: {o2:.3f}, sign distance to the incumbent {d}" + (" (same basin)" if d == 0 else ""))
+            pop.append(member(f"restart {i+1}", x2, o2, "population_restart"))
+        self.log("  population: " + "; ".join(f"{m['name']} {m['obj']:.3f}" for m in sorted(pop, key=lambda m: m["obj"])))
+        best = min(pop, key=lambda m: m["obj"])
+        n_moves, source = 0, best["name"]
+        for pas in range(1, int(passes) + 1):
+            cand = []
+            for d in pop:
+                if d is best:
+                    continue
+                for mv in crossover_moves(best["x"], d["x"], ev.keys, fixed=fixed, label=d["name"]):
+                    xm = apply(best["x"], ev.keys, mv)
+                    xm, om = rounds(xm, mv.description, max_rounds=1)
+                    n_moves += 1
+                    cand.append((om, xm, mv.description))
+            if not cand:
+                self.log(f"  crossover pass {pas}: no member differs from {best['name']} in sign pattern")
+                break
+            om, xm, desc = min(cand, key=lambda t: t[0])
+            self.log(f"  crossover pass {pas} from {best['name']} {best['obj']:.3f}: {len(cand)} patterns polished, "
+                     f"best '{desc}' {om:.3f}")
+            if om >= best["obj"]:
+                break
+            xm, om = rounds(xm, f"crossover pass {pas} winner")
+            best = member(f"crossover pass {pas}: {desc}", xm, om, "population_crossover")
+            pop.append(best)
+            source = best["name"]
+        stats = dict(before=obj, after=best["obj"], restarts=restarts, passes=passes, polishes=n_pol[0],
+                     crossover_moves=n_moves, members={m["name"]: m["obj"] for m in pop}, best=source,
+                     wall_min=(time.time() - t0) / 60)
+        improved = best["obj"] < obj
+        if improved:
+            ncid, sc = self.verify_candidate(best["x"], ev.keys, move=dict(kind="population", round=rid, source=source),
+                                             parent=cid)
+            stats["verified"] = sc.objective
+            improved = sc.objective < obj
+        self.ledger.finish_round(rid, **stats)
+        self.note(f"population round #{rid} ({restarts} restarts, {n_moves} crossover patterns, {n_pol[0]} polishes of {nfev}, "
+                  f"{stats['wall_min']:.0f} min): {obj:.3f} -> {stats.get('verified', best['obj']):.3f} via {source}"
+                  + (" (verified)" if "verified" in stats else " (no improvement)")
+                  + "; members: " + "; ".join(f"{m['name']} {m['obj']:.1f}" for m in sorted(pop, key=lambda m: m["obj"])))
+        self.ledger.write_status_md()
+        stats["improved"] = improved
+        return stats
+
     def run_levelscan(self, ex: Optional[Sequence[float]] = None, top: int = 3, gamma_kev: Optional[float] = 10.0,
                       scales: Sequence[float] = (0.3, 0.6, 1.2, 2.5, 5.0, 10.0), jpis: Optional[Sequence[str]] = None,
                       gn_top: int = 20, max_signs: int = 32, refit: int = 0,

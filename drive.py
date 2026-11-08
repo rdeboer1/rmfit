@@ -43,9 +43,10 @@ from .spec import FitSpec, Finding, write_findings_md
 
 BUILD_STATES = ["PIN_CHECK", "AUDIT", "REPRODUCE", "SPEC_CHECK", "SCALE_ANCHOR", "SEED_CHANNELS", "PAIR_COMPLETENESS",
                 "LADDER", "CANDIDATES", "INIT"]
-LOOP_STATES = ["TIGHTEN", "SIGN", "SHIFTS_FREE", "STRUCTURE_ADD", "SIGN_POST", "DATASET_OFF", "REVIEW", "EXPORT", "CYCLE"]
+LOOP_STATES = ["TIGHTEN", "SIGN", "POPULATION", "SHIFTS_FREE", "STRUCTURE_ADD", "SIGN_POST", "DATASET_OFF", "REVIEW", "EXPORT",
+               "CYCLE"]
 STATES = BUILD_STATES + LOOP_STATES
-ENGINE_STATES = {"REPRODUCE", "SEED_CHANNELS", "LADDER", "INIT", "TIGHTEN", "SIGN", "SHIFTS_FREE", "STRUCTURE_ADD",
+ENGINE_STATES = {"REPRODUCE", "SEED_CHANNELS", "LADDER", "INIT", "TIGHTEN", "SIGN", "POPULATION", "SHIFTS_FREE", "STRUCTURE_ADD",
                  "SIGN_POST", "DATASET_OFF", "REVIEW", "EXPORT"}
 STATUS_WORDS = ("CONTINUE", "WAITING", "DONE", "STOP", "ERROR")
 STATE_FILE = "drive_state.json"
@@ -54,9 +55,11 @@ STOP_FILE = "STOP_DRIVE"
 # spec defaults (budget / stop_rules), SKILL.md sections 3-4 and templates/SPEC_TEMPLATE.json
 DEFAULT_BUDGET = dict(polish_nfev=150, polish_rounds_max=4, sign_rounds_max=4, level_tests_max=10, level_nfev=150,
                       pinned_nfev=60, dataset_off_max=2, dataset_off_nfev=100, ladder_nfev=100, cycles_max=3,
-                      node_hours_max=0, grid_check=True, figures=6)
+                      node_hours_max=0, grid_check=True, figures=6,
+                      # POPULATION (2026-11-08): restarts + crossover per cycle; restart_nfev 0 = polish_nfev
+                      restarts_per_cycle=4, restart_nfev=0, crossover_passes=2, population_rounds_max=3)
 DEFAULT_STOP = dict(polish_gain_rel_min=5e-4, sign_rounds_without_accept=2, level_adds_marginal_in_a_row=2,
-                    cycle_gain_rel_min=1e-3, dataset_off_extra_pct=5.0, reproduce_rtol=1e-3,
+                    cycle_gain_rel_min=1e-3, population_gain_rel_min=1e-3, dataset_off_extra_pct=5.0, reproduce_rtol=1e-3,
                     # sign rounds only after the polish converged (skill section 3, step 1 "when done" before step 2): a flip
                     # is credited with what it gains beyond the control polish, and an unconverged incumbent moves by more
                     # than any flip (7Be benchmark attempt 2, 2026-11-08: 18 sign rounds, 0 accepted, while the polishes
@@ -227,6 +230,7 @@ class Driver:
                 sid = int(m.group(1))
                 c.adopt_structure(sid, note=f"(decision {d.id} answered '{d.get('answer')}' by {d.get('answered_by', '')})")
                 self.counters["adopted_since_sign"] = 1
+                self.counters["population_exhausted"] = 0      # a new structure: the population stage may pay again
                 self.note(f"decision {d.id} applied: structure {sid} adopted as the base model ({d['slug']})")
             else:
                 self.log(f"decision {d.id} ({d['slug']}) answered '{d.get('answer')}': nothing to apply"
@@ -847,6 +851,41 @@ class Driver:
             return "next", "no structure change since the last sign rounds: skipped"
         return self._sign_state("sign_post")
 
+    def _s_population(self):
+        """Restarts + crossover (Campaign.run_population), the basin-crossing stage.  7Be benchmark 2026-11-08: the drive's
+        sign rounds left a 6002 basin 13.5 % above the reference (no single/pair/channel/group flip pays, even with a long
+        polish), six polished restarts + one crossover pass reached 5326.  Runs once per cycle after the sign rounds, on a
+        converged polish only, until budget.population_rounds_max or a round that gains < stop_rules.population_gain_rel_min
+        (then skipped until a structure change).  An improvement is a new basin: SIGN_POST finishes its last signs."""
+        c = self.campaign
+        k = int(self.budget.get("restarts_per_cycle", 0) or 0)
+        if k <= 0:
+            return "next", "budget.restarts_per_cycle 0: skipped"
+        if int(self.stop.get("sign_after_converged_polish", 1)) and self.counters.get("polish_converged", 1) == 0:
+            return "next", (f"polish not converged (last gain {100*float(self.counters.get('polish_last_gain', 0)):.3f} %): "
+                            f"population deferred to the next cycle")
+        n = int(self.counters.get("population_rounds", 0))
+        if n >= int(self.budget.get("population_rounds_max", 3)):
+            return "next", f"budget.population_rounds_max {self.budget.get('population_rounds_max', 3)} reached"
+        if self.counters.get("population_exhausted"):
+            return "next", "the last population round gained < stop_rules.population_gain_rel_min: skipped until a structure change"
+        before = self._incumbent_obj()
+        nfev = int(self.budget.get("restart_nfev") or 0) or int(self.budget["polish_nfev"])
+        st = c.run_population(restarts=k, nfev=nfev, passes=int(self.budget.get("crossover_passes", 2)),
+                              note="rmfit drive POPULATION")
+        after = self._incumbent_obj()
+        gain = (before - after) / max(abs(before), 1e-300)
+        self.counters["population_rounds"] = n + 1
+        self.counters["population_last_gain"] = gain
+        msg = (f"round {n+1}: {k} restarts, {st.get('crossover_moves', 0)} crossover patterns, {st.get('polishes', 0)} polishes of "
+               f"{nfev}; {before:.3f} -> {after:.3f} ({100*gain:.3f} %) via {st.get('best')}")
+        if gain >= float(self.stop.get("population_gain_rel_min", 1e-3)):
+            self.counters["adopted_since_sign"] = 1        # a new basin: SIGN_POST finishes the last signs
+            self.counters["polish_converged"] = 1
+            return "next", msg + " -> new basin adopted"
+        self.counters["population_exhausted"] = 1
+        return "next", msg + " -> below population_gain_rel_min: no further population rounds for this structure"
+
     def _s_shifts_free(self):
         c = self.campaign
         if not self.spec.pre_authorized.get("shifts_free", False) is True:
@@ -897,6 +936,7 @@ class Driver:
         if out == "accept":
             self.counters["marginal_in_a_row"] = 0
             self.counters["adopted_since_sign"] = 1
+            self.counters["population_exhausted"] = 0          # a new structure: the population stage may pay again
         elif out == "accept-pending":
             self.counters["marginal_in_a_row"] = 0
         else:
@@ -983,6 +1023,7 @@ PLAN_TEXT = {
     "INIT": "Campaign.init --spec (baseline verified, engine pinned)",
     "TIGHTEN": "polish --tighten rounds until gain < polish_gain_rel_min (budget polish_rounds_max)",
     "SIGN": "sign rounds until sign_rounds_without_accept (>= 2 rounds; budget sign_rounds_max)",
+    "POPULATION": "restarts_per_cycle sign-perturbed restarts polished to convergence + crossover_passes between them (basin crossing); gain < population_gain_rel_min -> off until a structure change",
     "SHIFTS_FREE": "polish --shifts-free if pre_authorized.shifts_free",
     "STRUCTURE_ADD": "level add per candidates.json entry (hypothesis required); adoption per pre_authorized.adopt_level",
     "SIGN_POST": "sign rounds again if a structure was adopted",

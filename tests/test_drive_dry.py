@@ -58,6 +58,7 @@ class StubCampaign:
         self.calls = []
         self.polish_gains = [50.0, 0.3, 0.0]      # TIGHTEN: converge at round 2 (gain 0.03 % < 0.1 %)
         self.sign_accepts = [1, 0, 0]             # SIGN: accepted, none, none -> stop after round 3
+        self.pop_gains = [8.0, 0.0]               # POPULATION: cycle 1 gains 0.8 % (new basin), cycle 2 nothing -> exhausted
         self.add_outcomes = ["marginal", "accept", "worse", "worse"]
         self.dataset_extra = 12.0
         self.review_high = True
@@ -81,6 +82,14 @@ class StubCampaign:
         self.obj -= g
         self.calls.append(("polish", tighten, shifts_free))
         return types.SimpleNamespace(status="converged", nfev=max_nfev, objective=self.obj)
+
+    def run_population(self, restarts=4, nfev=600, passes=2, note="", **kw):
+        gain = self.pop_gains.pop(0) if self.pop_gains else 0.0
+        before = self.obj
+        self.obj -= gain
+        self.calls.append(("population", restarts, nfev))
+        return dict(before=before, after=self.obj, verified=self.obj, restarts=restarts, polishes=restarts + 3,
+                    crossover_moves=5, best="restart 1" if gain else "control", improved=gain > 0)
 
     def run_sign_round(self, jpi=None, note=""):
         acc = self.sign_accepts.pop(0) if self.sign_accepts else 0
@@ -202,6 +211,11 @@ def main():
         signs = [c for c in stub.calls if c[0] == "sign"]
         check("SIGN: three rounds (accept, none, none) then converged", len(signs) >= 3, str(signs))
         check("SHIFTS_FREE skipped (pre_authorized false)", not any(c[0] == "polish" and c[2] is True for c in stub.calls))
+        pops = [c for c in stub.calls if c[0] == "population"]
+        check("POPULATION ran once in cycle 1 with the default budget (4 restarts, polish_nfev)",
+              pops[:1] == [("population", 4, int(d6.budget["polish_nfev"]))], str(pops))
+        pop_rec = [h for h in d6.state["history"] if h["state"] == "POPULATION"]
+        check("POPULATION round 1 adopted the new basin (0.8 % gain)", pop_rec and "new basin" in pop_rec[0]["note"], str([h["note"] for h in pop_rec]))
         adds = [c for c in stub.calls if c[0] == "add"]
         check("STRUCTURE_ADD skipped the candidate without a hypothesis", all(abs(c[1] - 3.2) > 1e-6 for c in adds), str(adds))
         check("STRUCTURE_ADD stopped after two marginal/worse in a row (budget 3 tests)", len(adds) == 3, str(adds))
@@ -223,6 +237,11 @@ def main():
         hist2 = [(h["state"], h["result"]) for h in d7.state["history"]]
         print("      after answer:", status, [f"{s}:{r}" for s, r in hist2[-12:]])
         check("EXPORT ran", any(c[0] == "export" for c in stub.calls))
+        pops = [c for c in stub.calls if c[0] == "population"]
+        pop_rec = [h for h in d7.state["history"] if h["state"] == "POPULATION"]
+        check("POPULATION ran once per cycle (2 cycles)", len(pops) == 2, str(pops))
+        check("POPULATION round 2 (no gain) -> exhausted", len(pop_rec) >= 2 and "no further population rounds" in pop_rec[1]["note"],
+              str([h["note"][-80:] for h in pop_rec]))
         check("cycle start objective recorded at the first TIGHTEN of a pre-existing campaign", d7.state.get("baseline_objective") == 1000.0,
               str(d7.state.get("baseline_objective")))
         check("CYCLE -> second pass (gain large) then DONE", status == "DONE" and d7.state["cycle"] == 2 and d7.state["state"] == "DONE",

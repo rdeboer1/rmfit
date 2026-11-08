@@ -137,6 +137,24 @@ def single_flips(x, keys: Sequence[ParamKey], jpi: Optional[Sequence[str]] = Non
     return moves
 
 
+
+def random_flip_set(moves: Sequence[Move], rng, n: int, per_group: int = 3) -> List[Move]:
+    """``n`` single flips drawn at random (``rng``: numpy Generator) from ``moves`` -- normally the highest-exposure
+    single_flips -- with at most ``per_group`` per J^pi group.  Used by Campaign.run_population (2026-11-08): the
+    restarts of a population must differ from one another, which perturb's deterministic top-exposure choice does not."""
+    chosen: List[Move] = []
+    groups: Dict[Optional[str], int] = {}
+    for j in rng.permutation(len(moves)):
+        mv = moves[int(j)]
+        if groups.get(mv.jpi, 0) >= per_group:
+            continue
+        chosen.append(mv)
+        groups[mv.jpi] = groups.get(mv.jpi, 0) + 1
+        if len(chosen) >= n:
+            break
+    return chosen
+
+
 def pair_flips(x, keys: Sequence[ParamKey], jpi: str, exposure_map: Dict[ParamKey, float],
                top: int = 20, fixed: Sequence[ParamKey] = ()) -> List[Move]:
     """Two-amplitude flips inside one J^pi group, the ``top`` pairs by the

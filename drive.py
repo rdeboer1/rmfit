@@ -787,6 +787,12 @@ class Driver:
         if c is None:
             raise DriveStop("ERROR", "no campaign.json: the build phase did not reach INIT")
         n = int(self.counters.get("polish_rounds", 0))
+        if self.state.get("cycle_start_objective") is None:
+            # a campaign that existed before the drive (perturb sibling, retrofit) never passed INIT: the cycle's
+            # start is its incumbent when the loop phase begins (7Be benchmark 2026-11-08: CYCLE saw 0 % and stopped)
+            self.state["cycle_start_objective"] = self._incumbent_obj()
+            self.state.setdefault("baseline_objective", self.state["cycle_start_objective"])
+            self.save()
         if n >= int(self.budget["polish_rounds_max"]):
             self.counters["polish_rounds"] = 0
             return "next", f"budget.polish_rounds_max {self.budget['polish_rounds_max']} reached"

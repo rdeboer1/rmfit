@@ -192,8 +192,7 @@ def main():
                                    dict(energy=3.8, jpi="1/2+", hypothesis="test level D")]),
                   open(os.path.join(tmp, "candidates.json"), "w"))
         d6.state["state"] = "TIGHTEN"
-        d6.state["cycle_start_objective"] = stub.obj
-        d6.save()
+        d6.save()                                  # no cycle_start_objective: TIGHTEN must record it (pre-existing campaign)
         status = d6.run()
         hist = [(h["state"], h["result"]) for h in d6.state["history"] if h["cycle"] >= 1][-40:]
         print("      loop history:", [f"{s}:{r}" for s, r in hist])
@@ -224,6 +223,8 @@ def main():
         hist2 = [(h["state"], h["result"]) for h in d7.state["history"]]
         print("      after answer:", status, [f"{s}:{r}" for s, r in hist2[-12:]])
         check("EXPORT ran", any(c[0] == "export" for c in stub.calls))
+        check("cycle start objective recorded at the first TIGHTEN of a pre-existing campaign", d7.state.get("baseline_objective") == 1000.0,
+              str(d7.state.get("baseline_objective")))
         check("CYCLE -> second pass (gain large) then DONE", status == "DONE" and d7.state["cycle"] == 2 and d7.state["state"] == "DONE",
               f"{status} cycle {d7.state['cycle']} state {d7.state['state']}")
         check("DRIVE.md shows DONE", "**DONE**" in open(os.path.join(tmp, "DRIVE.md")).read())

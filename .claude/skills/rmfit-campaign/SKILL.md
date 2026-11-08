@@ -260,6 +260,40 @@ Ordinary additions: `touch <dir>/STOP` ends a `round --rounds N` loop after the 
 round; `verify <cid>` re-scores a candidate; `log "..."` appends to the readme;
 `report` writes `REPORT.md` (per-dataset chi2/N, theta^2 table, structure decisions).
 
+## 3a. The closed loop: `rmfit drive` (2026-11-08; DESIGN.md Phase 2)
+
+`rmfit <dir> drive` runs sections 2-4 as a resumable state machine instead of a session choosing every step.  It needs
+`<dir>/spec.json` (section 2b): the spec's `budget`, `stop_rules` and `pre_authorized` are the thresholds, and anything the
+spec does not answer becomes a `DECISIONS.md` entry.
+
+    cp <base>.azr <base>.sav <dir>/; cp -r data <dir>/data; mkdir <dir>/output; write <dir>/spec.json
+    python3 -m rmfit.cli <dir> drive --base <dir>/<base>.azr --sav <dir>/<base>.sav --dry-run   # records the base, prints the plan,
+                                                                                               # writes run_crc_drive
+    qsub <dir>/run_crc_drive                     # one leg per job: states run until DONE / WAITING / STOP or DRIVE_MAX_MIN (600),
+                                                 # then the job resubmits itself (CONTINUE)
+    python3 -m rmfit.cli <dir> drive --dry-run   # any time: where it is, what comes next, what it waits for (also DRIVE.md)
+    python3 -m rmfit.cli <dir> decide D-003 "adopt" --by DeBoer; qsub <dir>/run_crc_drive     # after a WAITING leg
+    touch <dir>/STOP_DRIVE                       # stop cleanly after the current state
+
+States: build phase `PIN_CHECK AUDIT REPRODUCE SPEC_CHECK SCALE_ANCHOR SEED_CHANNELS PAIR_COMPLETENESS LADDER CANDIDATES
+INIT` (section 2 prerequisites and "First fits": the archived chiSquared.out must reproduce, the spec's data-set roles are
+applied to a working copy `<stem>_drive.azr`, free widths at exactly zero are seeded at `model.seed_frac` (0.01) gamma_W,
+ENSDF states of the residual nuclei that open below the window top without a pair are listed, `candidates.json` is built
+from ENSDF broad-first when absent -- every candidate needs a `hypothesis`), then the loop `TIGHTEN SIGN SHIFTS_FREE
+STRUCTURE_ADD SIGN_POST DATASET_OFF REVIEW EXPORT CYCLE` (section 3 steps 1-7 with section 4's stopping rules: polish rounds
+until the gain is below `polish_gain_rel_min`; sign rounds until `sign_rounds_without_accept`; level adds until
+`level_adds_marginal_in_a_row`, adoption per `pre_authorized.adopt_level`; the Botek test on the worst chi2/N sets, result
+recorded, never excluded; review HIGH flags wait for the evaluator; another pass while a cycle gains `cycle_gain_rel_min`
+and `cycles_max` allows).  `DRIVE.md` is rewritten after every state; `drive_state.json` is the checkpoint (`--state S`
+jumps, `--reset` starts over and keeps the old file).  Engine states refuse the login node (`--local` is for fixtures).
+
+What the supervising session does: read `DRIVE.md`, `STATUS.md`, `DECISIONS.md`, `REVIEW.md`; relay the pending decisions
+to the evaluator with the evidence files; `decide`; resubmit.  It does not pick a step the spec answers, and it does not
+answer a data-treatment decision itself (section 5).  Limits of the first version: no channel lines or pairs are added
+automatically (PAIR_COMPLETENESS and SEED_CHANNELS report what is missing), LADDER needs `model.ladder_Ex`, the structure
+search uses `candidates.json` + `structure add` only (no `levelscan` inside the loop yet), and nothing in it has run on a
+live campaign yet -- the 13N fixture is the only end-to-end run (tests/test_drive_13n.py).
+
 ## 3b. While jobs run: audit and read (idle time is work time)
 
 DeBoer, 2026-10-02: "You're spending most of your time thinking about just doing the fit
@@ -2412,3 +2446,16 @@ fixed proton width (10.702 MeV: ~180 eV vs the fitted 494 meV) and the baseline 
 first (section 2, prerequisite 2) whenever the fit you build on was run with an external parameter file; pyazr's
 `azure2.load_sav` docstring explains the split.  A check of your own that feeds a single-session vector to a Sharded evaluator
 must map it with `keys.take`: the two order the free parameters differently.  Record: 11B+a/11-07-26_jpi_study/readme.
+
+## 2026-11-08 -- `rmfit drive`: the loop is closed in code (first version)
+
+Section 3a.  Built from DESIGN.md Phase 2.1 after the retrospective's finding that no session ever closed the loop
+(`round --rounds N` and two hand-written csh loops were the only internal ones).  Design choices worth knowing: one leg per
+job with a wall cap and self-resubmission, because a 19-state run on a real campaign is days; the spec's `budget` /
+`stop_rules` are the only knobs (defaults in `drive.DEFAULT_BUDGET` / `DEFAULT_STOP`); a decision whose default is `wait`
+blocks the leg (adopt-level, audit/spec/review HIGH, reproduction mismatch), one with another default is applied and recorded
+(`missing-pairs: continue`, `dataset-off-*: keep`), so the evaluator can revisit it without having stalled the run; answered
+`adopt-level-*` entries are applied at the start of the next leg (`Driver.apply_decisions`).  Verified engine-free
+(`tests/test_drive_dry.py`, stub campaign for the loop counters) and end to end on 13N (`tests/test_drive_13n.py`, queue).
+Open: run on a tier-1 benchmark (7Be) and on 10B+a s5 from its spec draft; `levelscan` inside STRUCTURE_ADD when the bank is
+empty; the 2.2 structure-search defaults (broad first is in CANDIDATES' ordering only).

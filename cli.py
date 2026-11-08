@@ -19,6 +19,11 @@ Commands (all idempotent and resumable from the ledger):
   audit --findings | --status KIND N confirmed|rejected|decision  the subagents' FINDINGS.md: unverified rows / mark one verified
   review [--grid-check] [--figures N] [--top K]                 post-fit "GUI eye" on the incumbent -> REVIEW.md + figures/review_*.png (2026-11-07);
                                                                 engine-free on any finished CLI run: python3 -m rmfit.review <file.azr> [--output DIR]
+  drive [--base azr --sav sav] [--max-minutes M] [--dry-run] [--local] [--state S] [--write-job]
+                                                                the closed loop (rmfit/drive.py, 2026-11-08): build phase (audit,
+                                                                reproduce, spec, anchor norms, seeds, pairs, candidates, init) then
+                                                                tighten / signs / adds / dataset-off / review / export per spec.json;
+                                                                one leg per call, state in drive_state.json, DRIVE.md for the supervisor
   decisions                                                     pending entries of DECISIONS.md
   decide <id> "<choice>" [--by who] [--note ...]                answer one
 
@@ -156,6 +161,15 @@ def main(argv=None):
     p.add_argument("--grid-check", action="store_true", help="re-score the incumbent on a converged target-integration grid (20/50)")
     p.add_argument("--figures", type=int, default=6, help="figures for the N worst data sets (0 = none)")
     p.add_argument("--top", type=int, default=20, help="rows in the top-points / runs tables")
+    p = sub.add_parser("drive", help="the closed loop: run states from drive_state.json until DONE / WAITING / STOP or --max-minutes")
+    p.add_argument("--base", default=None, help="first call of the build phase: the base .azr (then <dir>/spec.json must exist)")
+    p.add_argument("--sav", default=None, help="its parameter file (.sav)")
+    p.add_argument("--max-minutes", type=float, default=0.0, help="wall cap of this leg (0 = none); the job script resubmits on CONTINUE")
+    p.add_argument("--dry-run", action="store_true", help="print the plan from the current state; nothing runs")
+    p.add_argument("--local", action="store_true", help="allow engine states outside an SGE job (fixture tests only)")
+    p.add_argument("--state", default=None, help="jump to this state before running (e.g. after fixing an input: SCALE_ANCHOR)")
+    p.add_argument("--reset", action="store_true", help="start the state machine over (the old drive_state.json is kept with a timestamp)")
+    p.add_argument("--write-job", action="store_true", help="(re)write run_crc_drive and exit")
     p = sub.add_parser("decisions", help="pending entries of DECISIONS.md")
     p.add_argument("--all", action="store_true")
     p = sub.add_parser("decide", help="answer a DECISIONS.md entry")
@@ -185,6 +199,10 @@ def main(argv=None):
         print(open(os.path.join(c.dir, "STATUS.md")).read())
         print("job script:", c.write_job_script())
         return
+    if a.cmd == "drive":
+        # the build phase has no campaign.json yet; the driver opens the Campaign itself once INIT has run
+        from rmfit.drive import main_cli
+        sys.exit(main_cli(a))
     c = Campaign(a.campaign, enforce_engine=a.cmd not in READ_ONLY_CMDS)
     try:
         if a.cmd == "spec":

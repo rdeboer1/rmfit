@@ -80,7 +80,8 @@ decisions stay with the evaluator; the spec records them.
   stage-1b campaign cannot be re-opened (covariance reference predates 2026-10-26).  First campaign run: 10B+a s5 (grid check -0.00 %; HIGH: the 2- 14.708 / 15.022 poles over six unfitted peaks; the fixed ND5U/MANA norms' n*).  Worked examples: `R-matrix/agentic/11-7-26_claude/review_calibration/`.
 
 ### Phase 2 -- close the loop (~10 agent-days + 2 weeks calendar)
-- `drive.py` (`rmfit drive`): resumable state machine PIN_CHECK -> AUDIT -> REPRODUCE -> SPEC_CHECK ->
+- **2.1 DONE (first version, 2026-11-08; `drive.py`, `templates/run_crc_drive.csh`, `tests/test_drive_dry.py` engine-free, `tests/test_drive_13n.py` on the queue).**  States as planned except: SIGN x2 and the post-add SIGN are two states that each run rounds until the stop rule (>= 2 rounds, `sign_rounds_without_accept`); SEED_CHANNELS seeds existing free zero widths only (no channel lines added); PAIR_COMPLETENESS reports and queues (default `continue`), the pair builder stays with the supervisor; LADDER runs only with `model.ladder_Ex`; a pending `wait` decision ends the leg WAITING and the next leg applies answered `adopt-level-*` entries; DATASET_OFF never excludes (decision, default `keep`); REVIEW HIGH flags wait for the evaluator.  Not yet run on a live campaign.
+- (as planned) `drive.py` (`rmfit drive`): resumable state machine PIN_CHECK -> AUDIT -> REPRODUCE -> SPEC_CHECK ->
   SCALE_ANCHOR -> SEED_CHANNELS -> PAIR_COMPLETENESS -> LADDER -> CANDIDATES -> INIT -> TIGHTEN -> SIGN x2 ->
   SHIFTS_FREE -> STRUCTURE_ADD -> SIGN -> DATASET_OFF -> REVIEW -> EXPORT -> {DONE | WAITING | loop}; the skill's
   "First fits" (anchor one set, seed lowest L per pair from `10B+a/10-25-26_Rmatrix_Claude/stage1/seed_stage1.py`,
@@ -124,12 +125,14 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
 
 ## Progress log
 
+- 2026-11-08 01:30  Phase 2.1 `rmfit drive` built: `drive.py` (state machine, 19 states, `drive_state.json`, `DRIVE.md`, decisions wired through `Driver.ask`), `templates/run_crc_drive.csh` (one leg per job, self-resubmit on CONTINUE, engine guard), CLI `drive` (`--base/--sav` first call, `--dry-run`, `--max-minutes`, `--local`, `--state`, `--reset`, `--write-job`).  Engine-free test passes (build states on a 13N copy, refusal / STOP_DRIVE / decisions / persistence, loop counters on a stub campaign); 13N end-to-end on the queue (job 1709427, tests/_queue_drive).  Next: run it on a live testbed (7Be tier-1 from a perturbed start, then 10B+a s5 from its spec_draft) and encode the 2.2 structure-search defaults.
+
 - 2026-11-07 23:30  Phase 1.4 DONE: the evaluator's standing rules (retrospective section 5) and the recurring traps
   written where sessions read them -- archive CLAUDE.md "Standing rules from the evaluator" (frame first, minimal bug
   reproduction, audit before fitting, data treatment with the evaluator, scope, norms, structure search, GUI/in-place
   editing and copied-.azr paths, log axes, cluster limits, acknowledgement wording); azure2-eval Golden rules gained
   Ex-vs-E_cm, the minimal-reproduction rule and the copied-.azr paths (held checkout + branch skills/agentic-2026-11-07).
-  Phase 1 complete.  Next: Phase 2, `rmfit drive`.
+  Phase 1 complete.  Next: Phase 2, `rmfit drive` (built 2026-11-08, entry above).
 
 - 2026-11-07 23:00  Phase 1.3 `rmfit review` built, tested (engine-free, 13N output), calibrated on the archived 13C+a and
   17O+a cases (see the 1.3 entry above).  Not a decision maker: every flag is a candidate with the number behind it, in

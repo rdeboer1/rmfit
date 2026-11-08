@@ -357,10 +357,26 @@ def levels_from_evaluator(ev, x) -> List[Level]:
     for j, k in enumerate(ev.keys):
         if k.kind == "energy" and k.level in en:
             en[k.level] = float(x[j])
+    gam = {}
     try:
-        gam = level_total_widths(ev, x)
+        phys = np.asarray(ev.transform(x), float)
+        try:
+            gw = ev.wigner_widths(x)           # Gamma_W > 0 only for an open particle channel
+        except Exception:
+            gw = None
+        for j, k in enumerate(ev.keys):
+            if k.kind != "width" or not k.level or j >= phys.size or not np.isfinite(phys[j]):
+                continue
+            if gw is not None and gw.get(j, 0.0) <= 0:
+                continue                       # closed channel: the value is an ANC (fm^-1/2), not a width
+            if abs(phys[j]) > 1e8:             # 100 MeV: not a width whatever the engine says (10B+a s5 2- 14.708, 3 keV below d1)
+                continue
+            gam[k.level] = gam.get(k.level, 0.0) + abs(float(phys[j]))
     except Exception:
-        gam = {}
+        try:
+            gam = level_total_widths(ev, x)
+        except Exception:
+            gam = {}
     out = []
     for lab, e in en.items():
         g = gam.get(lab)
@@ -577,6 +593,7 @@ class Review:
             L.append(f"| {d['key']} | {d['name']} | {d['n']} | {'' if d['vary'] is None else ('yes' if d['vary'] else 'fixed')} | "
                      f"{d['norm']:.3f} | {ns} | {d['med']:.3f} | {d['chi_n']:.1f} | {cs} | {100*d['nerr']:.1f} | {gc} |")
         self.sections.append(("Normalizations", L))
+        fixed_wants: Dict[str, list] = {}
         for d in rows:
             ns = d["nstar"]
             if ns is None or not np.isfinite(ns):
@@ -594,10 +611,22 @@ class Review:
                          f"{d['name']} (seg {d['key']}): free norm {n:.3f} vs its own optimum {ns:.3f}",
                          f"chi2 {d['chi_n']:.1f} -> {d['chi_star']:.1f} at n*; held by " + (("norm group " + d["group"]) if d["group"] else "its prior / shared rows"))
             elif d["vary"] is False and abs(ns - 1) > max(2 * d["nerr"], 0.10) and d["chi_n"] - d["chi_star"] > 0.3 * d["chi_n"]:
-                self.add("INFO", "fixed-norm-wants",
-                         f"{d['name']} (seg {d['key']}): fixed norm {n:.3f}; the data alone would take {ns:.3f} "
-                         f"({'beyond 2x its ' + f'{100*d['nerr']:.0f} % systematic' if d['nerr'] > 0 else 'no systematic recorded'})",
-                         f"chi2 {d['chi_n']:.1f} -> {d['chi_star']:.1f} at n*; a scale offset the model must absorb elsewhere, or a shape problem if n* does not help")
+                fixed_wants.setdefault(d["name"], []).append(d)
+        for name, ds in fixed_wants.items():
+            ns = np.array([d["nstar"] for d in ds]); gain = sum(d["chi_n"] - d["chi_star"] for d in ds); tot = sum(d["chi_n"] for d in ds)
+            nerr = max(d["nerr"] for d in ds)
+            if ns.max() < 0.05:
+                self.add("INFO", "fit-near-zero", f"{name}: the calculation is essentially zero where these data are not "
+                         f"(fixed norm {ds[0]['norm']:.3f}; n* < 0.05 on {len(ds)} segment(s))",
+                         f"chi2 {tot:.1f}; a channel the model does not feed (closed, or no level with that partial width) -- segments "
+                         f"{','.join(str(d['key']) for d in ds[:8])}")
+                continue
+            self.add("INFO", "fixed-norm-wants",
+                     f"{name}: fixed norm {ds[0]['norm']:.3f} on {len(ds)} segment(s); the data alone would take n* "
+                     f"{ns.min():.3f}-{ns.max():.3f} (median {np.median(ns):.3f}" +
+                     (f", beyond 2x the {100*nerr:.0f} % systematic)" if nerr > 0 else ", no systematic recorded)"),
+                     f"chi2 {tot:.1f} -> {tot - gain:.1f} at n*; a scale offset the model absorbs elsewhere, or a shape problem if n* does not help "
+                     f"(segments {','.join(str(d['key']) for d in ds[:8])}{'...' if len(ds) > 8 else ''})")
 
     # ---- 4. norm trends inside a family --------------------------------------------------------------------------
     def norm_trends(self):

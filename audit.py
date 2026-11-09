@@ -12,7 +12,8 @@ Checks (code -> severity):
   output-path           <config> output directory absolute and outside the model's directory    HIGH
   pair-mass             pair masses vs AME2020 (pyazr.masses), integer masses, S vs table        MEDIUM / HIGH (> 1 keV)
   zero-width            free (unfixed) channel widths exactly 0 on active levels                 MEDIUM (count)
-  level-merge           two active levels of one J^pi within 1 keV                              HIGH
+  level-merge           two active levels of one J^pi read as one (same ID within 1 keV, or same energy)  HIGH
+  level-close           two active levels of one J^pi within 1 keV, different IDs (two levels since dev e239a12)  MEDIUM
   norm-nominal          active segment with nominal norm != 1                                   MEDIUM
   norm-unpenalized      vary_norm with normError 0                                              MEDIUM
   norm-error-units      0 < normError < 1 (percent expected: a fraction gives 100x the weight)   HIGH
@@ -143,7 +144,7 @@ def audit_model(azr_path: str, campaign_dir: Optional[str] = None, campaign_cfg:
             if not lv.active:
                 continue
             nlev += 1
-            byjpi[lv.jpi].append(float(lv.energy))
+            byjpi[lv.jpi].append((float(lv.energy), lv.level_id))
             for c in lv.channels:
                 if not c.active:
                     continue
@@ -156,8 +157,12 @@ def audit_model(azr_path: str, campaign_dir: Optional[str] = None, campaign_cfg:
         for jpi, es in byjpi.items():
             es = sorted(es)
             for a, b in zip(es, es[1:]):
-                if abs(b - a) < 1e-3:
-                    out.append(Finding("HIGH", "level-merge", f"two active {jpi} levels within 1 keV ({a:.5f}, {b:.5f}): AZURE2 merges them silently"))
+                if abs(b[0] - a[0]) < 1e-3:
+                    if a[1] == b[1] or a[0] == b[0]:
+                        out.append(Finding("HIGH", "level-merge", f"two active {jpi} levels read as one ({a[0]:.5f} ID {a[1]}, {b[0]:.5f} ID {b[1]})"))
+                    else:
+                        out.append(Finding("MEDIUM", "level-close", f"two active {jpi} levels within 1 keV ({a[0]:.5f} ID {a[1]}, {b[0]:.5f} ID {b[1]}): "
+                                           "two levels since AZURE2 dev e239a12 (older builds merge them); a gap far below the widths is a merge candidate for the evaluator"))
         out.append(Finding("INFO", "model", f"{nlev} active levels, {nchan} active channels, {len(pair_lines(model))} pairs"))
 
     # -- segments and data ------------------------------------------------------------------------------

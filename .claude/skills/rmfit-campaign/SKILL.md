@@ -1453,7 +1453,8 @@ rebuilt from the reverted source on 09-19.  A 13C+α lineage that still carried 
 0.67 keV apart then read back as a different model (301,445 → 327,514; 583 keys instead of
 586) and its `export` failed with "free parameters of the base model are not in keys".
 What to take from it:
-* A fit with two same-J^pi levels within 1 keV CANNOT be saved and re-read.  `local.sanity`
+* (Superseded 2026-11-08, see the entry of 2026-10-10: true only on engines before dev e239a12.)
+  A fit with two same-J^pi levels within 1 keV CANNOT be saved and re-read.  `local.sanity`
   now fails on such a pair (`merge_pairs`) and warns below 1.5 keV (`close_pairs`), using the
   free energies from the vector, not the file (`tests/test_sanity_same_jpi.py`).
 * The bake guard's message "N free parameters of the base model are not in keys", with all N
@@ -2088,6 +2089,17 @@ release and controls over all J^π → cross-checks: widen-the-neighbour, data-o
 refit → propagate to models that freeze the block → next region) is written up as section 3c, with the traps met on the way.
 
 ## 2026-10-10 — near-degenerate BROAD same-J^pi levels are separated at write time, not fixed
+
+**2026-11-08 (DeBoer): this applies only to engines before dev e239a12.**  Since e239a12 the reader keeps levels with different IDs
+apart at any gap, so `enginepin.keeps_close_levels()` (does the pinned `.so` carry that branch's warning) switches all of this off:
+`bake` writes the fit as it is, nothing moves, and `sanity` lists the pair under `close_pairs` (a warning).  Only a pair at
+essentially one energy (< `local.SAME_ENERGY_KEV`) still fails, because the reader takes it as one level.  `audit` reports
+`level-close` (MEDIUM) for different IDs within 1 keV, `level-merge` (HIGH) for what is really read as one.  Trigger: 13C+a
+11-06-26_ti_windowed_gls, 7/2+ 10.4198 / 10.4208 MeV (0.967 keV, Gamma 222 keV), where moving a level by 1.53 keV frozen cost +46.6
+and blocked the export; exported exactly afterwards (read-back 2e-14).  A close pair is still a physics question: gap << Gamma
+is a merge candidate for the evaluator.  With nearly PARALLEL amplitudes (say one open particle channel) the pair also holds a state
+of width ~gap^2 that capture feeds without limit, so the objective grows as gap^-4 when a sub-point sits on it (13N fixture); this is
+the formalism, not round-off.  `sanity` does not test for parallel amplitudes.
 AZURE2 merges same-J^pi levels < 1 keV apart when it reads a model, so a polish can drive two levels into a pair that cannot be
 written. Narrow pairs (the 9/2+ doublet of 09-19) are a lineshape question and still fail. For BROAD levels the fix is a small energy
 adjustment (DeBoer: "give the energy of the broader level a little adjustment"). Measured on the 13C+a merged incumbent: moving a

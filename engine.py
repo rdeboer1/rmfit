@@ -1590,10 +1590,12 @@ def bake(base_azr, x, keys, path, flags, workdir=None, output_dir=None,
             raise ValueError(f"bake: {len(missing)} free parameters of the base model are not in keys: "
                              + ", ".join(str(k) for k in list(missing)[:6]))
         want = ev.score(xs)
-        if separate:
-            # 2026-10-10: same-J^pi levels < 1 keV apart merge when the written file is read back; move the broader
-            # member of any pair < 1.5 keV away to 2.5 keV first (local.separate_close_levels), if that costs less
-            # than ``separate_max_cost`` in the objective.  Narrow pairs are refused there and fail below as before.
+        from .enginepin import keeps_close_levels
+        if separate and not keeps_close_levels():
+            # 2026-10-10: on a build before dev e239a12 same-J^pi levels < 1 keV apart merge when the written file is read
+            # back; move the broader member of any pair < 1.5 keV away to 2.5 keV first (local.separate_close_levels), if
+            # that costs less than ``separate_max_cost`` in the objective.  Narrow pairs are refused there and fail below as
+            # before.  2026-11-08 (DeBoer): a newer engine reads such a pair back as two levels, so the fit is written as it is.
             from .local import separate_close_levels
             xn, moved, refused = separate_close_levels(ev, xs)
             for r in refused:
@@ -1675,8 +1677,8 @@ def bake(base_azr, x, keys, path, flags, workdir=None, output_dir=None,
             raise RuntimeError(
                 "the baked model has a different free-parameter set than its source (files removed): "
                 f"{len(missing)} key(s) lost, e.g. {missing[:4]}; {len(extra)} gained, e.g. {extra[:4]}. "
-                "Two levels of one J^pi closer than the engine's level tolerance are the usual cause -- "
-                "check for same-J^pi energies within ~1 keV.")
+                "Two levels of one J^pi read as one are the usual cause: at the identical energy, with one level ID, "
+                "or (builds before dev e239a12) within 1 keV.")
         got = ev2.score(x2)
         # the baked <levels> block on its own (norms/shifts nominal) must
         # reproduce the source evaluated the same way: that is what a CLI run

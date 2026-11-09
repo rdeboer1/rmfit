@@ -1,0 +1,27 @@
+#!/bin/csh
+#$ -M rdeboer1@nd.edu
+#$ -m n
+#$ -q long
+#$ -pe smp 4
+#$ -N rmfit_closelev
+#$ -cwd
+#$ -j y
+#$ -o closelevels.log
+# 2026-11-08: the close-level guard follows the engine (enginepin.keeps_close_levels, local.sanity, bake, audit)
+source ${HOME}/.login
+module load gsl/gcc/2.8
+module unload python
+setenv PATH /software/p/python/3.12.15/gcc/11.5.0/bin:${PATH}
+setenv LD_LIBRARY_PATH /software/s/sqlite-libs/3.34.1-11.el9_8/usr/lib64:/software/p/python/3.12.15/gcc/11.5.0/lib:${LD_LIBRARY_PATH}
+setenv PYTHONPATH /groups/rdeboer1/user/rdeboer1/R-matrix:${HOME}/AZURE2
+setenv OMP_NUM_THREADS 1
+setenv PYTHONUNBUFFERED 1
+echo "host `hostname` `date`"
+timeout 600 python3 ../test_audit.py
+echo "`date` audit exit $status"
+timeout 3600 python3 ../test_bake_separate_13n.py
+echo "`date` bake_separate exit $status"
+timeout 36000 python3 ../test_campaign_13n.py
+echo "`date` campaign exit $status"
+timeout 36000 python3 ../test_levelscan_13n.py
+echo "`date` levelscan exit $status"

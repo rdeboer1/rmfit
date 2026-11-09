@@ -182,10 +182,10 @@ class SanityReport:
     energy_violations: List[str] = field(default_factory=list)
     runaway: List[str] = field(default_factory=list)
     bounds_hit: List[str] = field(default_factory=list)
-    # 2026-09-19: AZURE2 merges same-J^pi levels closer than 1 keV when it READS a model
-    # (JGroup::IsLevel, tol = 1e-3 MeV; deliberately kept, see azure2-eval SKILL.md), so such a
-    # fit cannot be written and read back.  merge_pairs (< 1 keV) fail the check; close_pairs
-    # (< 1.5 keV) are a warning that a polish is about to get there.
+    # 2026-09-19: AZURE2 builds before dev e239a12 (2026-10-24) merge same-J^pi levels closer than 1 keV when they READ a
+    # model, so such a fit cannot be written and read back on them.  merge_pairs fail the check; close_pairs (< 1.5 keV) are
+    # a warning.  2026-11-08 (DeBoer): on a newer engine levels with different IDs stay two levels at any gap, so a close
+    # pair is only a warning there; merge_pairs is then just a pair the reader would still take as one level.
     merge_pairs: List[str] = field(default_factory=list)
     close_pairs: List[str] = field(default_factory=list)
     # 2026-10-10 (DeBoer): a pair < 1 keV apart whose broader member can be moved to SEPARATE_GAP_KEV for less
@@ -216,7 +216,7 @@ class SanityReport:
         if self.runaway:
             bits.append(f"runaway x{len(self.runaway)}")
         if self.merge_pairs:
-            bits.append(f"same-J^pi levels closer than 1 keV (AZURE2 merges them on read): {'; '.join(self.merge_pairs)}")
+            bits.append(f"same-J^pi levels AZURE2 would read as one level: {'; '.join(self.merge_pairs)}")
         return ", ".join(bits)
 
 
@@ -457,6 +457,9 @@ def default_bounds(ev: Evaluator, x_ref, policy: BoundsPolicy = BoundsPolicy(),
 SEPARATE_MIN_GAP_KEV = 1.5
 SEPARATE_GAP_KEV = 2.5
 SEPARATE_MAX_REL_SHIFT = 1e-2
+# 2026-11-08: with an engine that keeps close levels apart (enginepin.keeps_close_levels) nothing above is applied; a pair
+# closer than this (MeV-scale round-off of the printed energy, far below any fitted gap) still counts as one level.
+SAME_ENERGY_KEV = 1e-6
 
 
 def level_total_widths(ev, x) -> dict:
@@ -569,12 +572,17 @@ def sanity(ev: Evaluator, x, policy: BoundsPolicy = BoundsPolicy(),
         for lab, e in en.items():
             groups.setdefault(level_group(lab), []).append((e, lab))
         gam = None
+        from .enginepin import keeps_close_levels
+        keeps = keeps_close_levels()
         for jpi, lv in groups.items():
             lv.sort()
             for (e1, l1), (e2, l2) in zip(lv, lv[1:]):
                 gap = 1000.0 * (e2 - e1)
                 if gap < 1.5:
                     msg = f"{l1} {e1:.6f} / {l2} {e2:.6f} ({gap:.3f} keV)"
+                    if keeps:
+                        (rep.merge_pairs if gap < SAME_ENERGY_KEV else rep.close_pairs).append(msg)
+                        continue
                     if gap >= 1.0:
                         rep.close_pairs.append(msg)
                         continue

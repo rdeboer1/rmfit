@@ -67,6 +67,29 @@ def so_path(pyazr_dir):
     return cands[0] if cands else None
 
 
+def keeps_close_levels(azure2_root=None):
+    """Does this engine keep two same-J^pi levels with different level IDs apart when they are within 1 keV?
+
+    True since dev e239a12 (2026-10-24, CNuc::Fill: a line joins a level only with the same ID within 1 keV, or at the
+    identical energy).  Older builds merge any pair within 1 keV on read, so only there a fit holding such a pair cannot
+    be written exactly.  A campaign can be pinned to either, and a commit comparison needs a clone, so the test is whether
+    the .so carries that branch's warning text.  No .so found: False, the old rule."""
+    if azure2_root is None:
+        from . import AZURE2_ROOT
+        azure2_root = AZURE2_ROOT
+    so = so_path(os.path.join(os.path.abspath(azure2_root), "pyazr"))
+    if not so:
+        return False
+    key = (so, os.path.getmtime(so))
+    if key not in _keeps_close_levels:
+        with open(so, "rb") as fh:
+            _keeps_close_levels[key] = b"they are kept as two levels" in fh.read()
+    return _keeps_close_levels[key]
+
+
+_keeps_close_levels = {}
+
+
 def fingerprint(azure2_root=None, cli=None):
     """Describe the engine this process would import.  ``azure2_root`` defaults to ``rmfit.AZURE2_ROOT``."""
     if azure2_root is None:

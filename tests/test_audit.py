@@ -46,7 +46,10 @@ def main():
         mb = AzrModel.from_file(bad)
         lv = mb.active_levels[0]
         chans = [dict(pair=c.pair, L=c.L, S=c.S, gamma=0.0, fixed=False) for c in lv.channels[:1]]
-        mb.add_level(lv.J, lv.parity, float(lv.energy) + 0.0005, chans, level_fixed=False)
+        mb.add_level(lv.J, lv.parity, float(lv.energy), chans, level_fixed=False)           # read as one level: level-merge
+        lv2 = mb.active_levels[1]
+        mb.add_level(lv2.J, lv2.parity, float(lv2.energy) + 0.0005, [dict(pair=c.pair, L=c.L, S=c.S, gamma=0.0, fixed=False) for c in lv2.channels[:1]],
+                     level_fixed=False)                                                     # other ID, 0.5 keV: level-close
         mb.set_output_dir("/groups/rdeboer1/user/rdeboer1/R-matrix/13C+a/9-5-26_rmfit_campaign/output")  # elsewhere
         mb.write(bad)
         # (c) a data file whose errors are an integer-percent FLAG column, used by the first segment
@@ -65,7 +68,7 @@ def main():
         for want in ("norm-nominal", "norm-error-units", "level-merge", "zero-width", "data-error-pattern", "data-error-tiny",
                      "data-duplicates", "legacy-sav", "output-path"):
             assert want in c1, (want, c1)
-        assert "norm-error-units" in codes(f1, "HIGH") and "level-merge" in codes(f1, "HIGH") and "legacy-sav" in codes(f1, "HIGH")
+        assert "norm-error-units" in codes(f1, "HIGH") and "level-merge" in codes(f1, "HIGH") and "level-close" in codes(f1, "MEDIUM") and "legacy-sav" in codes(f1, "HIGH")
         out = os.path.join(tmp, "AUDIT.md")
         counts = write_audit(f1, out, bad)
         txt = open(out).read()

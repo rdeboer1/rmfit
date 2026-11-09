@@ -92,6 +92,9 @@ def main():
     rec = [h for h in st["history"] if h["state"] == "RECALL"]
     check("RECALL removed and searched for a known level (not skipped)", rec and "recall" in rec[0].get("note", "") and "skipped" not in rec[0]["note"],
           str([h.get("note") for h in rec]))
+    rtab = " ".join(st.get("findings", {}).get("RECALL", []))
+    check("RECALL child campaign ran to a classification (no error)", rtab and "Error" not in rtab and (st.get("recall") or {}).get("n") == 1, rtab[:300])
+    print("   recall table:", rtab[:400])
     print("   recall:", st.get("recall"), [h.get("note") for h in rec])
     ls = [h for h in st["history"] if h["state"] == "LEVELSCAN"]
     check("LEVELSCAN screened the residuals once the bank was exhausted", any("screened" in h.get("note", "") for h in ls),

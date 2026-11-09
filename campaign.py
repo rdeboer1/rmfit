@@ -732,7 +732,9 @@ class Campaign:
             self.ledger.finish_round(rid, n=0, n_pass=0, fraction=1.0, results="[]", wall_min=(time.time() - t0) / 60)
             self.note(f"recall round #{rid}: no physical level with Gamma >= {min_width_kev:g} keV below bg_energy -- nothing to re-find")
             return dict(results=[], n=0, n_pass=0, fraction=1.0, passed_levels=[])
+        from .model import link_data_dirs
         rdir = os.path.join(self.dir, "recall"); os.makedirs(rdir, exist_ok=True)
+        link_data_dirs(self.base_azr, rdir)         # the baked incumbent and the children keep the model's relative data paths
         azr_inc, sav_inc, sc = self.export(path=os.path.join(rdir, "incumbent.azr"), note="recall")
         self.close()                                # the children run their own shards; the parent's come back lazily
         obj_cfg = dict(self.cfg.get("objective") or {})
@@ -745,6 +747,7 @@ class Campaign:
             tag = label.replace("/", "").replace("#", "_") + f"_E{e_true:.4f}"
             cdir = os.path.join(rdir, tag)
             os.makedirs(os.path.join(cdir, "output"), exist_ok=True)
+            link_data_dirs(self.base_azr, cdir)
             res = dict(level=label, jpi=jpi, energy=e_true, gamma_kev=w / 1e3, dir=os.path.relpath(cdir, self.dir))
             try:
                 var = deactivate_level_variant(azr_inc, os.path.join(cdir, "base.azr"), jpi, e_true,

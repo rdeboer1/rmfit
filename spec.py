@@ -37,7 +37,7 @@ import time
 from typing import List, Optional
 
 KNOWN_TOP = {"_status", "reaction", "compound_nucleus", "campaign", "owners", "engine", "parametrization", "model",
-             "data_sets", "bounds", "objective", "search", "nshards", "budget", "pre_authorized", "stop_rules",
+             "data_sets", "bounds", "objective", "search", "nshards", "budget", "pre_authorized", "stop_rules", "structure",
              "standing_decisions", "open_decisions", "notes"}
 ROLES = {"anchor", "anchor_geometry", "free", "excluded", "excluded_in_window", "screen"}
 
@@ -174,7 +174,7 @@ class FitSpec:
                 ident = ds.get("file") or f"segments {ds.get('segments')}"
                 L.append(f"| {ident} | {ds.get('role', 'free')} | {_md(ds.get('norm', ''))} | {_md(ds.get('window', ''))} | "
                          f"{_md({k: v for k, v in ds.items() if k not in ('file', 'segments', 'role', 'norm', 'window')})} |")
-        for sec in ("bounds", "objective", "search", "budget", "pre_authorized", "stop_rules"):
+        for sec in ("bounds", "objective", "search", "budget", "pre_authorized", "stop_rules", "structure"):
             if d.get(sec):
                 L += ["", f"## {sec}", "", "```json", json.dumps(d[sec], indent=1), "```"]
         if d.get("standing_decisions"):

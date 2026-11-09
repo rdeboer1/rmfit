@@ -7,6 +7,9 @@ Commands (all idempotent and resumable from the ledger):
   polish [--nfev N] [--shifts-free] [--refreeze-every N]        warm-start continuation of the incumbent
   round [--jpi 5/2+ 3/2- ...] [--rounds N] [--top-k K]          sign round(s); touch <dir>/STOP to end the loop after the current round
   crossover --donor CID [--donor-dir DIR]                       basin crossover: the donor's sign pattern per channel/group/all, all polished
+  recall [--levels N] [--min-width KEV] [--nfev N] [--pinned-nfev N] [--local-release MEV] [--local-nfev N]
+                                                                recall test (2026-11-09): the N broadest known levels removed one at a
+                                                                time and searched for with no J^pi -- validates level-add on this model
   population [--restarts K] [--flips 6,8,10,12] [--nfev N] [--passes P] [--jitter J] [--seed S]
                                                                 restarts + crossover (2026-11-08): K sign-perturbed restarts of the incumbent
                                                                 polished to convergence, crossover between them; the basin-crossing stage
@@ -182,6 +185,15 @@ def main(argv=None):
     p.add_argument("--note", default="")
     p = sub.add_parser("log")
     p.add_argument("text")
+    p = sub.add_parser("recall", help="recall test: the N broadest known levels removed one at a time and searched for with no J^pi given")
+    p.add_argument("--levels", type=int, default=2)
+    p.add_argument("--level", action="append", default=None, help="explicit level label(s) such as 3/2-#1 instead of the broadest")
+    p.add_argument("--min-width", type=float, default=10.0, help="keV; only levels at least this wide are removed")
+    p.add_argument("--nfev", type=int, default=150)
+    p.add_argument("--pinned-nfev", type=int, default=60)
+    p.add_argument("--local-release", type=float, default=0.0)
+    p.add_argument("--local-nfev", type=int, default=80)
+    p.add_argument("--note", default="")
     p = sub.add_parser("population", help="restarts + crossover: K sign-perturbed restarts of the incumbent polished to convergence, crossover between them")
     p.add_argument("--restarts", type=int, default=4)
     p.add_argument("--flips", default="6,8,10,12", help="flip counts drawn per restart (comma list) or one integer")
@@ -330,6 +342,10 @@ def main(argv=None):
                     break
         elif a.cmd == "crossover":
             c.run_crossover(a.donor, donor_dir=a.donor_dir, note=a.note)
+        elif a.cmd == "recall":
+            st = c.run_recall(n=a.levels, min_width_kev=a.min_width, levels=a.level, global_nfev=a.nfev, pinned_nfev=a.pinned_nfev,
+                              local_release=a.local_release, local_nfev=a.local_nfev, note=a.note)
+            print(json.dumps(st, default=str, indent=1))
         elif a.cmd == "population":
             fl = [int(v) for v in str(a.flips).split(",")]
             st = c.run_population(restarts=a.restarts, n_flips=(fl[0] if len(fl) == 1 else tuple(fl)), per_group=a.per_group,

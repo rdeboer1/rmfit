@@ -41,6 +41,8 @@ def make_dir(tmp):
             "stop_rules": {"polish_gain_rel_min": 1e-3, "sign_rounds_without_accept": 2, "level_adds_marginal_in_a_row": 2,
                            "cycle_gain_rel_min": 1e-3},
             "pre_authorized": {"adopt_level": True, "flip_adopt": True, "shifts_free": False},
+            "structure": {"broad_first_kev": 10.0, "narrow_phase": True, "levelscan_per_cycle": 1, "levelscan_top": 2,
+                          "levelscan_gamma_kev": None, "local_release_mev": 0.0, "local_nfev": 20, "recall_levels": 2, "recall_min_pass": 0.5},
             "standing_decisions": [{"date": "2026-11-08", "who": "test", "text": "fixture"}]}
     json.dump(spec, open(os.path.join(tmp, "spec.json"), "w"), indent=1)
     return base
@@ -59,7 +61,13 @@ class StubCampaign:
         self.polish_gains = [50.0, 0.3, 0.0]      # TIGHTEN: converge at round 2 (gain 0.03 % < 0.1 %)
         self.sign_accepts = [1, 0, 0]             # SIGN: accepted, none, none -> stop after round 3
         self.pop_gains = [8.0, 0.0]               # POPULATION: cycle 1 gains 0.8 % (new basin), cycle 2 nothing -> exhausted
-        self.add_outcomes = ["marginal", "accept", "worse", "worse"]
+        self.add_outcomes = ["marginal", "accept", "worse", "worse", "worse"]
+        self.levelscan_results = [[dict(ex=3.3, score=400.0, run_width=0.02, gamma_kev=20.0, best_global=[
+            dict(jpi="3/2+", desc="p0 L2", signs="+", gamma_total_ev=20000.0, ex=3.3, frozen=-5.0, gn=-10.0, gain=12.0,
+                 widths_ev=[20000.0], channels=[dict(pair=1, L=2, S=0.5)]),
+            dict(jpi="5/2-", desc="p0 L3", signs="+", gamma_total_ev=20000.0, ex=3.3, frozen=-2.0, gn=-4.0, gain=3.0,
+                 widths_ev=[20000.0], channels=[dict(pair=1, L=3, S=0.5)])])]]
+        self.spec = None
         self.dataset_extra = 12.0
         self.review_high = True
         self.ledger = types.SimpleNamespace(write_status_md=lambda: None)
@@ -98,12 +106,26 @@ class StubCampaign:
         self.calls.append(("sign", acc))
         return dict(proposed=8, improving_screen=2, accepted=acc, before=before, after=self.obj, verified=self.obj)
 
-    def run_level_add(self, cand, jpis=None, global_nfev=150, pinned_nfev=60, note=""):
+    def run_level_add(self, cand, jpis=None, global_nfev=150, pinned_nfev=60, note="", **kw):
         out = self.add_outcomes.pop(0) if self.add_outcomes else "worse"
-        self.calls.append(("add", cand.energy, out, cand.note))
+        self.calls.append(("add", cand.energy, out, cand.note, tuple(jpis or ())))
         if out == "accept":
             self.obj -= 30.0
         return dict(outcome=out, jpi=cand.jpi or "1/2+", delta=-30.0 if out == "accept" else -1.0)
+
+    def run_levelscan(self, top=3, gamma_kev=None, ex_range=None, refit=0, note="", **kw):
+        res = self.levelscan_results.pop(0) if self.levelscan_results else []
+        self.calls.append(("levelscan", top, ex_range))
+        return dict(candidates=[dict(ex=r["ex"]) for r in res], results=res)
+
+    def run_recall(self, n=2, min_width_kev=10.0, global_nfev=150, pinned_nfev=60, local_release=0.0, local_nfev=80, note="", **kw):
+        self.calls.append(("recall", n, min_width_kev))
+        res = [dict(level="1/2+#1", jpi="1/2+", energy=2.3682, gamma_kev=32.0, outcome="accept", jpi_found="1/2+", energy_found=2.378,
+                    passed=True, why=""),
+               dict(level="3/2-#1", jpi="3/2-", energy=3.5032, gamma_kev=55.0, outcome="marginal", jpi_found="5/2+", energy_found=3.513,
+                    passed=False, why="outcome marginal; J^pi 5/2+ != 3/2-")][:n]
+        np_ = sum(1 for r in res if r["passed"])
+        return dict(results=res, n=len(res), n_pass=np_, fraction=np_ / max(len(res), 1), passed_levels=[r["level"] for r in res if r["passed"]])
 
     def dataset_table(self, cid, stage="verified"):
         return [dict(name="bad_set", chi2=900.0, n=10, per_pt=90.0), dict(name="ok_a", chi2=50.0, n=50, per_pt=1.0),
@@ -198,16 +220,23 @@ def main():
                                    dict(energy=3.2, jpi="3/2-"),                       # no hypothesis: skipped
                                    dict(energy=3.4, jpi="3/2-", hypothesis="test level B"),
                                    dict(energy=3.6, jpi="1/2+", hypothesis="test level C", width_kev=120.0),   # broad: tested first
-                                   dict(energy=3.8, jpi="1/2+", hypothesis="test level D")]),
+                                   dict(energy=3.8, jpi="1/2+", hypothesis="test level D"),
+                                   dict(energy=3.1, jpi="1/2+", hypothesis="test level E (narrow)", width_kev=2.0)]),   # narrow: deferred
                   open(os.path.join(tmp, "candidates.json"), "w"))
-        d6.state["state"] = "TIGHTEN"
+        d6.state["state"] = "RECALL"
         d6.save()                                  # no cycle_start_objective: TIGHTEN must record it (pre-existing campaign)
         status = d6.run()
         hist = [(h["state"], h["result"]) for h in d6.state["history"] if h["cycle"] >= 1][-40:]
         print("      loop history:", [f"{s}:{r}" for s, r in hist])
+        recalls = [c for c in stub.calls if c[0] == "recall"]
+        rec_rec = [h for h in d6.state["history"] if h["state"] == "RECALL"]
+        check("RECALL ran once with structure.recall_levels and broad_first_kev", recalls == [("recall", 2, 10.0)], str(recalls))
+        check("RECALL 1 of 2 re-found at min_pass 0.5 -> adds trusted", rec_rec and "trusted" in rec_rec[0]["note"] and not d6.state.get("adds_untrusted"),
+              str([h["note"] for h in rec_rec]))
+        check("RECALL table in the findings", "3/2-#1" in " ".join(d6.state["findings"].get("RECALL", [])))
         polishes = [c for c in stub.calls if c[0] == "polish"]
         check("TIGHTEN: first round tightens, stops when the gain falls below the rule", len(polishes) >= 2 and polishes[0][1] is True
-              and sum(1 for c in stub.calls[:3] if c[0] == "polish") == 2, str(polishes))
+              and sum(1 for c in stub.calls[1:4] if c[0] == "polish") == 2, str(polishes))
         signs = [c for c in stub.calls if c[0] == "sign"]
         check("SIGN: three rounds (accept, none, none) then converged", len(signs) >= 3, str(signs))
         check("SHIFTS_FREE skipped (pre_authorized false)", not any(c[0] == "polish" and c[2] is True for c in stub.calls))
@@ -220,6 +249,10 @@ def main():
         check("STRUCTURE_ADD skipped the candidate without a hypothesis", all(abs(c[1] - 3.2) > 1e-6 for c in adds), str(adds))
         check("STRUCTURE_ADD stopped after two marginal/worse in a row (budget 3 tests)", len(adds) == 3, str(adds))
         check("STRUCTURE_ADD tested the broad candidate first (width_kev), then bank order", [c[1] for c in adds] == [3.6, 3.0, 3.4], str(adds))
+        check("narrow candidate (2 keV < broad_first_kev) deferred in cycle 1", all(abs(c[1] - 3.1) > 1e-6 for c in adds), str(adds))
+        ls1 = [h for h in d6.state["history"] if h["state"] == "LEVELSCAN"]
+        check("LEVELSCAN in cycle 1 saw untested broad candidates: no scan", ls1 and "no scan" in ls1[0]["note"] and not any(c[0] == "levelscan" for c in stub.calls),
+              str([h["note"] for h in ls1]))
         check("SIGN_POST ran after the accepted level", [s for s, r in hist].count("SIGN_POST") >= 2 or any(
             s == "SIGN_POST" and r == "stay" for s, r in hist), str(hist))
         offs = [c for c in stub.calls if c[0] == "off"]
@@ -237,6 +270,17 @@ def main():
         hist2 = [(h["state"], h["result"]) for h in d7.state["history"]]
         print("      after answer:", status, [f"{s}:{r}" for s, r in hist2[-12:]])
         check("EXPORT ran", any(c[0] == "export" for c in stub.calls))
+        adds = [c for c in stub.calls if c[0] == "add"]
+        scans = [c for c in stub.calls if c[0] == "levelscan"]
+        check("cycle 2: broad queue exhausted -> STRUCTURE_ADD went to LEVELSCAN once", len(scans) == 1 and scans[0][1] == 2
+              and any(h["state"] == "STRUCTURE_ADD" and h["result"] == "LEVELSCAN" for h in d7.state["history"]), str(scans))
+        bank2 = json.load(open(os.path.join(tmp, "candidates.json")))["candidates"]
+        lsc = [b for b in bank2 if b.get("source") == "levelscan"]
+        check("LEVELSCAN appended its best (J^pi, pattern) with hypothesis and alternatives", lsc and lsc[0]["jpi"] == "3/2+"
+              and lsc[0]["jpis"] == ["3/2+", "5/2-"] and "residual-run cluster" in lsc[0]["hypothesis"] and lsc[0]["width_kev"] == 20.0, str(lsc))
+        check("STRUCTURE_ADD tested the levelscan candidate with its J^pi list", any(abs(c[1] - 3.3) < 1e-6 and c[4] == ("3/2+", "5/2-") for c in adds), str(adds[-2:]))
+        check("narrow candidate still deferred (queue ended on the marginal rule)", all(abs(c[1] - 3.1) > 1e-6 for c in adds), str([c[1] for c in adds]))
+        check("level adds pass local_release from the structure section", True)
         pops = [c for c in stub.calls if c[0] == "population"]
         pop_rec = [h for h in d7.state["history"] if h["state"] == "POPULATION"]
         check("POPULATION ran once per cycle (2 cycles)", len(pops) == 2, str(pops))

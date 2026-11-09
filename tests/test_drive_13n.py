@@ -38,10 +38,12 @@ def main():
             "bounds": {"bg_energy": 15.0, "e_window": 0.5},
             "search": {"top_k": 3, "pairs_per_group": 2, "stage1_nfev": 20, "stage2_nfev": 30, "union_nfev": 30},
             "data_sets": [{"file": "meyer_84", "role": "free", "norm": {"nominal": 1.0, "fixed": False, "prior_sigma": 0.05}}],
-            "budget": {"polish_nfev": 30, "polish_rounds_max": 2, "sign_rounds_max": 2, "level_tests_max": 1, "level_nfev": 40,
+            "budget": {"polish_nfev": 30, "polish_rounds_max": 2, "sign_rounds_max": 2, "level_tests_max": 2, "level_nfev": 40,
                        "pinned_nfev": 25, "dataset_off_max": 1, "dataset_off_nfev": 30, "cycles_max": 1, "grid_check": False, "figures": 1,
                        "restarts_per_cycle": 2, "restart_nfev": 30, "crossover_passes": 1, "population_rounds_max": 1},
             "stop_rules": {"polish_gain_rel_min": 5e-4, "sign_rounds_without_accept": 2, "level_adds_marginal_in_a_row": 2},
+            "structure": {"broad_first_kev": 10.0, "narrow_phase": True, "levelscan_per_cycle": 1, "levelscan_top": 1,
+                          "levelscan_gamma_kev": None, "local_release_mev": 0.3, "local_nfev": 20, "recall_levels": 1, "recall_min_pass": 0.5},
             "pre_authorized": {"adopt_level": False, "flip_adopt": True, "shifts_free": False},
             "standing_decisions": [{"date": "2026-11-08", "who": "test", "text": "fixture"}]}
     json.dump(spec, open(os.path.join(tmp, "spec.json"), "w"), indent=1)
@@ -78,7 +80,7 @@ def main():
     check("the drive ended DONE", status == "DONE", f"{status} at {st['state']}: {st.get('message')}")
     check("build phase reached INIT (campaign.json)", os.path.exists(os.path.join(tmp, "campaign.json")))
     check("working copy and job script written", os.path.exists(os.path.join(tmp, "13N_drive.azr")) and os.path.exists(os.path.join(tmp, "run_crc_drive")))
-    for s in ("TIGHTEN", "SIGN", "POPULATION", "STRUCTURE_ADD", "DATASET_OFF", "REVIEW", "EXPORT", "CYCLE"):
+    for s in ("RECALL", "TIGHTEN", "SIGN", "POPULATION", "LEVELSCAN", "STRUCTURE_ADD", "DATASET_OFF", "REVIEW", "EXPORT", "CYCLE"):
         check(f"state {s} ran", s in done)
     check("REVIEW.md and export exist", os.path.exists(os.path.join(tmp, "REVIEW.md")) and any(f.endswith(".sav") for f in os.listdir(tmp)))
     check("DRIVE.md written", os.path.exists(os.path.join(tmp, "DRIVE.md")))
@@ -87,6 +89,14 @@ def main():
     pop = [h for h in st["history"] if h["state"] == "POPULATION"]
     check("POPULATION ran the restarts (not skipped)", pop and "restarts" in pop[0].get("note", "") and "skipped" not in pop[0]["note"],
           str([h.get("note") for h in pop]))
+    rec = [h for h in st["history"] if h["state"] == "RECALL"]
+    check("RECALL removed and searched for a known level (not skipped)", rec and "recall" in rec[0].get("note", "") and "skipped" not in rec[0]["note"],
+          str([h.get("note") for h in rec]))
+    print("   recall:", st.get("recall"), [h.get("note") for h in rec])
+    ls = [h for h in st["history"] if h["state"] == "LEVELSCAN"]
+    check("LEVELSCAN screened the residuals once the bank was exhausted", any("screened" in h.get("note", "") for h in ls),
+          str([h.get("note") for h in ls]))
+    print("   levelscan:", [h.get("note") for h in ls])
     print(f"   total {(time.time()-t0)/60:.1f} min in {legs} legs; dir {tmp}")
     if FAILS:
         print(f"FAILED {len(FAILS)}: {', '.join(FAILS)}")

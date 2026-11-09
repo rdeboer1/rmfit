@@ -42,11 +42,11 @@ from . import AZURE2_ROOT  # noqa: F401
 from .spec import FitSpec, Finding, write_findings_md
 
 BUILD_STATES = ["PIN_CHECK", "AUDIT", "REPRODUCE", "SPEC_CHECK", "SCALE_ANCHOR", "SEED_CHANNELS", "PAIR_COMPLETENESS",
-                "LADDER", "CANDIDATES", "INIT"]
-LOOP_STATES = ["TIGHTEN", "SIGN", "POPULATION", "SHIFTS_FREE", "STRUCTURE_ADD", "SIGN_POST", "DATASET_OFF", "REVIEW", "EXPORT",
+                "LADDER", "CANDIDATES", "INIT", "RECALL"]
+LOOP_STATES = ["TIGHTEN", "SIGN", "POPULATION", "SHIFTS_FREE", "LEVELSCAN", "STRUCTURE_ADD", "SIGN_POST", "DATASET_OFF", "REVIEW", "EXPORT",
                "CYCLE"]
 STATES = BUILD_STATES + LOOP_STATES
-ENGINE_STATES = {"REPRODUCE", "SEED_CHANNELS", "LADDER", "INIT", "TIGHTEN", "SIGN", "POPULATION", "SHIFTS_FREE", "STRUCTURE_ADD",
+ENGINE_STATES = {"REPRODUCE", "SEED_CHANNELS", "LADDER", "INIT", "TIGHTEN", "SIGN", "POPULATION", "SHIFTS_FREE", "LEVELSCAN", "STRUCTURE_ADD",
                  "SIGN_POST", "DATASET_OFF", "REVIEW", "EXPORT"}
 STATUS_WORDS = ("CONTINUE", "WAITING", "DONE", "STOP", "ERROR")
 STATE_FILE = "drive_state.json"
@@ -58,6 +58,8 @@ DEFAULT_BUDGET = dict(polish_nfev=150, polish_rounds_max=4, sign_rounds_max=4, l
                       node_hours_max=0, grid_check=True, figures=6,
                       # POPULATION (2026-11-08): restarts + crossover per cycle; restart_nfev 0 = polish_nfev
                       restarts_per_cycle=4, restart_nfev=0, crossover_passes=2, population_rounds_max=3)
+DEFAULT_STRUCTURE = dict(broad_first_kev=10.0, narrow_phase=True, levelscan_per_cycle=1, levelscan_top=3,
+                         levelscan_gamma_kev=None, local_release_mev=0.5, local_nfev=80, recall_levels=2, recall_min_pass=0.5)
 DEFAULT_STOP = dict(polish_gain_rel_min=5e-4, sign_rounds_without_accept=2, level_adds_marginal_in_a_row=2,
                     cycle_gain_rel_min=1e-3, population_gain_rel_min=1e-3, dataset_off_extra_pct=5.0, reproduce_rtol=1e-3,
                     # sign rounds only after the polish converged (skill section 3, step 1 "when done" before step 2): a flip
@@ -100,6 +102,8 @@ class Driver:
         self.spec = FitSpec.load(self.spec_path)
         self.budget = dict(DEFAULT_BUDGET, **{k: v for k, v in (self.spec.get("budget") or {}).items() if _isnum(v) or isinstance(v, bool)})
         self.stop = dict(DEFAULT_STOP, **{k: v for k, v in (self.spec.get("stop_rules") or {}).items() if _isnum(v)})
+        self.structure = dict(DEFAULT_STRUCTURE, **{k: v for k, v in (self.spec.get("structure") or {}).items()
+                                                   if _isnum(v) or isinstance(v, bool) or v is None})
         self.state_path = os.path.join(self.dir, STATE_FILE)
         self.state = self._load_state()
         if base:
@@ -785,6 +789,39 @@ class Driver:
         self._job_script(overwrite=True)
         return "next", f"campaign initialised: baseline {obj:.3f} (candidate {cid})"
 
+    def _s_recall(self):
+        """Validate the level-add procedure on levels the model already has before STRUCTURE_ADD is trusted (DeBoer
+        2026-10-15; 13C+a/10-15-26_recall): the structure.recall_levels broadest physical levels are removed one at a time and
+        searched for with no J^pi given.  Below structure.recall_min_pass the adds of this run are queued as decisions."""
+        n = int(self.structure.get("recall_levels") or 0)
+        if n <= 0:
+            return "next", "structure.recall_levels 0: skipped"
+        if int(self.budget["level_tests_max"]) <= 0:
+            return "next", "budget.level_tests_max 0: no level adds to validate"
+        c = self.campaign
+        res = c.run_recall(n=n, min_width_kev=float(self.structure.get("broad_first_kev") or 0.0),
+                           global_nfev=int(self.budget["level_nfev"]), pinned_nfev=int(self.budget["pinned_nfev"]),
+                           local_release=float(self.structure.get("local_release_mev") or 0.0),
+                           local_nfev=int(self.structure.get("local_nfev") or 80), note="rmfit drive RECALL")
+        rows = [f"{r['level']} {r['energy']:.4f} MeV Gamma {r['gamma_kev']:.1f} keV -> {r.get('outcome')} as {r.get('jpi_found')}"
+                f" @ {r.get('energy_found', float('nan')):.4f}: " + ("re-found" if r["passed"] else f"NOT re-found ({r['why']})")
+                for r in res["results"]]
+        self._finding_rows("RECALL", rows or ["no physical level broad enough inside the window: nothing removed"])
+        self.state["recall"] = dict(n=res["n"], n_pass=res["n_pass"], fraction=res["fraction"])
+        if res["n"] == 0:
+            return "next", "no known level broad enough below bg_energy to remove: recall skipped"
+        minp = float(self.structure.get("recall_min_pass") or 0.0)
+        if res["fraction"] < minp:
+            self.state["adds_untrusted"] = True
+            did = self.decisions.add("recall-low", f"the level-add procedure re-found {res['n_pass']} of {res['n']} known levels "
+                                     f"(below structure.recall_min_pass {minp:g}); its adds are queued as accept-pending decisions "
+                                     f"instead of adopted.  Answer 'trust' to pre-authorize them anyway.",
+                                     evidence="DRIVE.md RECALL table; recall/<level>/ child campaigns", options=("adopt-manually", "trust"),
+                                     default="adopt-manually")
+            self.note(f"RECALL: {res['n_pass']} of {res['n']} known levels re-found (< {minp:g}): level adds untrusted, decision {did} (non-blocking)")
+            return "next", f"recall {res['n_pass']}/{res['n']} below {minp:g}: level adds become decisions until '{did}' is answered 'trust'"
+        return "next", f"recall {res['n_pass']}/{res['n']} known levels re-found: level adds trusted"
+
     # ==================================================================================================
     # loop phase
     # ==================================================================================================
@@ -895,11 +932,73 @@ class Driver:
         after = self._incumbent_obj()
         return "next", f"{before:.3f} -> {after:.3f} ({fr.status}, {fr.nfev} evaluations)"
 
+    def _bank(self):
+        path = os.path.join(self.dir, "candidates.json")
+        data = json.load(open(path)) if os.path.exists(path) else dict(candidates=[])
+        return path, data, data.get("candidates", [])
+
+    def _is_narrow(self, cand) -> bool:
+        """Known width below structure.broad_first_kev (unknown widths count as broad: tested in the broad phase)."""
+        bf = float(self.structure.get("broad_first_kev") or 0.0)
+        w = _cand_width_kev_known(cand)
+        return bf > 0 and w is not None and w < bf
+
+    def _s_levelscan(self):
+        """Residual-driven candidates when the bank's broad queue is exhausted (DeBoer 2026-09-14/10-12: one level of every
+        J^pi at the width the residual shows, compared inside the model; 13C+a 9-14-26_levelscan_broad found the campaign's
+        largest gain).  Campaign.run_levelscan; the best (J^pi, pattern) per residual cluster is appended to candidates.json
+        with its screen as hypothesis and the next two J^pi as alternatives; STRUCTURE_ADD tests it like any candidate."""
+        per = int(self.structure.get("levelscan_per_cycle") or 0)
+        if per <= 0:
+            return "next", "structure.levelscan_per_cycle 0: skipped"
+        if int(self.counters.get("level_tests", 0)) >= int(self.budget["level_tests_max"]):
+            return "next", "no level-test budget left this cycle: no scan"
+        path, data, bank = self._bank()
+        tested = set(int(i) for i in self.state["tested_candidates"])
+        broad = [i for i in range(len(bank)) if i not in tested and not self._is_narrow(bank[i])
+                 and (bank[i].get("hypothesis") or bank[i].get("note"))]
+        if broad:
+            return "next", f"{len(broad)} broad candidate(s) untested: no scan needed yet"
+        done = int(self.counters.get("levelscan_rounds", 0))
+        if done >= per:
+            return "next", f"structure.levelscan_per_cycle {per} reached this cycle"
+        c = self.campaign
+        top = self._ex_top()
+        fw = (self.spec.get("model") or {}).get("fit_window") or {}
+        lo = float(fw["Ex_MeV"][0]) if fw.get("Ex_MeV") else None
+        from .levelscan import to_level_candidate
+        res = c.run_levelscan(top=int(self.structure.get("levelscan_top") or 3), gamma_kev=self.structure.get("levelscan_gamma_kev"),
+                              ex_range=((lo if lo is not None else 0.0, top) if top is not None else None), refit=0,
+                              note="rmfit drive LEVELSCAN")
+        added = []
+        for r in res.get("results", []):
+            bg = [row for row in (r.get("best_global") or []) if row.get("gain", 0) > 0]
+            if not bg:
+                continue
+            row = bg[0]
+            ex = float(row.get("ex", r["ex"]))
+            if any(abs(ex - float(b.get("energy", 1e9))) < 0.030 and b.get("jpi") in (None, row["jpi"]) for b in bank):
+                continue
+            lc = to_level_candidate(row, ex)
+            bank.append(dict(energy=lc.energy, jpi=lc.jpi, jpis=[q["jpi"] for q in bg[:3]], channels=lc.channels, energy_fixed=True,
+                             source="levelscan", width_kev=float(row["gamma_total_ev"]) / 1e3, cycle=int(self.state["cycle"]),
+                             hypothesis=f"residual-run cluster at Ex {r['ex']:.3f} MeV (chi2 {float(r.get('score') or 0):.0f} in runs, "
+                                        f"run width {float(r.get('run_width') or 0) * 1e3:.0f} keV); template screen of every J^pi at Gamma "
+                                        f"{r['gamma_kev']:g} keV: best {row['jpi']} {row['desc']} (screen gain {row['gain']:+.0f})"
+                                        + (", then " + ", ".join(f"{q['jpi']} {q['gain']:+.0f}" for q in bg[1:3]) if len(bg) > 1 else "")))
+            added.append(f"{lc.jpi} @ {lc.energy:.3f}")
+        data["candidates"] = bank
+        json.dump(data, open(path, "w"), indent=1)
+        self.counters["levelscan_rounds"] = done + 1
+        self.counters["levelscan_last_added"] = len(added)
+        msg = f"{len(res.get('results', []))} residual cluster(s) screened, {len(added)} candidate(s) appended: " + ", ".join(added)
+        self.note("LEVELSCAN: " + msg)
+        return "next", msg
+
     def _s_structure_add(self):
         c = self.campaign
         from .structure import LevelCandidate
-        path = os.path.join(self.dir, "candidates.json")
-        bank = json.load(open(path)).get("candidates", []) if os.path.exists(path) else []
+        path, data, bank = self._bank()
         tested = set(int(i) for i in self.state["tested_candidates"])
         marg = int(self.counters.get("marginal_in_a_row", 0))
         ntests = int(self.counters.get("level_tests", 0))
@@ -908,28 +1007,53 @@ class Driver:
         if marg >= int(self.stop["level_adds_marginal_in_a_row"]):
             self.counters["marginal_in_a_row"] = 0
             return "next", f"{marg} marginal adds in a row: the queue ends here ({len(bank) - len(tested)} untested)"
-        nxt = None
-        # broad first (DeBoer: Gamma > 10 keV first, narrow alignment later; DESIGN.md 2.2): a candidate's width is its
-        # width_kev, else the sum of its seed channel widths; unknown widths keep the bank's order after the known ones
-        order = sorted((i for i in range(len(bank)) if i not in tested), key=lambda i: (-_cand_width_kev(bank[i]), i))
-        for i in order:
-            cand = bank[i]
-            if not (cand.get("hypothesis") or cand.get("note")):
-                self.log(f"candidate {i} ({cand.get('energy')} {cand.get('jpi')}) has no hypothesis: skipped (every structure candidate needs one)")
+        # a candidate without a hypothesis is never tested (every structure candidate needs one)
+        for i in range(len(bank)):
+            if i not in tested and not (bank[i].get("hypothesis") or bank[i].get("note")):
+                self.log(f"candidate {i} ({bank[i].get('energy')} {bank[i].get('jpi')}) has no hypothesis: skipped (every structure candidate needs one)")
                 self.state["tested_candidates"].append(i)
                 tested.add(i)
-                continue
-            nxt = (i, cand)
-            break
-        if nxt is None:
-            return "next", f"every candidate tested ({len(bank)})"
-        i, spec = nxt
+        untested = [i for i in range(len(bank)) if i not in tested]
+        # broad first (DeBoer 2026-09-14: Gamma > 10 keV first, narrow alignment later; DESIGN.md 2.2): known widths below
+        # structure.broad_first_kev wait until the broad queue AND the residual scan are exhausted (structure.narrow_phase)
+        broad = [i for i in untested if not self._is_narrow(bank[i])]
+        narrow = [i for i in untested if self._is_narrow(bank[i])]
+        if broad:
+            order = sorted(broad, key=lambda i: (-_cand_width_kev(bank[i]), i))
+        else:
+            if not self.state.get("broad_done"):
+                per = int(self.structure.get("levelscan_per_cycle") or 0)
+                done = int(self.counters.get("levelscan_rounds", 0))
+                if per > 0 and done < per and (done == 0 or int(self.counters.get("levelscan_last_added", 0)) > 0):
+                    return "LEVELSCAN", "broad queue empty: residual-driven scan before the narrow phase"
+                self.state["broad_done"] = True
+                if narrow:
+                    self.note(f"STRUCTURE_ADD: broad structure queue exhausted; {len(narrow)} narrow candidate(s) (Gamma < "
+                              f"{self.structure.get('broad_first_kev')} keV) " + ("follow (narrow alignment)" if self.structure.get("narrow_phase", True) else "stay deferred (structure.narrow_phase false)"))
+            if not narrow:
+                return "next", f"every candidate tested ({len(bank)})"
+            if not self.structure.get("narrow_phase", True):
+                return "next", f"broad queue done; {len(narrow)} narrow candidate(s) deferred (structure.narrow_phase false)"
+            order = sorted(narrow, key=lambda i: (-_cand_width_kev(bank[i]), i))
+        i = order[0]
+        spec = bank[i]
         cand = LevelCandidate(energy=float(spec["energy"]), jpi=spec.get("jpi"), channels=spec.get("channels", []),
                               source=spec.get("source", "drive"), note=(spec.get("hypothesis") or spec.get("note") or ""),
                               energy_fixed=spec.get("energy_fixed", True))
-        self.log(f"candidate {i}: {cand.jpi or 'scan'} @ {cand.energy} MeV -- hypothesis: {cand.note}")
-        st = c.run_level_add(cand, jpis=([cand.jpi] if cand.jpi else None), global_nfev=int(self.budget["level_nfev"]),
-                             pinned_nfev=int(self.budget["pinned_nfev"]), note="rmfit drive")
+        jpis = list(spec.get("jpis") or ([cand.jpi] if cand.jpi else [])) or None
+        self.log(f"candidate {i}: {cand.jpi or 'scan'} @ {cand.energy} MeV -- hypothesis: {cand.note}"
+                 + (f" (J^pi tested: {', '.join(jpis)})" if jpis and len(jpis) > 1 else ""))
+        if self.state.get("adds_untrusted"):
+            for d in self.decisions.all():
+                if d["slug"] == "recall-low" and not d.pending and (d.get("answer") or "").strip().lower().startswith("trust"):
+                    self.state["adds_untrusted"] = False
+                    self.note(f"decision {d.id} answered 'trust': level adds pre-authorized again")
+        if self.state.get("adds_untrusted") and getattr(c, "spec", None) is not None:
+            c.spec.data.setdefault("pre_authorized", {})["adopt_level"] = False      # this process only: adds become decisions
+            self.log("  level adds untrusted after RECALL: an accept is recorded as accept-pending (decision)")
+        st = c.run_level_add(cand, jpis=jpis, global_nfev=int(self.budget["level_nfev"]), pinned_nfev=int(self.budget["pinned_nfev"]),
+                             local_release=float(self.structure.get("local_release_mev") or 0.0),
+                             local_nfev=int(self.structure.get("local_nfev") or 80), note="rmfit drive")
         self.state["tested_candidates"].append(i)
         self.counters["level_tests"] = ntests + 1
         out = st.get("outcome", "?")
@@ -937,6 +1061,7 @@ class Driver:
             self.counters["marginal_in_a_row"] = 0
             self.counters["adopted_since_sign"] = 1
             self.counters["population_exhausted"] = 0          # a new structure: the population stage may pay again
+            self.state["broad_done"] = False                   # new residuals: the broad queue / scan may have more
         elif out == "accept-pending":
             self.counters["marginal_in_a_row"] = 0
         else:
@@ -1006,6 +1131,9 @@ class Driver:
             self.state["dataset_off_tested"] = []
             self.counters["level_tests"] = 0
             self.counters["marginal_in_a_row"] = 0
+            self.counters["levelscan_rounds"] = 0
+            self.counters["levelscan_last_added"] = 0
+            self.state["broad_done"] = False
             return "TIGHTEN", msg + " -> another pass"
         return "DONE", msg + " -> DONE"
 
@@ -1021,17 +1149,28 @@ PLAN_TEXT = {
     "LADDER": "model.ladder_Ex steps polished and carried forward (skipped without it)",
     "CANDIDATES": "candidates.json kept, or built from ENSDF <compound_nucleus> (broad first, hypothesis each)",
     "INIT": "Campaign.init --spec (baseline verified, engine pinned)",
+    "RECALL": "structure.recall_levels broadest known levels removed one at a time and searched for with no J^pi (validates level-add); below recall_min_pass adds become decisions",
     "TIGHTEN": "polish --tighten rounds until gain < polish_gain_rel_min (budget polish_rounds_max)",
     "SIGN": "sign rounds until sign_rounds_without_accept (>= 2 rounds; budget sign_rounds_max)",
     "POPULATION": "restarts_per_cycle sign-perturbed restarts polished to convergence + crossover_passes between them (basin crossing); gain < population_gain_rel_min -> off until a structure change",
     "SHIFTS_FREE": "polish --shifts-free if pre_authorized.shifts_free",
-    "STRUCTURE_ADD": "level add per candidates.json entry (hypothesis required); adoption per pre_authorized.adopt_level",
+    "LEVELSCAN": "when the broad candidate queue is empty: residual-run clusters -> template screen of every J^pi -> candidates appended (structure.levelscan_per_cycle)",
+    "STRUCTURE_ADD": "level add per candidates.json entry, broad first (structure.broad_first_kev), narrow alignment after the broad queue + scan; hypothesis required; adoption per pre_authorized.adopt_level",
     "SIGN_POST": "sign rounds again if a structure was adopted",
     "DATASET_OFF": "Botek test on the worst chi2/N sets (budget dataset_off_max); large extra recovery -> decision (keep)",
     "REVIEW": "rmfit review (+ grid check) -> REVIEW.md; HIGH -> decision review-high (wait)",
     "EXPORT": "export + report",
     "CYCLE": "another pass from TIGHTEN if the cycle gained >= cycle_gain_rel_min and cycles < cycles_max, else DONE",
 }
+
+
+def _cand_width_kev_known(cand):
+    """Width in keV when the candidate states one (width_kev, or non-zero seed channel widths), else None."""
+    w = cand.get("width_kev")
+    if _isnum(w) and float(w) > 0:
+        return float(w)
+    tot = sum(abs(float(ch.get("gamma", 0.0))) for ch in (cand.get("channels") or []) if _isnum(ch.get("gamma")))
+    return tot / 1e3 if tot > 0 else None
 
 
 def _cand_width_kev(cand) -> float:

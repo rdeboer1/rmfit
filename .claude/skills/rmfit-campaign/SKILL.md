@@ -276,11 +276,13 @@ spec does not answer becomes a `DECISIONS.md` entry.
     touch <dir>/STOP_DRIVE                       # stop cleanly after the current state
 
 States: build phase `PIN_CHECK AUDIT REPRODUCE SPEC_CHECK SCALE_ANCHOR SEED_CHANNELS PAIR_COMPLETENESS LADDER CANDIDATES
-INIT` (section 2 prerequisites and "First fits": the archived chiSquared.out must reproduce, the spec's data-set roles are
+INIT RECALL` (section 2 prerequisites and "First fits": the archived chiSquared.out must reproduce, the spec's data-set roles are
 applied to a working copy `<stem>_drive.azr`, free widths at exactly zero are seeded at `model.seed_frac` (0.01) gamma_W,
 ENSDF states of the residual nuclei that open below the window top without a pair are listed, `candidates.json` is built
-from ENSDF broad-first when absent -- every candidate needs a `hypothesis`), then the loop `TIGHTEN SIGN POPULATION
-SHIFTS_FREE STRUCTURE_ADD SIGN_POST DATASET_OFF REVIEW EXPORT CYCLE` (section 3 steps 1-7 with section 4's stopping rules: polish rounds
+from ENSDF broad-first when absent -- every candidate needs a `hypothesis`; RECALL (2026-11-09, `structure.recall_levels`)
+removes the broadest known levels one at a time and asks the level-add procedure to find them again with no J^pi given --
+below `recall_min_pass` every add of the run is queued as a decision instead of adopted), then the loop `TIGHTEN SIGN POPULATION
+SHIFTS_FREE LEVELSCAN STRUCTURE_ADD SIGN_POST DATASET_OFF REVIEW EXPORT CYCLE` (section 3 steps 1-7 with section 4's stopping rules: polish rounds
 until the gain is below `polish_gain_rel_min` -- size `budget.polish_nfev` to the model, 150 is far too few for 200 free
 parameters; sign rounds only once the polish converged (`sign_after_converged_polish`, else they are deferred to the next
 cycle: 7Be 2026-11-08, 18 rounds accepted nothing on a moving incumbent) and until `sign_rounds_without_accept`; then
@@ -293,8 +295,13 @@ less than `population_gain_rel_min` switches the stage off until a structure cha
 (7Be benchmark 2026-11-08, bench readme): the sign rounds left a basin 13.5 % above the reference, sign distance 17; the
 reference's 17-flip pattern starts at three times the incumbent's objective and polishes down to it, while no single, pair,
 channel or group flip gained more than 2.6 even with a 600-evaluation polish -- local proposals do not cross basins, a
-population of polished basins and crossover between them does (six restarts + one pass: 6002.6 -> 5325.7); level adds until
-`level_adds_marginal_in_a_row`, adoption per `pre_authorized.adopt_level`; the Botek test on the worst chi2/N sets, result
+population of polished basins and crossover between them does (six restarts + one pass: 6002.6 -> 5325.7); the structure
+search per the spec's `structure` section (2026-11-09): candidates broad first -- a known width below `broad_first_kev` (10)
+waits until the broad queue and the residual scan are exhausted, then the narrow-alignment phase (`narrow_phase`); when the
+broad queue is empty LEVELSCAN (`levelscan_per_cycle`, `levelscan_top`, `levelscan_gamma_kev` null = the run width) screens
+the residual-run clusters with one level of every J^pi and appends the best (J^pi, pattern) to `candidates.json` with the
+screen as hypothesis and the next two J^pi as alternatives; every add polishes the neighbourhood first (`local_release_mev`,
+`local_nfev`); level adds until `level_adds_marginal_in_a_row`, adoption per `pre_authorized.adopt_level`; the Botek test on the worst chi2/N sets, result
 recorded, never excluded; review HIGH flags wait for the evaluator; another pass while a cycle gains `cycle_gain_rel_min`
 and `cycles_max` allows).  `DRIVE.md` is rewritten after every state; `drive_state.json` is the checkpoint (`--state S`
 jumps, `--reset` starts over and keeps the old file).  Engine states refuse the login node (`--local` is for fixtures).
@@ -2470,6 +2477,28 @@ fixed proton width (10.702 MeV: ~180 eV vs the fitted 494 meV) and the baseline 
 first (section 2, prerequisite 2) whenever the fit you build on was run with an external parameter file; pyazr's
 `azure2.load_sav` docstring explains the split.  A check of your own that feeds a single-session vector to a Sharded evaluator
 must map it with `keys.take`: the two order the free parameters differently.  Record: 11B+a/11-07-26_jpi_study/readme.
+
+## 2026-11-09 -- Recovery yardstick; Phase 2.2: the structure-search rules become drive defaults
+
+7Be benchmark attempt 4 (bench readme `6Li+p/3He+a/AZURE2_evaluation/11-8-26_drive_bench/readme`, entries 05:20-06:30): with
+POPULATION on, the drive went 8097 -> 5307.5 in 9.8 node-hours with no wait decision (reference 5290.1, +0.33 %), stopping at
+the node-hour budget.  The post-mortem (diag4, compare4, diag4b) showed the gap is NOT a sign barrier: the sign oracle fails,
+and transplanting the reference's energies, its background block, or energies + signs all polish back into the drive's own
+configuration.  The drive's solution fits the DATA better (chi2 5082.5 vs 5088.8) and loses 23.7 on the norm penalty; five
+background poles sit 0.4-1.8 MeV from the reference's.  Two near-degenerate background configurations of one objective.
+DeBoer adopted the **recovery yardstick** (DESIGN.md Phase 3): data chi2 <= the reference's, objective within 0.5 %, no review
+flag the reference lacks, zero wait decisions; the 1e-4 objective match stays as a secondary column.  Lesson for any benchmark:
+re-measure the reference and compare data chi2 and penalty separately before calling a basin wrong.
+
+Phase 2.2 built the same day: `spec.json` gains a `structure` section (template: `broad_first_kev 10`, `narrow_phase true`,
+`levelscan_per_cycle 1`, `levelscan_top 3`, `levelscan_gamma_kev null`, `local_release_mev 0.5`, `local_nfev 80`,
+`recall_levels 2`, `recall_min_pass 0.5`); the drive gains RECALL (after INIT) and LEVELSCAN (before STRUCTURE_ADD); STRUCTURE_ADD
+tests broad candidates first and the narrow ones only after the broad queue and the residual scan are exhausted; each
+candidate may carry a `jpis` list (the levelscan's top three) that the add tests on the full model; `Campaign.run_recall` /
+`rmfit <dir> recall` is the 13C+a 10-15-26 recall test as a campaign method (child campaigns under `recall/`, kept).  Not
+encoded, open in DESIGN.md: fitting data set by data set with a merge at the end, thinning for structure searches, raw-data
+candidates from the resonance-search scripts, the ML candidate source.  Also: `run_population` polishes each distinct donor
+sign pattern once (13N: two restarts in one basin had doubled the crossover pass).
 
 ## 2026-11-08 (evening) -- POPULATION: restarts + crossover become a drive stage (7Be benchmark post-mortem)
 

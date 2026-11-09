@@ -14,7 +14,7 @@ import json
 import math
 import os
 import time
-from typing import Optional, Sequence
+from typing import Dict, Optional, Sequence
 
 import numpy as np
 
@@ -686,6 +686,115 @@ class Campaign:
         self.ledger.write_status_md()
         stats["improved"] = improved
         return stats
+
+    def run_recall(self, n: int = 2, min_width_kev: float = 10.0, levels: Optional[Sequence[str]] = None,
+                   global_nfev: int = 150, pinned_nfev: int = 60, local_release: float = 0.0, local_nfev: int = 80,
+                   offset_kev: float = 10.0, note: str = "") -> dict:
+        """RECALL test of the level-add procedure on levels the model already has (DeBoer 2026-10-15: "go through the
+        resonances that we have in the fit ... make sure that they wouldn't be excluded by our criteria"; worked example
+        13C+a/10-15-26_recall).  The ``n`` broadest physical levels (below the policy's bg_energy, physical width >=
+        ``min_width_kev``) are each removed from the incumbent -- a child campaign in ``recall/<tag>/`` on the baked
+        incumbent with that level switched off -- and the SAME level-add procedure STRUCTURE_ADD uses (window scan over
+        every J^pi, pinned + released polish, same-budget control, classification) is asked to find a level at the
+        true energy + ``offset_kev`` with no J^pi given.  A level is re-found when the outcome is accept(-pending), the
+        J^pi is the true one, the fitted energy is within max(50 keV, 3 Gamma) and the width within a factor 3.
+        ``levels`` = explicit key labels ("3/2-#1") instead of the automatic choice.  Returns dict(results, n, n_pass,
+        fraction, passed_levels); ledger round "recall"; the child campaigns are kept for inspection."""
+        from .structure import LevelCandidate, deactivate_level_variant
+        from pyazr import AzrModel
+        cid, x, obj, keys = self.incumbent()
+        ev = self.sharded
+        xs = take(x, keys, ev.keys, ev.x0)
+        rid = self.ledger.start_round(self.structure_id, "recall", note or f"{n} broadest known levels")
+        t0 = time.time()
+        # physical width of every level from the incumbent: Gamma_c = (gamma_c / gamma_W,c)^2 Gamma_W,c (eV)
+        gWa, gWw = ev.wigner_amplitudes(), ev.wigner_widths(xs)
+        width_ev: Dict[str, float] = {}
+        energy: Dict[str, float] = {}
+        for j, k in enumerate(ev.keys):
+            if k.kind == "width" and gWa.get(j, 0) > 0 and j in gWw:
+                width_ev[k.level] = width_ev.get(k.level, 0.0) + (xs[j] / gWa[j]) ** 2 * gWw[j]
+            elif k.kind == "energy":
+                energy[k.level] = float(xs[j])
+        mdl = AzrModel.from_file(self.base_azr)
+        count: Dict[str, int] = {}
+        for lv in mdl.active_levels:               # the keys' labels: J^pi#ordinal over the ACTIVE levels in file order
+            count[lv.jpi] = count.get(lv.jpi, 0) + 1
+            energy.setdefault(f"{lv.jpi}#{count[lv.jpi]}", float(lv.energy))
+        table = sorted(((width_ev.get(l, 0.0), l) for l in energy if energy[l] < self.policy.bg_energy), reverse=True)
+        if levels:
+            chosen = [(width_ev.get(l, 0.0), l) for l in levels if l in energy]
+        else:
+            chosen = [(w, l) for w, l in table if w >= 1e3 * float(min_width_kev)][:int(n)]
+        self.log(f"recall: {len(chosen)} level(s) chosen of {len(table)} below bg_energy {self.policy.bg_energy:g} MeV: "
+                 + ", ".join(f"{l} {energy[l]:.4f} MeV Gamma {w / 1e3:.1f} keV" for w, l in chosen))
+        if not chosen:
+            self.ledger.finish_round(rid, n=0, n_pass=0, fraction=1.0, results="[]", wall_min=(time.time() - t0) / 60)
+            self.note(f"recall round #{rid}: no physical level with Gamma >= {min_width_kev:g} keV below bg_energy -- nothing to re-find")
+            return dict(results=[], n=0, n_pass=0, fraction=1.0, passed_levels=[])
+        rdir = os.path.join(self.dir, "recall"); os.makedirs(rdir, exist_ok=True)
+        azr_inc, sav_inc, sc = self.export(path=os.path.join(rdir, "incumbent.azr"), note="recall")
+        self.close()                                # the children run their own shards; the parent's come back lazily
+        obj_cfg = dict(self.cfg.get("objective") or {})
+        covref = obj_cfg.pop("cov_reference", None)
+        if covref and not os.path.isabs(covref):
+            covref = os.path.join(self.dir, covref)
+        results = []
+        for w, label in chosen:
+            jpi, e_true = label.split("#")[0], energy[label]
+            tag = label.replace("/", "").replace("#", "_") + f"_E{e_true:.4f}"
+            cdir = os.path.join(rdir, tag)
+            os.makedirs(os.path.join(cdir, "output"), exist_ok=True)
+            res = dict(level=label, jpi=jpi, energy=e_true, gamma_kev=w / 1e3, dir=os.path.relpath(cdir, self.dir))
+            try:
+                var = deactivate_level_variant(azr_inc, os.path.join(cdir, "base.azr"), jpi, e_true,
+                                               output_dir=os.path.join(cdir, "output"))
+                child = Campaign.init(cdir, var["path"], flags=self.flags, nshards=self.nshards, policy=self.cfg.get("policy"),
+                                      search=self.cfg.get("search"), objective=obj_cfg or None, cov_reference=covref,
+                                      note=f"recall child of {self.dir}: {label} removed")
+                try:
+                    c0 = child.incumbent()[2]
+                    cand = LevelCandidate(energy=round(e_true + offset_kev * 1e-3, 4), jpi=None, channels=[], source="recall",
+                                          note=f"recall: the known {jpi} level at {e_true:.4f} MeV (Gamma {w / 1e3:.1f} keV) removed; "
+                                               f"can the procedure find it again with no J^pi given?", energy_fixed=True)
+                    st = child.run_level_add(cand, jpis=None, global_nfev=global_nfev, pinned_nfev=pinned_nfev,
+                                             local_release=local_release, local_nfev=local_nfev, note="recall")
+                finally:
+                    child.close()
+                out = st.get("outcome", "?")
+                jf = st.get("jpi")
+                ef = st.get("energy_fit", cand.energy)
+                gf = st.get("level_gamma_ev")
+                why = []
+                if out not in ("accept", "accept-pending"):
+                    why.append(f"outcome {out}")
+                if jf != jpi:
+                    why.append(f"J^pi {jf} != {jpi}")
+                if abs(float(ef) - e_true) > max(0.050, 3.0 * w * 1e-6):
+                    why.append(f"energy {float(ef):.4f} vs {e_true:.4f}")
+                if gf and w > 0 and not (w / 3.0 <= float(gf) <= 3.0 * w):
+                    why.append(f"Gamma {float(gf) / 1e3:.1f} keV vs {w / 1e3:.1f}")
+                res.update(removed_objective=c0, outcome=out, jpi_found=jf, energy_found=float(ef),
+                           gamma_found_kev=(float(gf) / 1e3 if gf else None), delta=st.get("delta"), scan=st.get("scan", ""),
+                           passed=not why, why="; ".join(why))
+            except Exception as err:  # noqa: BLE001 -- one failed child must not end the round
+                res.update(outcome="error", passed=False, why=f"{type(err).__name__}: {err}")
+                self.log(f"recall of {label} failed: {err}")
+            results.append(res)
+            self.log(f"recall {label}: " + ("RE-FOUND" if res["passed"] else "NOT re-found (" + res["why"] + ")")
+                     + f" -- outcome {res.get('outcome')} as {res.get('jpi_found')} @ {res.get('energy_found', float('nan')):.4f}")
+        n_pass = sum(1 for r in results if r["passed"])
+        frac = n_pass / len(results)
+        self.ledger.finish_round(rid, n=len(results), n_pass=n_pass, fraction=frac, results=json.dumps(results),
+                                 wall_min=(time.time() - t0) / 60)
+        self.note(f"recall round #{rid} ({len(results)} known levels removed and searched for, {(time.time() - t0) / 60:.0f} min): "
+                  f"{n_pass} of {len(results)} re-found -- "
+                  + "; ".join(f"{r['level']} {r['energy']:.3f} MeV Gamma {r['gamma_kev']:.0f} keV: "
+                              + ("re-found" if r["passed"] else f"NOT ({r['why']})") for r in results)
+                  + "; children in recall/")
+        self.ledger.write_status_md()
+        return dict(results=results, n=len(results), n_pass=n_pass, fraction=frac,
+                    passed_levels=[r["level"] for r in results if r["passed"]])
 
     def run_levelscan(self, ex: Optional[Sequence[float]] = None, top: int = 3, gamma_kev: Optional[float] = 10.0,
                       scales: Sequence[float] = (0.3, 0.6, 1.2, 2.5, 5.0, 10.0), jpis: Optional[Sequence[str]] = None,

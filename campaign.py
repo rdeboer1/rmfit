@@ -642,10 +642,16 @@ class Campaign:
         best = min(pop, key=lambda m: m["obj"])
         n_moves, source = 0, best["name"]
         for pas in range(1, int(passes) + 1):
-            cand = []
+            cand, seen = [], []
             for d in pop:
                 if d is best:
                     continue
+                # two members that polished into the same sign pattern donate the same moves: polish them once
+                dup = next((s for s in seen if sign_distance(d["x"], s["x"], ev.keys, fixed)[0] == 0), None)
+                if dup is not None:
+                    self.log(f"  crossover pass {pas}: {d['name']} has the sign pattern of {dup['name']}, not polished again")
+                    continue
+                seen.append(d)
                 for mv in crossover_moves(best["x"], d["x"], ev.keys, fixed=fixed, label=d["name"]):
                     xm = apply(best["x"], ev.keys, mv)
                     xm, om = rounds(xm, mv.description, max_rounds=1)

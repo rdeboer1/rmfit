@@ -364,8 +364,9 @@ data treatment stays the evaluator's decision (section 5).  Worked example with 
 - normalizations: every `varyNorm 1` with `normError 0` is a FREE UNPENALIZED norm -- list them
   with their fitted values and ask whether each is intended; list fitted norms outside 0.7-1.4;
   check every norm / shift setting against the evaluator's recorded decisions;
-- `<targetInt>` keys bind to the intended segments; in sharded runs only angle-integrated
-  segments may be convolved (log entry 2026-10-02).
+- `<targetInt>` keys bind to the intended segments; in sharded runs a convolved segment must be angle-integrated or at
+  ONE fixed angle (minA == maxA; fixed-angle conv pieces since the 2026-10-15 entry); an angular distribution with a
+  `<targetInt>` line still needs a single session.
 
 **2. Data audit** (every file of an active segment):
 - integrity: non-numeric rows, zero or negative values or errors, duplicated rows;

@@ -119,7 +119,7 @@ decisions stay with the evaluator; the spec records them.
   reference's; `--review` writes a missing or stale REVIEW.md, noting the engine) and applies the yardstick; `run` writes the SGE job
   (reference init, `perturb`, spec, drive).  First rows: 7Be tier 1 attempts 2, 3 (FAIL) and 4 (PASS: data chi2 5082.5 <= 5088.8,
   +0.33 %, 0 wait decisions, no new flag; not exact).  Tier 0 = the AZURE2 tests/13N fixture (4 flips, 3 slots, ~1 h), not the
-  ML superset (pseudo-data, no reference fit).  12C+p tier 1 PASS exact 2026-11-10 (26,368 -> 12,040 via DeBoer's background-gamma branch, found by the population stage in 0.06 node-hours); tier 2/3
+  ML superset (pseudo-data, no reference fit).  12C+p tier 1 PASS exact 2026-11-10 (26,368 -> 12,040 via DeBoer's background-gamma branch, found by the population stage in 0.06 node-hours); tier-2 case `10Bp_tier2` defined 2026-11-10 (round 8 variant A -> B); its first run (job 1719105) is VOID (the .sav's fixed values were ignored at init, fixed 3e57614), rerun job 1719612; tier-3
   cases are still to be defined as case files.
 - **3.2 STARTED 2026-11-09** (DeBoer: "12C+p from scratch for the L3 demo"): `12C+p/11-9-26_L3_demo/` -- base model from the TUNL
   level scheme + background poles + the 8-9-26 data segments (build_base.py), spec.json drafted by Claude with every data-treatment
@@ -142,6 +142,17 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
 
 ## Progress log
 
+- 2026-11-10 08:50  Tier-2 bench job 1719105 VOID, `init --sav` fixed in 3e57614.  The drive ran to DONE (1.39 node-hours, zero wait
+  decisions, 5,685 against a polished reference of 6,162) but on the wrong model: `_seed_vector` took only the FREE parameters from
+  the .sav and the sharded evaluator took the fixed ones from the .azr, while AZURE2's parameter-file reader (and pyazr's
+  `load_sav`) applies the file's fixed values too.  var_B.azr and fit_B/output/param.sav differ in 23 fixed background widths (up
+  to 10x), so the reference initialised at 14,082 for the archived 5,716 and the start at 13,073 for 6,215.  Nothing warned: the
+  reproduce check looks for output/chiSquared.out and the archived file was stored under another name.  Fix: `Campaign.
+  apply_sav_fixed` compares the fixed values and, when they differ beyond the .sav's 8 digits, writes `<stem>_sav.azr` (+ .sav)
+  with pyazr `save_fit` and makes it the campaign base (test `tests/test_init_sav_fixed_13n.py`); the bench copies an archived
+  `chisq_out` into the output directory before init.  Rerun job 1719612 (08:48).  Open: ~40 archive campaigns (10B+a, 11B+a)
+  were built with `init --sav`; most seeds were rmfit's own exports (bake writes both files consistently), but an audit job checks
+  every pair (`agentic/11-7-26_claude/sav_fixed_audit/`).
 - 2026-11-10 05:15  L3 demo attempt 5 (job 1719021, photon caps): DONE after 2 cycles in 1.28 node-hours, zero wait decisions,
   63,535 (attempt 4: 63,456 with photon widths of 1e9-1e16 eV).  Every background photon width is inside the 1e5 eV cap and four sit
   on it: the runaway bought 0.12 % and no physics; the cap value is the evaluator's number (spec bounds).  The course repeats

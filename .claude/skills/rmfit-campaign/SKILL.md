@@ -530,7 +530,7 @@ Numbers below are `bench/results.tsv` rows (DeBoer's recovery yardstick, section
 | 13N `13N_tier0` (0) | 4 high-exposure flips polished to 29,709 (ref 26,678) | PASS, exact to 1e-4, cycle 1 | 0.39 node-h, 3 slots |
 | 7Be `7Be_tier1` (1), `6Li+p/3He+a/.../11-8-26_drive_bench` | 8 flips polished to a 17-sign basin 13.5 % above the reference 5,290.1 | attempts 2-3 FAIL (sign rounds alone: 6,610 / 6,003); attempt 4 PASS at 5,307.5 (+0.33 %, data chi2 below the reference) once the POPULATION stage existed | 9.8 node-h, 8 slots, STOP at the 8 h budget |
 | 12C+p `12Cp_tier1` (1), `12C+p/11-10-26_bench_tier1` | DeBoer's 8-9-26 model with Claude's 26,368 level values (100,748 in the free scheme) | PASS, exact: polish 24,740, 22 sign proposals accepted none, crossover found the 3/2- E2 flip -> 12,039.786 = reference | 0.06 node-h, 8 slots |
-| 10B+p `10Bp_tier2` (2), `10B+p/11-10-26_bench_tier2` | round 8 variant A (2022 signs, 6,215) vs B (5,716): five signs, four magnitudes | running 2026-11-10 (job 1719105) | |
+| 10B+p `10Bp_tier2` (2), `10B+p/11-10-26_bench_tier2` | round 8 variant A (2022 signs, 6,215) vs B (5,716): five signs, four magnitudes | first run VOID (job 1719105: `init --sav` had ignored the .sav's 23 fixed background widths, both campaigns were another model; fixed 3e57614); rerun job 1719612 running 2026-11-10 | 1.39 node-h for the void run |
 | 12C+p L3 demo from scratch (`12C+p/11-10-26_L3_demo4`, `_demo5`) | ENSDF levels, 39 data sets, Claude's draft spec with nine open decisions | DONE, 3 cycles, zero wait decisions, 63,456 (demo 4); demo 5 adds the photon caps (1e5 eV, three widths at the cap) | 1.4 node-h, 8 slots |
 
 What that says:
@@ -591,6 +591,7 @@ Still true (limits):
   (`ps -eo pid,cmd | grep -F "11B+a_udr.azr"`), kill BY PID, confirm with `kill -0 <pid>` failing, only then remove the log;
   launch background programs with `< /dev/null` and a size cap.  **When a batch of jobs dies at once, `df -h /groups/<group>`
   first** (the group quota).  The 748 GB deleted-log story of 2026-10-11 is in HISTORY.md (relocated).
+- **`init --sav` and fixed parameters (2026-11-10)**: AZURE2's parameter-file reader sets every parameter it names, fixed level energies and widths included; until 3e57614 rmfit seeded only the free ones and evaluated the .azr's fixed values -- an .azr + .sav pair whose fixed values disagree (10B+p var_B.azr + fit_B/output/param.sav, 23 background widths up to 10x apart; 11B+a 10-12-26 in pyazr's `load_sav` docstring) was a model nobody fitted (14,082 at init for the archived 5,716, no warning).  Now `Campaign.apply_sav_fixed` writes `<stem>_sav.azr` (+ .sav) with the file applied and makes it the base; the init log says so.  Keep the archived `chiSquared.out` in the base's output directory so the reproduce check can run (bench: `chisq_out`).
 - **Park-mode campaigns (`"use_park": true`)**: (1) the J > 0 wall is carried as residual rows since 2026-10-24
   (`engine.ParkWall`, test `tests/test_park_wall_13n.py`; check `m.park_norms(x)` on any older Park result); (2) `--sav` seeds
   are applied by NAME with no basis conversion -- convert a Brune `.sav` through a CLI mode-1 run in Park mode first;

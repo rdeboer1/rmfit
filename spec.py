@@ -249,6 +249,21 @@ class FitSpec:
             except Exception as err:   # pyazr unavailable: say so, do not fail
                 out.append(Finding("INFO", "spec-pairs-unchecked", f"pairs_required not checked ({err})"))
         # engine / flags / config vs campaign.json
+        # 2026-11-09 (12C+p L3 demo): model.radius_fm {pair: fm} vs the channel radius the .azr carries -- the spec said 6.0 fm
+        # (copied from a readme), the file 3.5 fm; nothing compared them
+        rad = (self.data.get("model") or {}).get("radius_fm") or {}
+        if rad:
+            try:
+                from pyazr import AzrModel
+                pl = pair_lines(AzrModel.from_file(azr_path))
+                for key, want in rad.items():
+                    c = pl.get(int(key))
+                    if c is None:
+                        out.append(Finding("MEDIUM", "spec-radius", f"model.radius_fm names pair {key}, which the .azr does not have"))
+                    elif not getattr(c, "is_photon", False) and abs(float(c.channel_radius) - float(want)) > 1e-6:
+                        out.append(Finding("HIGH", "spec-radius", f"pair {key}: spec radius_fm {float(want):g} fm, the .azr has {float(c.channel_radius):g} fm"))
+            except Exception as err:  # noqa: BLE001
+                out.append(Finding("LOW", "spec-radius", f"radius check skipped ({err})"))
         if campaign_cfg:
             eng = self.data.get("engine") or {}
             ce = campaign_cfg.get("engine") or {}

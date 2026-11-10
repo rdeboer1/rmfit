@@ -146,7 +146,10 @@ are given. Policy meanings: `theta2_cap` is the Wigner-limit box for physical le
 `bg_theta2_cap` for background poles (levels with Ex >= `bg_energy`, whose energies stay
 fixed) -- 3.0 is a starting guess, not a physics default: check where the baseline's
 background amplitudes already sit (`init`'s cap audit) before trusting it; 12C+alpha
-elastic needed ~100 (see the 2026-09-30 log entry); `e_window` is the energy freedom of a level per polish (MeV); `norm_range`
+elastic needed ~100 (see the 2026-09-30 log entry); photon channels have no Wigner limit, so the theta2 caps never touch
+them: `photon_width_max_ev` (1e4) and `bg_photon_width_max_ev` (1e5) cap |Gamma_gamma| of physical levels and background
+poles instead (2026-11-10: a from-scratch 12C+p background pole had polished to 1e12 eV; generous stops, not Weisskopf
+limits -- set them per reaction, 0 = unbounded); `e_window` is the energy freedom of a level per polish (MeV); `norm_range`
 multiplies the nominal normalization. `narrow_window` (optional, e.g.
 `{"gamma_kev": 5, "factor": 3, "min_kev": 1}`) keeps a level whose free partial widths sum
 to less than `gamma_kev` within ±max(`min_kev`, `factor`·Γ) of its current energy instead of

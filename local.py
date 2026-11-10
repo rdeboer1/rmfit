@@ -73,6 +73,13 @@ class BoundsPolicy:
     total_floor_sigma: float = 1.0e-4     # relative width of the floor penalty: 0.01 % below the floor costs 1.  Stiff on
                                           # purpose: a data pull of P chi2 per unit relative width sags the floor by ~P sigma^2/2
                                           # (a 1e5 pull -> 0.05 %); at 5e-3 the same pull sagged it by a third (unit test)
+    photon_width_max_ev: float = 1.0e4    # |Gamma_gamma| <= this (eV) for every free photon channel of a physical level, and
+    bg_photon_width_max_ev: float = 1.0e5  # ... of a background pole (0 = unbounded).  Photon amplitudes have no Wigner limit, so
+                                          # the theta^2 cap never touched them: the 12C+p from-scratch demo (2026-11-10) polished a
+                                          # 5/2- background pole to Gamma_gamma 1e12 eV.  Generous stops against a runaway, not
+                                          # Weisskopf limits (Gamma_W(E1) at 20 MeV in A=13 is ~3 keV, E2 ~5 eV); the bound is
+                                          # |x| <= sqrt(Gamma_max / c) with Gamma_gamma = c x^2 at x_ref (the transform's local
+                                          # factor), rebuilt at every polish.  A photon width at the bound shows in the review.
     new_level_theta2_cap: float = 0.0     # level adds: the NEW level's theta^2 cap (0 = the ordinary cap).  Applied as a
                                           # +-0.5 keV theta2_cap_windows entry at the candidate's seed energy, kept in the
                                           # campaign policy when the level is accepted (DeBoer 2026-09-27: "increase the cap
@@ -249,6 +256,23 @@ class FitResult:
 _THRESHOLD_CACHE: Dict[str, tuple] = {}
 
 
+_PHOTON_CACHE: Dict[str, frozenset] = {}
+
+
+def photon_pairs(azr_path: str) -> frozenset:
+    """File pair keys of the model's photon (capture) pairs, from the .azr's channel lines.  Cached per path."""
+    if azr_path in _PHOTON_CACHE:
+        return _PHOTON_CACHE[azr_path]
+    try:
+        from pyazr import AzrModel
+        m = AzrModel.from_file(azr_path)
+        out = frozenset(int(c.pair) for lv in m.levels for c in lv.channels if c.is_photon)
+    except Exception:
+        out = frozenset()
+    _PHOTON_CACHE[azr_path] = out
+    return out
+
+
 def particle_thresholds(azr_path: str) -> tuple:
     """Excitation energies (MeV) at which the model's particle pairs open, from the .azr's channel
     lines (separation energy + residual excitation; photon pairs excluded).  Cached per path."""
@@ -332,12 +356,43 @@ def default_bounds(ev: Evaluator, x_ref, policy: BoundsPolicy = BoundsPolicy(),
             gWw = dict(ev.wigner_widths(x_ref))
         except Exception:
             gWw = {}
+    # photon channels: no Wigner limit, so an absolute width cap (policy.photon_width_max_ev / bg_photon_width_max_ev)
+    # through the transform's asymptotic factor Gamma_gamma = c x^2.  With external capture the physical width is
+    # c (x - x0)^2 with x0 of order 1 (the external amplitude; 13N 1/2+ E1: x0 = 1.0, so Gamma(x_ref = 0.22) / x_ref^2
+    # is 12x the asymptotic c), hence c is probed at a large amplitude, one transform per photon channel, where
+    # x0 does not matter; the bound is a stop against a runaway, not a Weisskopf limit
+    ph_pairs = getattr(ev, "photon_pairs", None)
+    if ph_pairs is None:
+        ph_pairs = photon_pairs(_azr) if _azr else frozenset()
+    ph_c: Dict[int, float] = {}
+    if ph_pairs and (policy.photon_width_max_ev > 0 or policy.bg_photon_width_max_ev > 0):
+        try:
+            X = 1.0e4
+            for j, k in enumerate(ev.keys[:ev.n_rmatrix]):
+                if k.kind == "width" and k.pair in ph_pairs:
+                    probe = x_ref.copy(); probe[j] = X
+                    ph_c[j] = abs(float(np.asarray(ev.transform(probe), float)[j])) / X ** 2
+        except Exception:
+            ph_c = {}
     for j, k in enumerate(ev.keys):
         if k.kind == "width":
             e_seed = ev.level_energy.get(k.level, 0.0)
             cap = policy.cap_for(e_seed)
             w = gW.get(j)
             if w is None or not np.isfinite(w) or w <= 0:
+                c_ph = ph_c.get(j)
+                gmax_ph = policy.bg_photon_width_max_ev if e_seed >= policy.bg_energy else policy.photon_width_max_ev
+                if c_ph is not None and np.isfinite(c_ph) and c_ph > 0 and gmax_ph > 0:
+                    hi = float(np.sqrt(gmax_ph / c_ph))
+                    if cap_scale > 1.0:
+                        hi = max(hi, min(abs(float(x_ref[j])) * (1 + 1e-6), hi * np.sqrt(cap_scale)))
+                    lb[j], ub[j] = -hi, hi
+                    s = sign_lock.get(k)
+                    if s is not None:
+                        if s > 0:
+                            lb[j] = policy.sign_eps * hi
+                        else:
+                            ub[j] = -policy.sign_eps * hi
                 continue
             if cap_scale > 1.0:
                 cur = (x_ref[j] / w) ** 2

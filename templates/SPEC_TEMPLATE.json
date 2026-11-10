@@ -84,7 +84,9 @@
   "norm_range": [
    0.2,
    5.0
-  ]
+  ],
+  "photon_width_max_ev": 10000.0,
+  "bg_photon_width_max_ev": 100000.0
  },
  "objective": {},
  "search": {},

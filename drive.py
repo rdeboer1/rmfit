@@ -611,13 +611,14 @@ class Driver:
                 if not bool(ch.channel_fixed) and float(ch.gamma) == 0.0:
                     ch.gamma = PHOTON_SEED_EV if ch.is_photon else 1e-3
                     placed.append(f"{lv.jpi}@{float(lv.energy):.4f} p{ch.pair} L{ch.L} S{ch.S}" + (" (photon)" if ch.is_photon else ""))
+        seed_src = self.model
         if placed:
-            self.model = os.path.join(vdir, self._stem() + "_placeholders.azr")
+            seed_src = os.path.join(vdir, self._stem() + "_placeholders.azr")
             mdl0.set_output_dir(os.path.join(vdir, "output_placeholders"))
             os.makedirs(os.path.join(vdir, "output_placeholders"), exist_ok=True)
-            mdl0.write(self.model)
+            mdl0.write(seed_src)
             self.log(f"  {len(placed)} free channels at exactly zero given a placeholder so the engine lists them: " + ", ".join(placed[:12]))
-        src = single_variant(self.model, "drive_seed", vdir)
+        src = single_variant(seed_src, "drive_seed", vdir)
         with SingleSession(src, cwd=vdir, flags=flags, name="drive_seed") as ev:
             x = self._seed_vector(ev)
             gW = ev.wigner_amplitudes()
@@ -638,11 +639,11 @@ class Driver:
             keys = list(ev.keys)
             labels = [str(keys[j]) for j in zero]
         out = os.path.join(self.dir, self._stem() + "_seeded.azr")
-        azr, sav, scb = bake(self.model, x1, keys, out, flags, workdir=vdir, output_dir=os.path.join(self.dir, "output"),
+        azr, sav, scb = bake(seed_src, x1, keys, out, flags, workdir=vdir, output_dir=os.path.join(self.dir, "output"),
                              name="drive_seed_bake", separate=False)
         # non-seeded physical widths must survive the bake (seed_stage1.py width_check: a failed Brune transform at load
         # rescales a whole level)
-        A, B = AzrModel.from_file(self.state.get("model") or self.model), AzrModel.from_file(azr)
+        A, B = AzrModel.from_file(self.model), AzrModel.from_file(azr)      # the pre-placeholder model: placeholders are skipped as zeros
         bad = []
         for la, lb in zip(A.active_levels, B.active_levels):
             for ca, cb in zip(la.channels, lb.channels):

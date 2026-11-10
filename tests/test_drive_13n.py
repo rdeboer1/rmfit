@@ -57,7 +57,9 @@ def main():
               open(os.path.join(tmp, "candidates.json"), "w"), indent=1)
     t0 = time.time()
     answers = {"reproduce-mismatch": "accept", "audit-high": "accepted", "audit-subagents": "skip", "spec-high": "accepted",
-               "review-high": "continue", "adopt-level": "reject"}
+               "review-high": "continue", "adopt-level": "reject",
+               # non-blocking (default adopt-manually), but pending() lists it: job 1718884 stalled on it (2026-11-10)
+               "recall-low": "adopt-manually"}
     status, legs = None, 0
     while legs < 12:
         legs += 1

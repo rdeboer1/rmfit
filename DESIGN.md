@@ -127,7 +127,8 @@ decisions stay with the evaluator; the spec records them.
   placeholder errors; two norm priors from the standing 10 % rule; theta2 cap 1.5 for the s-wave state), pre-build audit fixed the
   inherited normError fraction-vs-percent error on all 111 segments; one job (1718547, 8 slots, <= 20 node-hours) runs the build phase
   and the loop with no chat.
-- Skill section 9 (the 1,750-line dated log) -> `rmfit-campaign/HISTORY.md`; sections 2-8 become one-line rules
+- 3.3 PART DONE 2026-11-10: skill section 9 (1,865 lines, 117 entries) -> `rmfit-campaign/HISTORY.md` verbatim with a dated index in
+  SKILL.md (803 lines now).  Still open: sections 2-8 become one-line rules
   pointing at the enforcing function; section 7 rewritten from benchmark results.
 - **Recovery yardstick (DeBoer 2026-11-09, after the 7Be attempt-4 post-mortem):** a drive run from a degraded start "recovers" the reference when (1) its data chi2 is <= the reference's, (2) its penalized objective is within 0.5 % of the reference's, (3) `rmfit review` raises no flag the reference does not have, and (4) zero wait decisions were asked.  The old "objective within 1e-4" is kept as a secondary column (`exact`): on 7Be it selects one of at least two near-degenerate background-pole configurations (bench readme 2026-11-09 06:05/06:15), which is not a property of the loop.
 ### Phase 4 -- UQ as the standard last stage (~5 agent-days)
@@ -139,6 +140,12 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
 (density, Doppler, thickness, screening) in shards; `structure add` exit status on a failed scan.
 
 ## Progress log
+
+- 2026-11-10 04:10  Phase 3.3 (part): SKILL.md section 9 relocated to `rmfit-campaign/HISTORY.md` (1,865 lines, nothing deleted),
+  section 9 is now a 117-line dated index; the skill is 803 lines.  Phase 3.1: 12C+p tier-1 case `bench/cases/12Cp_tier1.json`
+  (reference = DeBoer's background-gamma branch of the 8-9-26 exercise at 12,044 on the 2026-11-09 engine, start = the same model with
+  Claude's 26,368 level values: two photon signs and 130x smaller background gammas), `bench run` now accepts a start FILE; job
+  1718930.  Running: 13N test 1718884 (bc40f84), demo attempt 4 1718885.
 
 - 2026-11-10 02:40  Two more gaps closed while demo attempt 4 runs.  (1) Photon widths were unbounded: `default_bounds` caps
   particle amplitudes through the Wigner limit, which photon channels do not have, so attempt 3's 5/2- background pole polished

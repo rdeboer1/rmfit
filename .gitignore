@@ -9,3 +9,4 @@ tests/**/variants/
 tests/**/ledger.sqlite
 tests/**/candidates/
 .installed-*
+bench/work/

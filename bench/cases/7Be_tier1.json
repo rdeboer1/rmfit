@@ -1,0 +1,24 @@
+{
+ "name": "7Be_tier1",
+ "tier": 1,
+ "reaction": "6Li+p / 3He+a (7Be)",
+ "base_dir": "/groups/rdeboer1/user/rdeboer1/R-matrix/6Li+p/3He+a/AZURE2_evaluation/11-8-26_drive_bench",
+ "reference": {
+  "campaign": "ref2",
+  "azr": "ref2/7Be.azr",
+  "sav": "ref2/start.sav",
+  "nshards": 8,
+  "flags": "flags2.json",
+  "policy": "policy2.json",
+  "search": "search.json",
+  "note": "the 10-20-26_Elwyn_fix refit re-measured on the pinned engine: 5290.094 = data chi2 5088.80 + norm penalty 201.29, N 2936 (Brune, long wavelength, externals ignored)"
+ },
+ "runs": {
+  "pert2": {"dir": "pert2", "label": "attempt 2: polish 300 x 4, sign rounds on an unconverged polish", "spec": "pert_spec2.json",
+            "start": {"flips": 8, "seed": 0, "jitter": 0.0, "ekick": 0.0, "polish_nfev": 150}, "note": "before stop_rules.sign_after_converged_polish"},
+  "pert3": {"dir": "pert3", "label": "attempt 3: polish 600 x 6, sign rounds after convergence, no population", "spec": "pert_spec3.json",
+            "search": "search3.json", "start": {"flips": 8, "seed": 0, "jitter": 0.0, "ekick": 0.0, "polish_nfev": 600}, "note": "17-sign basin; single/pair flips do not cross it"},
+  "pert4": {"dir": "pert4", "label": "attempt 4: + POPULATION stage (6 restarts, 2 crossover passes), 8 node-hours", "spec": "pert_spec4.json",
+            "search": "search3.json", "start": {"flips": 8, "seed": 0, "jitter": 0.0, "ekick": 0.0, "polish_nfev": 600}, "note": "STOP at the 8 h budget in cycle 7"}
+ }
+}

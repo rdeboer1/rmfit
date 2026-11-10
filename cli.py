@@ -61,7 +61,11 @@ def main(argv=None):
     p = sub.add_parser("init")
     p.add_argument("--base", required=True)
     p.add_argument("--sav")
-    p.add_argument("--nshards", type=int, default=24)
+    p.add_argument("--sav-fixed", choices=("ignore", "apply"), default="ignore",
+                   help="when the .sav's FIXED level parameters differ from the .azr's (2026-11-10): ignore = the .azr's are used and the "
+                        ".sav seeds the free values only (default, a script-built base); apply = the pair is a CLI fit whose param.sav "
+                        "holds the fixed values it ran with, so <stem>_sav.azr with the file applied becomes the base.  Either way the "
+                        "disagreement and the objective both ways are logged")
     p.add_argument("--note", default="")
     p.add_argument("--policy", default="{}", help="JSON for BoundsPolicy fields")
     p.add_argument("--search", default="{}", help="JSON for SearchConfig fields")
@@ -217,7 +221,7 @@ def main(argv=None):
     from rmfit.campaign import Campaign
 
     if a.cmd == "init":
-        c = Campaign.init(a.campaign, a.base, sav=a.sav, nshards=a.nshards, note=a.note,
+        c = Campaign.init(a.campaign, a.base, sav=a.sav, nshards=a.nshards, note=a.note, sav_fixed=a.sav_fixed,
                           policy=_json_arg(a.policy), search=_json_arg(a.search),
                           flags=(_json_arg(a.flags) if a.flags else None), objective=_json_arg(a.objective),
                           cov_reference=a.cov_reference, spec=a.spec)

@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
-"""init --sav applies the file's FIXED parameters too (2026-11-10), with the real engine on 13N.
+"""init --sav and the file's FIXED parameters (2026-11-10), with the real engine on 13N.
 AZURE2's parameter-file reader sets every parameter it names, fixed level energies and widths included; rmfit's seed took
 only the free values and the sharded evaluator took the fixed ones from the .azr, so an .azr + .sav pair whose fixed values
 disagree was evaluated as a model nobody fitted (10B+p tier-2 bench: 14,082 at init for the archived 5,716; 23 fixed
-background widths differed by up to 10x).  Campaign.apply_sav_fixed now writes <stem>_sav.azr (+ .sav) with the file applied
-and init uses it as the base.
+background widths differed by up to 10x) -- while a script-built base (10B+a s4/s5) means the .azr and uses the .sav as a seed.
+Campaign.apply_sav_fixed: default `ignore` keeps the .azr's fixed values and logs the disagreement with the objective both ways;
+`--sav-fixed apply` writes <stem>_sav.azr (+ .sav) with the file applied and init uses it as the base.
 Model: 13N with the E1 photon width of the 3/2- 3.5032 MeV level FIXED; a .sav written from a fit vector, then its fixed
 photon width edited to 3x the value (the disagreeing pair).
   - the pair with equal fixed values is left alone (base unchanged, no _sav.azr);
-  - the disagreeing pair: init's baseline objective equals pyazr's load_sav objective of (.azr + edited .sav), not the .azr's;
+  - the disagreeing pair, default: baseline = the .azr's fixed values, WARNING with both objectives in campaign.log and readme;
+  - the disagreeing pair, apply: init's baseline objective equals pyazr's load_sav objective of (.azr + edited .sav), not the .azr's;
   - the campaign's base_azr is the _sav.azr and a readme note records it.
 Run: python3 rmfit/tests/test_init_sav_fixed_13n.py   (about a minute)"""
 import os, sys, shutil, tempfile, json
@@ -69,9 +71,21 @@ def main():
     check("equal fixed values: no _sav.azr written", not os.path.exists(os.path.splitext(base)[0] + "_sav.azr"))
     _, _, o1, _ = c1.incumbent(); c1.close()
     check("equal fixed values: baseline = the .azr objective", abs(o1 - obj_azr) < 1e-6 * max(1.0, abs(obj_azr)), f"{o1} vs {obj_azr}")
-    # 2. disagreeing pair: base rewritten with the .sav applied
+    # 2a. disagreeing pair, default mode: the .azr's fixed values are used, the disagreement is logged with both objectives
+    d0 = os.path.join(tmp, "c_ign"); os.makedirs(d0)
+    c0 = Campaign.init(d0, base, sav=sav_diff, flags=FLAGS, nshards=2, policy=dict(bg_energy=15.0, e_window=0.5), note="ignore")
+    _, _, o0, _ = c0.incumbent(); c0.close()
+    check("default (ignore): base unchanged, no _sav.azr", os.path.normpath(c0.base_azr) == os.path.normpath(base)
+          and not os.path.exists(os.path.splitext(base)[0] + "_sav.azr"), c0.base_azr)
+    check("default (ignore): baseline = the .azr's fixed values with the .sav's free ones", abs(o0 - obj_azr) < 1e-6 * max(1.0, abs(obj_azr)), f"{o0} vs {obj_azr}")
+    lg0 = open(os.path.join(d0, "campaign.log")).read()
+    check("default (ignore): WARNING names the count and the objective both ways",
+          "WARNING 1 FIXED parameter(s)" in lg0 and "with the .azr's fixed values" in lg0 and f"{obj_sav:.3f} with the .sav's" in lg0
+          and "--sav-fixed apply" in lg0, lg0[-600:])
+    check("default (ignore): readme carries the warning", "WARNING at init" in open(os.path.join(d0, "readme")).read() and "FIXED parameter" in open(os.path.join(d0, "readme")).read())
+    # 2b. disagreeing pair, --sav-fixed apply: base rewritten with the .sav applied
     d2 = os.path.join(tmp, "c_diff"); os.makedirs(d2)
-    c2 = Campaign.init(d2, base, sav=sav_diff, flags=FLAGS, nshards=2, policy=dict(bg_energy=15.0, e_window=0.5), note="diff")
+    c2 = Campaign.init(d2, base, sav=sav_diff, flags=FLAGS, nshards=2, policy=dict(bg_energy=15.0, e_window=0.5), note="diff", sav_fixed="apply")
     _, _, o2, _ = c2.incumbent(); c2.close()
     exp = os.path.splitext(base)[0] + "_sav.azr"
     check("disagreeing fixed values: campaign base is <stem>_sav.azr", os.path.normpath(c2.base_azr) == os.path.normpath(exp), c2.base_azr)

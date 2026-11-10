@@ -119,7 +119,7 @@ decisions stay with the evaluator; the spec records them.
   reference's; `--review` writes a missing or stale REVIEW.md, noting the engine) and applies the yardstick; `run` writes the SGE job
   (reference init, `perturb`, spec, drive).  First rows: 7Be tier 1 attempts 2, 3 (FAIL) and 4 (PASS: data chi2 5082.5 <= 5088.8,
   +0.33 %, 0 wait decisions, no new flag; not exact).  Tier 0 = the AZURE2 tests/13N fixture (4 flips, 3 slots, ~1 h), not the
-  ML superset (pseudo-data, no reference fit).  12C+p tier 1 PASS exact 2026-11-10 (26,368 -> 12,040 via DeBoer's background-gamma branch, found by the population stage in 0.06 node-hours); tier-2 case `10Bp_tier2` defined 2026-11-10 (round 8 variant A -> B); its first run (job 1719105) is VOID (the .sav's fixed values were ignored at init, fixed 3e57614), rerun job 1719612; tier-3
+  ML superset (pseudo-data, no reference fit).  12C+p tier 1 PASS exact 2026-11-10 (26,368 -> 12,040 via DeBoer's background-gamma branch, found by the population stage in 0.06 node-hours); tier-2 case `10Bp_tier2` defined 2026-11-10 (round 8 variant A -> B): PASS exact in 1.31 node-hours (the first run, job 1719105, is VOID: the .sav's fixed values had been ignored at init; `--sav-fixed apply` since 3e57614/next); tier-3
   cases are still to be defined as case files.
 - **3.2 STARTED 2026-11-09** (DeBoer: "12C+p from scratch for the L3 demo"): `12C+p/11-9-26_L3_demo/` -- base model from the TUNL
   level scheme + background poles + the 8-9-26 data segments (build_base.py), spec.json drafted by Claude with every data-treatment
@@ -142,6 +142,23 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
 
 ## Progress log
 
+- 2026-11-10 10:30  Tier-2 bench PASS, exact (10B+p round 8, `bench/results.tsv`): from the 2022-sign variant A (6,215.5) the drive
+  reaches DeBoer's variant B to 1e-9 (5,676.092 on this engine; reference polished from 5,716.4; sign distance 0, data chi2 equal)
+  in 0.96 node-hours -- sign rounds found nothing (68 proposals), the population stage's crossover found the two 9/2+ flips --
+  then DONE after a no-gain cycle 2 at 1.31 node-hours (jobs 1719612, 1719985, 1720038).  The run asked one question, twice:
+  REVIEW's one HIGH flag, the 1 MeV wide 5/2+ 10.063 MeV pole spanning five unfitted peaks, which `ref/REVIEW.md` carries
+  identically -- DeBoer's own final model, the region where round 8 tested the b/d/i extra levels and "no extra levels" was
+  agreed.  Answered 'continue' by the supervisor with that evidence (D-002, D-003).  Three rules from it: (1) scorer: a
+  review-high whose HIGH flags the reference's review carries is not a wait decision (DeBoer's "no new flag" criterion) --
+  his to confirm; (2) drive: the init baseline is reviewed once (REVIEW_baseline.md) and a HIGH flag the base model already
+  carried is reported, not waited on (did not apply here: the start had none); (3) drive: a flag answered 'continue' is not
+  asked again in a later cycle.  And the `init --sav` convention, settled after the archive audit (`agentic/11-7-26_claude/
+  sav_fixed_audit/`): the archive uses BOTH readings -- a CLI fit's param.sav holds the fixed values the fit ran with (10B+p),
+  a script-built base means the .azr and seeds free values from a stale .sav (10B+a s4/s5, 125-237 fixed values apart) -- so
+  the default stays the .azr's fixed values (the behaviour since the first campaign) with a WARNING giving the objective both
+  ways, and `--sav-fixed apply` (bench case key `sav_fixed`) takes the CLI's reading.  Audit so far: 69 pairs consistent, ~45
+  differ at the 1e-4 level with the objective unchanged (bake-fixed drift before 10-24), 5 script-built 10B+a bases and the
+  September 12C+a campaign differ by design, 21 pairs with a deleted seed file.
 - 2026-11-10 08:50  Tier-2 bench job 1719105 VOID, `init --sav` fixed in 3e57614.  The drive ran to DONE (1.39 node-hours, zero wait
   decisions, 5,685 against a polished reference of 6,162) but on the wrong model: `_seed_vector` took only the FREE parameters from
   the .sav and the sharded evaluator took the fixed ones from the .azr, while AZURE2's parameter-file reader (and pyazr's

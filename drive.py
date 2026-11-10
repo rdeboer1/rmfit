@@ -882,7 +882,8 @@ class Driver:
             return "next", "campaign exists"
         from .campaign import Campaign
         c = Campaign.init(self.dir, self.model, sav=self.state.get("sav"), spec=self.spec_path,
-                          note=f"rmfit drive on {os.path.basename(self.model)}")
+                          note=f"rmfit drive on {os.path.basename(self.model)}",
+                          sav_fixed=str((self.spec.get("engine") or {}).get("sav_fixed", "ignore")) if self.spec else "ignore")
         c.write_job_script()
         self._campaign = c
         cid, x, obj, keys = c.incumbent()

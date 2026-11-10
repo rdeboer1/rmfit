@@ -219,7 +219,7 @@ if ($status != 0) exit 1
 set RM = "python3 -m rmfit.cli"
 {chisq}if (! -e {refdir}/campaign.json) then
   echo "`date` reference init"
-  $RM {refdir} init --base {refazr} {savarg} --nshards {nshards} {flagsarg} {policyarg} {searcharg} --note "bench {case} reference"
+  $RM {refdir} init --base {refazr} {savarg}{reffixed} --nshards {nshards} {flagsarg} {policyarg} {searcharg} --note "bench {case} reference"
   if ($status != 0) then
     echo "`date` reference init FAILED"; exit 1
   endif
@@ -274,7 +274,8 @@ def write_job(case: dict, run_name: str) -> str:
         # a degraded start that is a FILE (the archived state before the human's key decision), not a random perturbation
         # of the reference: the run campaign is initialised on it with the reference's engine settings
         startblock = (f"  echo \"`date` start from {start['azr']}\"\n"
-                      f"  $RM {run['dir']} init --base {start['azr']} {('--sav ' + start['sav']) if start.get('sav') else ''} "
+                      f"  $RM {run['dir']} init --base {start['azr']} {('--sav ' + start['sav']) if start.get('sav') else ''}"
+                      f"{(' --sav-fixed ' + start['sav_fixed']) if start.get('sav_fixed') else ''} "
                       f"--nshards {int(ref.get('nshards') or 8)} {jarg('--flags', 'flags')} {jarg('--policy', 'policy')} {jarg('--search', 'search')} "
                       f"--note \"bench {case['name']} start {start['azr']}\"\n"
                       f"  if ($status != 0) then\n    echo \"`date` start init FAILED\"; exit 1\n  endif\n")
@@ -294,6 +295,7 @@ def write_job(case: dict, run_name: str) -> str:
                       refazr=ref["azr"], flips=start["flips"], seed=start["seed"], jitter=start["jitter"], ekick=start["ekick"],
                       pnfev=start["polish_nfev"], spec=spec, casefile=case["_path"], azure2_root=ref.get("azure2_root") or os.path.expanduser("~/AZURE2"),
                       rmatrix=rmatrix, base=base, savarg=(f"--sav {ref['sav']}" if ref.get("sav") else ""), nshards=int(ref.get("nshards") or 8),
+                      reffixed=(f" --sav-fixed {ref['sav_fixed']}" if ref.get("sav_fixed") else ""),
                       flagsarg=jarg("--flags", "flags"), policyarg=jarg("--policy", "policy"), searcharg=jarg("--search", "search"),
                       rundir=run["dir"], searchpatch=searchpatch, polish=polish, startblock=startblock, chisq=chisq)
     path = os.path.join(base, f"run_crc_bench_{run_name}")

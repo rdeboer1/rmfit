@@ -1,0 +1,32 @@
+{
+ "name": "10Bp_tier2",
+ "tier": 2,
+ "reaction": "10B+p (11C), 10-15-26_norm_refit round 8",
+ "base_dir": "/groups/rdeboer1/user/rdeboer1/R-matrix/10B+p/11-10-26_bench_tier2",
+ "reference": {
+  "campaign": "ref",
+  "azr": "ref/10B+p.azr",
+  "sav": "ref/param_B.sav",
+  "nshards": 8,
+  "flags": "flags.json",
+  "policy": "policy.json",
+  "search": "search.json",
+  "polish_rounds": 4,
+  "polish_nfev": 300,
+  "note": "round 8 variant B (var_B.azr + fit_B/output/param.sav, RdB 10-16-26 FINAL: Vande Kolk 3/2+ signs, no extra levels; archived 5,686.5 + 27.4 on AZURE2 dev 3d65268, 5,716.4 on the engine of 2026-11-09; brune / no long wavelength / externals ignored; 43 free R-matrix parameters + 12 free norms, N 2486), polished 4 x 300 to convergence by the bench job"
+ },
+ "runs": {
+  "fromA": {
+   "dir": "fromA",
+   "label": "start = round 8 variant A (the 2022 interference signs, 6,179.5 + 37.1): five channel signs and four magnitudes from the reference; drive: polish 300 x 6, sign rounds, population 4 restarts x 2 passes, <= 4 cycles / 6 h on 8 slots",
+   "spec": "spec_recovery.json",
+   "slots": 8,
+   "start": {
+    "azr": "start_A/10B+p.azr",
+    "sav": "start_A/param_A.sav"
+   },
+   "note": "the roadmap's tier-2 case (DESIGN.md Phase 3.1): the archived start before the human's key decision (DeBoer's 10-16-26 adoption of the Vande Kolk 3/2+ signs); 'no extra levels' is a standing decision of the spec, so STRUCTURE_ADD and LEVELSCAN are off in this run (a scan run with the b/d/i alternatives as candidates is the follow-up)",
+   "pre_answered": []
+  }
+ }
+}

@@ -13,7 +13,8 @@
   "search": "search.json",
   "polish_rounds": 4,
   "polish_nfev": 300,
-  "note": "round 8 variant B (var_B.azr + fit_B/output/param.sav, RdB 10-16-26 FINAL: Vande Kolk 3/2+ signs, no extra levels; archived 5,686.5 + 27.4 on AZURE2 dev 3d65268, 5,716.4 on the engine of 2026-11-09; brune / no long wavelength / externals ignored; 43 free R-matrix parameters + 12 free norms, N 2486), polished 4 x 300 to convergence by the bench job"
+  "note": "round 8 variant B (var_B.azr + fit_B/output/param.sav, RdB 10-16-26 FINAL: Vande Kolk 3/2+ signs, no extra levels; archived 5,686.5 + 27.4 on AZURE2 dev 3d65268, 5,716.4 on the engine of 2026-11-09; brune / no long wavelength / externals ignored; 43 free R-matrix parameters + 12 free norms, N 2486), polished 4 x 300 to convergence by the bench job; the .sav's 23 fixed background widths differ from var_B.azr's (up to 10x), so init writes ref/10B+p_sav.azr = the pair as the CLI reads it (Campaign.apply_sav_fixed, 2026-11-10)",
+  "chisq_out": "ref/chiSquared_fit_B.out"
  },
  "runs": {
   "fromA": {
@@ -23,7 +24,8 @@
    "slots": 8,
    "start": {
     "azr": "start_A/10B+p.azr",
-    "sav": "start_A/param_A.sav"
+    "sav": "start_A/param_A.sav",
+    "chisq_out": "start_A/chiSquared_fit_A.out"
    },
    "note": "the roadmap's tier-2 case (DESIGN.md Phase 3.1): the archived start before the human's key decision (DeBoer's 10-16-26 adoption of the Vande Kolk 3/2+ signs); 'no extra levels' is a standing decision of the spec, so STRUCTURE_ADD and LEVELSCAN are off in this run (a scan run with the b/d/i alternatives as candidates is the follow-up)",
    "pre_answered": []

@@ -212,7 +212,7 @@ echo "host `hostname` `date` job $JOB_ID"
 python3 -c "import rmfit, rmfit.drive, pyazr; print('imports', pyazr.__file__, rmfit.__file__)"
 if ($status != 0) exit 1
 set RM = "python3 -m rmfit.cli"
-if (! -e {refdir}/campaign.json) then
+{chisq}if (! -e {refdir}/campaign.json) then
   echo "`date` reference init"
   $RM {refdir} init --base {refazr} {savarg} --nshards {nshards} {flagsarg} {policyarg} {searcharg} --note "bench {case} reference"
   if ($status != 0) then
@@ -243,6 +243,17 @@ def write_job(case: dict, run_name: str) -> str:
     spec = run.get("spec") or ""
     if not spec:
         raise SystemExit(f"run {run_name} has no 'spec' (path of the drive spec, relative to the case's base_dir)")
+    def chisq_copy(side, azr):
+        # the archived chiSquared.out of the fit the .azr + .sav came from, copied into the .azr's output directory so
+        # that init's reproduce check runs (2026-11-10: the 10B+p tier-2 reference initialised at 14,082 for the
+        # archived 5,716 -- the .sav's fixed widths had been ignored -- and nothing warned because the file was not there)
+        src = side.get("chisq_out")
+        if not src:
+            return ""
+        from ..review import output_dir_of
+        dst = os.path.join(output_dir_of(os.path.join(base, azr)), "chiSquared.out")
+        return f"mkdir -p {os.path.dirname(dst)}\ncp -p {os.path.join(base, src)} {dst}\n"
+    chisq = chisq_copy(ref, ref["azr"]) + (chisq_copy(start, start["azr"]) if start.get("azr") else "")
     polish = ""
     if int(ref.get("polish_rounds") or 0) > 0:
         # a reference that is not a converged fit (a start file, a regression fixture) is polished to convergence first;
@@ -279,7 +290,7 @@ def write_job(case: dict, run_name: str) -> str:
                       pnfev=start["polish_nfev"], spec=spec, casefile=case["_path"], azure2_root=ref.get("azure2_root") or os.path.expanduser("~/AZURE2"),
                       rmatrix=rmatrix, base=base, savarg=(f"--sav {ref['sav']}" if ref.get("sav") else ""), nshards=int(ref.get("nshards") or 8),
                       flagsarg=jarg("--flags", "flags"), policyarg=jarg("--policy", "policy"), searcharg=jarg("--search", "search"),
-                      rundir=run["dir"], searchpatch=searchpatch, polish=polish, startblock=startblock)
+                      rundir=run["dir"], searchpatch=searchpatch, polish=polish, startblock=startblock, chisq=chisq)
     path = os.path.join(base, f"run_crc_bench_{run_name}")
     with open(path, "w") as fh:
         fh.write(text)

@@ -234,6 +234,53 @@ class Campaign:
                      + (" (norms/shifts only)" if skip_levels else ""))
         return x
 
+    @staticmethod
+    def apply_sav_fixed(base_azr, sav, flags, log=print):
+        """The ``.azr`` + ``.sav`` pair as the AZURE2 CLI reads it (2026-11-10).
+
+        A parameter file sets every parameter it names, FIXED level energies and widths included (``AZUREParams::
+        ReadUserParameters``), but ``_seed_vector`` takes only the FREE values from it and the sharded evaluator takes
+        the fixed ones from the ``.azr``.  When the two disagree the campaign evaluates a model nobody fitted: the 10B+p
+        tier-2 benchmark (var_B.azr + fit_B/output/param.sav, 23 fixed background widths differing by up to 10x) was
+        initialised at 14,082 instead of the archived 5,716 and both its reference and its start ran on the wrong
+        model (pyazr documents the same trap on 11B+alpha 10-12-26: ``azure2.load_sav``).  So: if any fixed parameter
+        of the file differs from the ``.azr``'s, write ``<stem>_sav.azr`` (+ ``.sav``) beside the base with the file's
+        values applied (``pyazr.azure2.save_fit``, fresh-session verified) and return that pair; otherwise return the
+        pair unchanged.  A positional ``.sav`` whose level count disagrees with the model is left alone (its level
+        parameters are already ignored by ``_seed_vector``)."""
+        import numpy as np
+        from pyazr import azure2
+        base_azr = os.path.abspath(base_azr); sav = os.path.abspath(sav)
+        vals = {}
+        for line in open(sav):
+            t = line.split()
+            if len(t) >= 2:
+                try:
+                    vals[t[0]] = float(t[1])
+                except ValueError:
+                    pass
+        sav_levels = {int(k.split("_")[1]) for k in vals if k.startswith("energy_")}
+        kw = {k: v for k, v in dict(flags or {}).items() if k in ("use_brune", "use_park", "ignore_externals", "use_long_wavelength")}
+        with azure2(base_azr, data_mode=True, **kw) as m:
+            model_levels = {int(p.name.split("_")[1]) for p in m.parameters if p.name.startswith("energy_")}
+            if sav_levels and max(sav_levels) != max(model_levels | {0}):
+                return base_azr, sav
+            cur = np.asarray(m.sess.params_all_rwa(), float).copy()
+            full = m.full_rwa_from_sav(sav)
+            diff = [(p.name, float(cur[p.index]), float(full[p.index])) for p in m.parameters
+                    if p.fixed and 0 <= p.index < full.size
+                    and abs(cur[p.index] - full[p.index]) > 1e-6 * max(1e-6, abs(cur[p.index]), abs(full[p.index]))]   # a .sav holds 8 digits
+            if not diff:
+                return base_azr, sav
+            worst = max(diff, key=lambda d: abs(d[2] - d[1]) / max(abs(d[1]), abs(d[2]), 1e-300))
+            x = m.load_sav(sav)
+            out = os.path.splitext(base_azr)[0] + "_sav.azr"
+            azr2, sav2 = m.save_fit(out, x, param_sav=True, verify=True)
+            log(f"init: WARNING {len(diff)} FIXED parameter(s) of {os.path.basename(sav)} differ from {os.path.basename(base_azr)} "
+                f"(largest {worst[0]}: .azr {worst[1]:.6g}, .sav {worst[2]:.6g}); the CLI applies the file's fixed values, so the "
+                f"campaign's base is {os.path.basename(azr2)} (+ .sav) = the .azr with the .sav applied, fresh-session verified")
+        return azr2, sav2
+
     @classmethod
     def init(cls, directory, base_azr, sav=None, flags=None, nshards=24, policy=None, search=None, note="",
              objective=None, cov_reference=None, spec=None):
@@ -306,6 +353,16 @@ class Campaign:
         if cov_reference:
             c.log(f"init: relvector covariance model fixed at the reference {os.path.abspath(cov_reference)} "
                   f"(copied to cov_reference.npz)")
+        if sav:
+            base0 = base_azr
+            base_azr, sav = cls.apply_sav_fixed(base_azr, sav, c.flags, log=c.log)
+            if base_azr != base0:
+                c.cfg["base_azr"] = cfg["base_azr"] = os.path.relpath(base_azr, directory)
+                with open(cj, "w") as f:
+                    json.dump(cfg, f, indent=2)
+                c.base_azr = os.path.normpath(base_azr)
+                c.note(f"init: {os.path.basename(sav)} carries fixed level parameters that differ from {os.path.basename(base0)}; "
+                       f"the campaign's base is {os.path.basename(base_azr)} (the .azr with the .sav applied, as the CLI reads the pair)")
         src = single_variant(base_azr, "init", c.vdir)
         if ((c.objective.loss == "sivia" and c.objective.loss_scale != "none") or c.objective.dataset_weight == "scaled") \
                 and not c.objective.scales:

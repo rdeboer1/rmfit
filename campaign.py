@@ -43,7 +43,7 @@ class Campaign:
         self.dir = os.path.abspath(directory)
         with open(os.path.join(self.dir, "campaign.json")) as f:
             self.cfg = json.load(f)
-        self.base_azr = os.path.join(self.dir, self.cfg["base_azr"])
+        self.base_azr = os.path.normpath(os.path.join(self.dir, self.cfg["base_azr"]))   # a base outside the dir ("../x.azr") must match the ledger's absolute path
         self.flags = dict(self.cfg.get("flags", ARCHIVE_FLAGS))
         self.nshards = int(self.cfg.get("nshards", 24))
         self.policy = _dc_from(BoundsPolicy, self.cfg.get("policy"))
@@ -112,7 +112,7 @@ class Campaign:
     @property
     def structure_id(self) -> int:
         for s in self.ledger.structures():
-            if os.path.abspath(s["azr"]) == self.base_azr:
+            if os.path.normpath(os.path.abspath(s["azr"])) == self.base_azr:
                 return s["id"]
         raise RuntimeError("campaign not initialized: run `rmfit init`")
 

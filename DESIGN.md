@@ -140,6 +140,9 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
 
 ## Progress log
 
+- 2026-11-10 00:40  13N tier-0 bench rebuilt (job 1718612, 23 min on 3 slots): reference = the fixture polished 6 x 200 to 26,678.456; the
+  4-flip start (29,709) recovered it EXACTLY (sign distance 0, +0.0 %, 0 decisions, no new flag): PASS and exact.  Tier 0 now runs
+  in ~25 minutes on 3 slots as a drive regression with a real reference.  results.tsv: 7Be x 3 + 13N x 1.
 - 2026-11-10 00:10  13N tier-0 bench (job 1718536, 25 min on 3 slots, DONE, 0 decisions): the drive took the 4-flip start 29,709 -> 26,678 --
   92 % BELOW the "reference" 336,448, because `~/AZURE2/tests/13N` is a plain-calculation regression fixture (chiSquared.out 336,522 at
   the .azr's start values), not a fit.  The scorer now reports REFERENCE-SUSPECT when a run beats its reference by > 1 % and tests

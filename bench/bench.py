@@ -139,8 +139,13 @@ def score_run(case: dict, run_name: str, review_missing: bool = False) -> dict:
     row["pass_flags"] = "n/a" if pass_flags is None else pass_flags
     ok = row["pass_data"] and row["pass_objective"] and row["pass_decisions"] and (pass_flags is not False)
     row["verdict"] = "PASS" if ok else "FAIL"
-    row["exact_1e-4"] = rel <= YARD["exact_rel"]
-    row["note"] = "; ".join(t for t in (run.get("note", ""), row.get("note", "")) if t)
+    row["exact_1e-4"] = abs(rel) <= YARD["exact_rel"]
+    if rel < -0.01:
+        # a run that beats the reference by more than 1 % says the REFERENCE is not a converged fit on this engine / objective
+        # (13N tier 0, 2026-11-09: the fixture's .azr holds start values, its fit lives in param.par): the row is not a recovery score
+        row["verdict"] = "REFERENCE-SUSPECT"
+        stale.append(f"run beats the reference by {-100 * rel:.1f} %: the reference is not a converged fit; rebuild it")
+    row["note"] = "; ".join(t for t in (run.get("note", ""), row.get("note", ""), "; ".join(stale[1:] if row.get("note") else stale)) if t)
     return row
 
 

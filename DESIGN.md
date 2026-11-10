@@ -140,6 +140,11 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
 
 ## Progress log
 
+- 2026-11-10 00:10  13N tier-0 bench (job 1718536, 25 min on 3 slots, DONE, 0 decisions): the drive took the 4-flip start 29,709 -> 26,678 --
+  92 % BELOW the "reference" 336,448, because `~/AZURE2/tests/13N` is a plain-calculation regression fixture (chiSquared.out 336,522 at
+  the .azr's start values), not a fit.  The scorer now reports REFERENCE-SUSPECT when a run beats its reference by > 1 % and tests
+  'exact' as |rel| <= 1e-4 (it had passed a -92 % run as exact).  Tier-0 case redefined: the reference is the fixture polished to
+  convergence (`polish` rounds in the job before `perturb`); the bogus row was removed from results.tsv.
 - 2026-11-09 23:55  L3 demo attempt 1 STOPPED, attempt 2 queued.  The three idle-time subagent audits (input, data, literature; prompts
   from `rmfit audit --kind all`, Sonnet, ~10 min each) on the running first attempt found what the machine audit cannot: a FRAME error
   in the inherited segment table (11 elastic sets with EXFOR heading ANG = lab angles entered as AZURE2 code 4 = c.m.; 2768 rows;

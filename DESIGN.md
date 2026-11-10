@@ -140,6 +140,15 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
 
 ## Progress log
 
+- 2026-11-10 01:10  L3 demo attempt 2 (job 1718582): DONE in 1.06 node-hours, zero wait decisions, REVIEW.md written -- the process
+  works end to end on a from-scratch model -- but the candidate is poor (223,352, chi2/N 55.5) because two drive states did nothing on
+  a from-scratch base: SEED_CHANNELS searched the engine's free list for zero widths, and an exact zero is never a parameter (Golden
+  rule 3), so the eight background poles' 20 channels stayed out of the fit; SHIFTS_FREE polished with no shift parameter because the
+  base varied no shift.  43 parameters, 1-3 sign proposals, immobile restarts.  Fixed (d4ba273): placeholders before the seed
+  session (photon channels at `model.photon_seed_ev`), varyShift on at SCALE_ANCHOR where a shift uncertainty exists, dataset-off
+  decision asked once.  13N test now zeroes a background channel and requires it seeded (job 1718741); attempt 3 queued
+  (`12C+p/11-10-26_L3_demo3/`, job 1718742).  Neither gap was visible on 7Be or 13N, whose models carry fitted values everywhere:
+  the from-scratch path had never been exercised with the engine.
 - 2026-11-10 00:40  13N tier-0 bench rebuilt (job 1718612, 23 min on 3 slots): reference = the fixture polished 6 x 200 to 26,678.456; the
   4-flip start (29,709) recovered it EXACTLY (sign distance 0, +0.0 %, 0 decisions, no new flag): PASS and exact.  Tier 0 now runs
   in ~25 minutes on 3 slots as a drive regression with a real reference.  results.tsv: 7Be x 3 + 13N x 1.

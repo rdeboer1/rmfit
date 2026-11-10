@@ -113,6 +113,20 @@ decisions stay with the evaluator; the spec records them.
   10B+a c9/s5; 13C+a merged from its spec, target <= 706,809 on the 9-5-26 data with the same decision list).
 - One fresh spec-to-candidate demonstration on a small reaction, zero mid-run chat (candidates 13C+n, 7Li+a,
   12C+p from scratch).
+- **3.1 BUILT 2026-11-09** (`rmfit/bench/`: `cases/<name>.json`, `python3 -m rmfit.bench score|run|list`, `results.tsv`): a case names a
+  reference campaign and runs; `score` reads the ledgers only (objective, data chi2 and penalty from the segment scores, sign distance,
+  wait decisions and human turns from DECISIONS.md, node hours from drive_state.json, new HIGH/MEDIUM flags of REVIEW.md vs the
+  reference's; `--review` writes a missing or stale REVIEW.md, noting the engine) and applies the yardstick; `run` writes the SGE job
+  (reference init, `perturb`, spec, drive).  First rows: 7Be tier 1 attempts 2, 3 (FAIL) and 4 (PASS: data chi2 5082.5 <= 5088.8,
+  +0.33 %, 0 wait decisions, no new flag; not exact).  Tier 0 = the AZURE2 tests/13N fixture (4 flips, 3 slots, ~1 h), not the
+  ML superset (pseudo-data, no reference fit).  12C+p tier 1 (26,368 -> 12,067 via DeBoer's background-gamma branch) and tier 2/3
+  cases are still to be defined as case files.
+- **3.2 STARTED 2026-11-09** (DeBoer: "12C+p from scratch for the L3 demo"): `12C+p/11-9-26_L3_demo/` -- base model from the TUNL
+  level scheme + background poles + the 8-9-26 data segments (build_base.py), spec.json drafted by Claude with every data-treatment
+  choice recorded as a standing decision for DeBoer to confirm (anchor Meyer 1976; Gerke 1966 excluded provisionally for its
+  placeholder errors; two norm priors from the standing 10 % rule; theta2 cap 1.5 for the s-wave state), pre-build audit fixed the
+  inherited normError fraction-vs-percent error on all 111 segments; one job (1718547, 8 slots, <= 20 node-hours) runs the build phase
+  and the loop with no chat.
 - Skill section 9 (the 1,750-line dated log) -> `rmfit-campaign/HISTORY.md`; sections 2-8 become one-line rules
   pointing at the enforcing function; section 7 rewritten from benchmark results.
 - **Recovery yardstick (DeBoer 2026-11-09, after the 7Be attempt-4 post-mortem):** a drive run from a degraded start "recovers" the reference when (1) its data chi2 is <= the reference's, (2) its penalized objective is within 0.5 % of the reference's, (3) `rmfit review` raises no flag the reference does not have, and (4) zero wait decisions were asked.  The old "objective within 1e-4" is kept as a secondary column (`exact`): on 7Be it selects one of at least two near-degenerate background-pole configurations (bench readme 2026-11-09 06:05/06:15), which is not a property of the loop.
@@ -126,6 +140,13 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
 
 ## Progress log
 
+- 2026-11-09 22:50  Phase 3 started (DeBoer: "go ahead with Phase 3, 12C+p from scratch for the L3 demo").  3.1 bench suite built and
+  committed (8525431) with the 7Be rows (attempt 4 PASS under the yardstick; the review-flag comparison that was pending is now done:
+  no new HIGH/MEDIUM flag); 13N tier-0 case queued (job 1718536).  3.2 L3 demo on 12C+p from scratch queued (job 1718547; readme in
+  the directory).  Engine: DeBoer installed a new shared build at 21:31 (pyazr 2.10.0 .so cda57a47); the 7Be campaigns stay pinned
+  to 6ea4e95a, which is no longer on disk -- the scorer opens campaigns read-only and notes the engine a review ran on.  Also: the
+  drive's AUDIT no longer blocks on data findings of a set the spec excludes (bfd214f); the target-energies checker's `ln` fixed.
+  Summary page of the 7Be benchmark published for DeBoer (agentic/11-7-26_claude/7Be_bench_summary/).
 - 2026-11-09 19:40  13N engine tests of RECALL + LEVELSCAN.  Job 1717876: the recall child's AZURE2 could not fill its segments (relative data paths from `recall/<tag>/`); fixed by linking the data directories into `recall/` and each child (4483508).  Job 1718060 (62 min, all checks pass): RECALL removed the 1/2+ 2.368 MeV level (Gamma 133 keV) and the level-add procedure located it with no J^pi given (1/2+, 2.3686 MeV, Gamma 122 keV, gain 8.6e6) -- and classified it "unphysical", because its s-wave amplitude ends on the theta2 cap 1.0, where the incumbent's own level sits (`at bound: g[1/2+#1 p1 L0 S0.5]=2.282` in every polish of the parent).  That is the recall test doing its job: the criteria would reject a level the model carries, and the cause is the policy cap, not the search.  `run_recall` now reports `located` (J^pi, energy, width right) apart from `passed` (criteria accept), names an at-cap rejection as a spec-bounds finding, and the drive's recall-low decision carries the cause; the same-J^pi proximity check skips switched-off levels (the recall child saw its own removed level as a "doublet partner"); 13N test requires the level located (6733cf6).  Job 1718295 (56 min): all checks pass, RECALL table reads "LOCATED but rejected by the criteria (... theta2 cap 1, where the incumbent's own level sits too (theta2 1.1) ...)", no doublet flag against the switched-off level.  Phase 2.2 is verified end to end on 13N; kept log tests/_queue_drive/drive_1718295_pass.log.  LEVELSCAN as designed: the one bank candidate tested, then 1 residual cluster screened and a 7/2- at 2.391 MeV appended, tested as accept-pending because the failed recall had marked adds untrusted.
 - 2026-11-09 08:30  Phase 2.2 built (DeBoer: "go ahead with the new yardstick and Phase 2.2"): spec section `structure` (broad_first_kev, narrow_phase, levelscan_per_cycle/top/gamma_kev, local_release_mev/local_nfev, recall_levels/min_pass; template + SPEC.md render), drive states RECALL (after INIT) and LEVELSCAN (before STRUCTURE_ADD), STRUCTURE_ADD broad-first gate with the narrow phase last and a J^pi list per candidate, `Campaign.run_recall` + CLI `recall`, crossover-pass donor dedupe.  Dry test extended (RECALL, LEVELSCAN once the broad queue empties, narrow deferred) and passes; 13N end-to-end test extended (recall of the broadest known level, levelscan top 1) queued as job 1717876.  Open from 2.2: per-data-set fits with a merge, thinning, raw-data candidates, ML source.
 - 2026-11-09 06:30  DeBoer: "go ahead with the new yardstick and Phase 2.2".  Yardstick adopted (Phase 3 bullet): data chi2 <= reference, objective within 0.5 %, no new review flag, zero wait decisions; 7Be attempt 4 passes it (5082.5 <= 5088.8, +0.33 %, 0 wait decisions; review flags to be compared when the bench scorer exists).  Phase 2.1 verification closed on that basis.  Phase 2.2 (structure-search defaults) starts.

@@ -522,6 +522,11 @@ The GUI review: `printf '1\n<reaction>.sav\n\n7\n' | AZURE2 <flags> --no-gui --n
   known target's sign pattern per channel / per group / all at once and polishes: it
   separates "finding the pattern" from "reaching the basin from the pattern".
 - `diagnose.dataset_table`, `theta2_table`, `residual_runs`, `compare` feed `report`.
+- **Bench suite (2026-11-09, DESIGN.md Phase 3.1)**: `python3 -m rmfit.bench list|score|run` on `rmfit/bench/cases/<name>.json`.
+  `score` applies DeBoer's recovery yardstick from the ledgers alone (data chi2 <= reference, objective within 0.5 %, zero wait
+  decisions, no HIGH/MEDIUM review flag the reference lacks; 'exact' 1e-4 as a secondary column) and appends to `bench/results.tsv`;
+  `run` writes the SGE job (reference init, `perturb`, spec, `drive`).  Supersedes "success = within 1e-4" above for drive runs: the
+  7Be post-mortem showed 1e-4 selects one of two near-degenerate background configurations.
 
 ## 7. Known limits (September 2026; see the 2026-11-07 note at the end of this section)
 

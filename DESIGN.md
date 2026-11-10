@@ -156,13 +156,13 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
   L3 demo attempt 5 (job 1719021) at that time: cycle 1 ended at 63,552 (attempt 4: 63,456) with every background photon width
   at or below the 1e5 eV cap (three sit at the cap: 1/2+ E1, 5/2- M2, 7/2+ -- the number is DeBoer's to set), cycle 2 running.
 
-- 2026-11-10 05:50  12C+p tier-1 bench PASS exact (job 1718963, bf30536): from Claude's 26,368 basin (100,748 in DeBoer's free scheme)
+- 2026-11-10 02:26  12C+p tier-1 bench PASS exact (job 1718963, bf30536): from Claude's 26,368 basin (100,748 in DeBoer's free scheme)
   the polish reached 24,740, 22 sign proposals accepted none, and the POPULATION crossover found the 3/2- E2 flip and polished to
   the reference 12,039.786 to all digits, sign distance 0, in 0.06 node-hours.  The roadmap's "does the method find what the human
   found" case is answered: yes, by the basin-crossing stage, in minutes.  Scorer: `pre_answered` slugs in a run (case-defined
   decisions such as audit-high on a reference with known input findings) are excluded from the yardstick and listed in the note.
 
-- 2026-11-10 05:30  L3 demo attempt 4 (job 1718885, drive bc40f84): DONE after 3 cycles in 1.44 node-hours, zero wait decisions, final
+- 2026-11-10 02:24  L3 demo attempt 4 (job 1718885, drive bc40f84): DONE after 3 cycles in 1.44 node-hours, zero wait decisions, final
   63,456 (attempt 2: 223,352).  The polish gate worked as designed: cycle 1 deferred SIGN/POPULATION, cycle 2's polish converged, 50
   sign proposals accepted none, the POPULATION crossover crossed to a new basin (-5.2 %, a 3/2- E2 flip) and SHIFTS_FREE took
   -9.5 % more; cycle 3 changed nothing.  LEVELSCAN's three proposals at the 3/2-/5/2+ doublet were unphysical or marginal.  The photon
@@ -173,13 +173,13 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
   start 100,748; two one-line bugs on the way (audit-high on a reference with known findings -> answered 'accepted' by the
   supervisor; a base outside the campaign dir kept '..' in its path, 71dfa23); third submission job 1718963.
 
-- 2026-11-10 04:10  Phase 3.3 (part): SKILL.md section 9 relocated to `rmfit-campaign/HISTORY.md` (1,865 lines, nothing deleted),
+- 2026-11-10 01:10  Phase 3.3 (part): SKILL.md section 9 relocated to `rmfit-campaign/HISTORY.md` (1,865 lines, nothing deleted),
   section 9 is now a 117-line dated index; the skill is 803 lines.  Phase 3.1: 12C+p tier-1 case `bench/cases/12Cp_tier1.json`
   (reference = DeBoer's background-gamma branch of the 8-9-26 exercise at 12,044 on the 2026-11-09 engine, start = the same model with
   Claude's 26,368 level values: two photon signs and 130x smaller background gammas), `bench run` now accepts a start FILE; job
   1718930.  Running: 13N test 1718884 (bc40f84), demo attempt 4 1718885.
 
-- 2026-11-10 02:40  Two more gaps closed while demo attempt 4 runs.  (1) Photon widths were unbounded: `default_bounds` caps
+- 2026-11-10 01:02  Two more gaps closed while demo attempt 4 runs.  (1) Photon widths were unbounded: `default_bounds` caps
   particle amplitudes through the Wigner limit, which photon channels do not have, so attempt 3's 5/2- background pole polished
   to Gamma_gamma 1e12 eV.  `BoundsPolicy.photon_width_max_ev` (1e4) / `bg_photon_width_max_ev` (1e5) now bound |x| <=
   sqrt(Gamma_max / c), c the asymptotic factor of the transform probed at x = 1e4 per photon channel (with external capture the
@@ -190,7 +190,7 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
   in the bench case specs; 5b0e54d).  Neither reached attempt 4 (job 1718885, started 00:52 on bc40f84); the 13N queue test is
   resubmitted on 5b0e54d once job 1718884 (on bc40f84) reports.
 
-- 2026-11-10 02:00  Seeding verified, next gap found: 13N test job 1718747 passed its new SEED_CHANNELS check (13 free zero channels
+- 2026-11-10 00:52  Seeding verified, next gap found: 13N test job 1718747 passed its new SEED_CHANNELS check (13 free zero channels
   of the fixture given placeholders and seeded) and every other check but POPULATION, which was "deferred to the next cycle" because
   the polish of the now-larger model did not converge in 2 x 30 evaluations -- in a cycles_max 1 run there is no next cycle.  L3
   demo attempt 3 (job 1718748, 162 free parameters after INIT, 7.59 M -> 101 k in cycle 1) showed the same at scale: TIGHTEN ran its
@@ -202,7 +202,7 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
   attempt 3's cycle-1 export: 5/2- background photon widths of 1e12 eV -- the policy caps particle theta2, not photon widths; the
   REVIEW of attempt 4 will show whether it flags them (otherwise a bounds gap to add).
 
-- 2026-11-10 01:10  L3 demo attempt 2 (job 1718582): DONE in 1.06 node-hours, zero wait decisions, REVIEW.md written -- the process
+- 2026-11-09 23:35  L3 demo attempt 2 (job 1718582): DONE in 1.06 node-hours, zero wait decisions, REVIEW.md written -- the process
   works end to end on a from-scratch model -- but the candidate is poor (223,352, chi2/N 55.5) because two drive states did nothing on
   a from-scratch base: SEED_CHANNELS searched the engine's free list for zero widths, and an exact zero is never a parameter (Golden
   rule 3), so the eight background poles' 20 channels stayed out of the fit; SHIFTS_FREE polished with no shift parameter because the
@@ -211,10 +211,10 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
   decision asked once.  13N test now zeroes a background channel and requires it seeded (job 1718741); attempt 3 queued
   (`12C+p/11-10-26_L3_demo3/`, job 1718742).  Neither gap was visible on 7Be or 13N, whose models carry fitted values everywhere:
   the from-scratch path had never been exercised with the engine.
-- 2026-11-10 00:40  13N tier-0 bench rebuilt (job 1718612, 23 min on 3 slots): reference = the fixture polished 6 x 200 to 26,678.456; the
+- 2026-11-09 23:05  13N tier-0 bench rebuilt (job 1718612, 23 min on 3 slots): reference = the fixture polished 6 x 200 to 26,678.456; the
   4-flip start (29,709) recovered it EXACTLY (sign distance 0, +0.0 %, 0 decisions, no new flag): PASS and exact.  Tier 0 now runs
   in ~25 minutes on 3 slots as a drive regression with a real reference.  results.tsv: 7Be x 3 + 13N x 1.
-- 2026-11-10 00:10  13N tier-0 bench (job 1718536, 25 min on 3 slots, DONE, 0 decisions): the drive took the 4-flip start 29,709 -> 26,678 --
+- 2026-11-09 22:32  13N tier-0 bench (job 1718536, 25 min on 3 slots, DONE, 0 decisions): the drive took the 4-flip start 29,709 -> 26,678 --
   92 % BELOW the "reference" 336,448, because `~/AZURE2/tests/13N` is a plain-calculation regression fixture (chiSquared.out 336,522 at
   the .azr's start values), not a fit.  The scorer now reports REFERENCE-SUSPECT when a run beats its reference by > 1 % and tests
   'exact' as |rel| <= 1e-4 (it had passed a -92 % run as exact).  Tier-0 case redefined: the reference is the fixture polished to

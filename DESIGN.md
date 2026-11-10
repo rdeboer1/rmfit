@@ -140,6 +140,16 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
 
 ## Progress log
 
+- 2026-11-09 23:55  L3 demo attempt 1 STOPPED, attempt 2 queued.  The three idle-time subagent audits (input, data, literature; prompts
+  from `rmfit audit --kind all`, Sonnet, ~10 min each) on the running first attempt found what the machine audit cannot: a FRAME error
+  in the inherited segment table (11 elastic sets with EXFOR heading ANG = lab angles entered as AZURE2 code 4 = c.m.; 2768 rows;
+  Rutherford test confirms lab), Jiang 2004 converted without the Jacobian (1.19x), Vojtov 1977b being capture to the 2366 keV state,
+  Armstrong 1966b a duplicate of 1966a, digitizing precision used as point errors (Jackson at 29 % of the weight), 100 free norms for
+  36 files, and the channel radius (3.5 fm in the model, 6.0 in a stale readme and my spec; published 3.4-3.6).  Attempt 1 qdel'd 75
+  min in; `12C+p/11-9-26_L3_demo2/` built with the corrections (readme lists each, with the provisional ones as open decisions) and
+  queued as job 1718611.  Process lesson, to build: the subagent audits belong BEFORE the first engine state (the drive's AUDIT state
+  should emit the prompts and wait for FINDINGS.md), and `spec check` now compares channel radii (b1fdec2).  Verified rows are
+  marked in the first attempt's audits/*/FINDINGS.md (`rmfit audit --status`).
 - 2026-11-09 22:50  Phase 3 started (DeBoer: "go ahead with Phase 3, 12C+p from scratch for the L3 demo").  3.1 bench suite built and
   committed (8525431) with the 7Be rows (attempt 4 PASS under the yardstick; the review-flag comparison that was pending is now done:
   no new HIGH/MEDIUM flag); 13N tier-0 case queued (job 1718536).  3.2 L3 demo on 12C+p from scratch queued (job 1718547; readme in

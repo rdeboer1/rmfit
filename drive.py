@@ -1227,21 +1227,55 @@ class Driver:
                      f"then re-init), or change its treatment?", ("keep", "exclude", "retreat"), default="keep", evidence="readme dataset-off entry; REPORT.md")
         return "stay", msg
 
+    def _baseline_review_flags(self):
+        """HIGH flags of the init baseline (candidate 1, reviewed once into REVIEW_baseline.md): a flag the base model
+        already carried is the evaluator's (10B+p tier-2 bench 2026-11-10: the 1 MeV wide 5/2+ pole spanning five
+        unfitted peaks is DeBoer's final model, with 'no extra levels' a standing decision), so the drive reports it
+        but waits only on a NEW one.  Keyed as the bench does: (code, message up to the first colon)."""
+        c = self.campaign
+        if self.state.get("baseline_review") is None:
+            from .review import review_campaign
+            flags = []
+            try:
+                bcid = None
+                try:
+                    row = c.ledger.db.execute("SELECT id FROM candidates WHERE move LIKE '%baseline%' ORDER BY id LIMIT 1").fetchone()
+                    bcid = int(row[0]) if row else None
+                except Exception:
+                    bcid = None
+                rb = review_campaign(c, grid_check=False, figures=0, cid=bcid or 1, path=os.path.join(c.dir, "REVIEW_baseline.md"))
+                flags = [[f.code, f.message.split(":")[0].strip()] for f in rb["findings"] if f.severity == "HIGH"]
+                self.log(f"baseline review (candidate {bcid or 1}) -> REVIEW_baseline.md, {len(flags)} HIGH flag(s) inherited from the base model")
+            except Exception as err:
+                self.log(f"baseline review failed ({err}): every HIGH flag counts as new")
+            self.state["baseline_review"] = flags
+            self.save()
+        return {(a, b) for a, b in self.state["baseline_review"]}
+
     def _s_review(self):
         c = self.campaign
         from .review import review_campaign
         r = review_campaign(c, grid_check=bool(self.budget.get("grid_check", True)), figures=int(self.budget.get("figures", 6)))
         highs = [f for f in r["findings"] if f.severity == "HIGH"]
         counts = r["counts"]
+        note = ", ".join(f"{k} {v}" for k, v in counts.items())
         if highs:
-            ans = self.ask("review-high", f"REVIEW.md has {len(highs)} HIGH flag(s): " + "; ".join(f"{f.code}: {f.message[:80]}" for f in highs[:3])
+            inherited = self._baseline_review_flags()
+            old = [f for f in highs if (f.code, f.message.split(":")[0].strip()) in inherited]
+            new = [f for f in highs if f not in old]
+            if old:
+                note += f"; {len(old)} HIGH inherited from the base model (the evaluator's, not waited on): " + "; ".join(
+                    f"{f.code}: {f.message.split(':')[0].strip()}" for f in old[:3])
+            highs = new
+        if highs:
+            ans = self.ask("review-high", f"REVIEW.md has {len(highs)} new HIGH flag(s): " + "; ".join(f"{f.code}: {f.message[:80]}" for f in highs[:3])
                            + ". Look at figures/review_*.png; 'continue' to export as is, 'stop' to intervene.", ("continue", "stop"),
                            default="wait", evidence="REVIEW.md; figures/review_*.png")
             if ans is None:
-                return "stay", f"{len(highs)} HIGH review flags -> waiting"
+                return "stay", f"{len(highs)} new HIGH review flags -> waiting"
             if ans.lower().startswith("stop"):
                 raise DriveStop("STOP", "review HIGH flags: evaluator asked to stop")
-        return "next", ", ".join(f"{k} {v}" for k, v in counts.items())
+        return "next", note
 
     def _s_export(self):
         c = self.campaign
@@ -1293,7 +1327,7 @@ PLAN_TEXT = {
     "STRUCTURE_ADD": "level add per candidates.json entry, broad first (structure.broad_first_kev), narrow alignment after the broad queue + scan; hypothesis required; adoption per pre_authorized.adopt_level",
     "SIGN_POST": "sign rounds again if a structure was adopted",
     "DATASET_OFF": "Botek test on the worst chi2/N sets (budget dataset_off_max); large extra recovery -> decision (keep)",
-    "REVIEW": "rmfit review (+ grid check) -> REVIEW.md; HIGH -> decision review-high (wait)",
+    "REVIEW": "rmfit review (+ grid check) -> REVIEW.md; a NEW HIGH flag (not in the base model's REVIEW_baseline.md) -> decision review-high (wait)",
     "EXPORT": "export + report",
     "CYCLE": "another pass from TIGHTEN if the cycle gained >= cycle_gain_rel_min and cycles < cycles_max, else DONE",
 }

@@ -67,17 +67,20 @@ def incumbent_split(c) -> dict:
     return dict(cid=cid, x=x, objective=float(obj), keys=keys, data_chi2=data, penalty=float(obj) - data, table=tab)
 
 
-def decisions_summary(run_dir: str, pre_answered=()) -> dict:
+def decisions_summary(run_dir: str, pre_answered=(), inherited_review=False) -> dict:
     """Wait decisions and human answers of a run.  ``pre_answered`` (case file, per run): decision slugs that are part of the
     case definition rather than of the fit -- e.g. `audit-high` on a reference whose archived inputs carry known findings
     (12C+p tier 1: 56 normError-as-fraction segments shared by reference and start); the supervisor answers them once and
-    the yardstick does not count them.  They are listed in the row's note."""
+    the yardstick does not count them.  They are listed in the row's note.  ``inherited_review`` (2026-11-10, 10B+p tier 2):
+    every HIGH flag of the run's REVIEW.md is in the reference's own REVIEW.md, so a `review-high` decision asks about the
+    reference's structure, not the run's (DeBoer's "no new review flag" criterion); it is excluded like a pre-answered one."""
     from rmfit.decisions import DecisionQueue as Decisions
     path = os.path.join(run_dir, "DECISIONS.md")
     if not os.path.exists(path):
         return dict(wait=0, human=0, n=0, pre_answered=[])
     ds = Decisions(path).all()
-    pre = [d for d in ds if any(d["slug"].startswith(x) for x in pre_answered)]
+    pre = [d for d in ds if any(d["slug"].startswith(x) for x in pre_answered)
+           or (inherited_review and d["slug"] == "review-high")]
     ds = [d for d in ds if d not in pre]
     wait = sum(1 for d in ds if (d.get("default_if_unanswered") or "wait").strip() == "wait")
     human = sum(1 for d in ds if d.get("answer") and (d.get("answered_by") or "").strip() not in ("", "default", "rmfit drive", "test"))
@@ -108,9 +111,6 @@ def score_run(case: dict, run_name: str, review_missing: bool = False) -> dict:
             row["sign_distance"] = f"{int(dist)} (key sets differ)"
     except Exception as err:  # noqa: BLE001
         row["sign_distance"] = f"n/a ({err})"
-    dec = decisions_summary(run_dir, tuple(run.get("pre_answered") or ()))
-    row["wait_decisions"], row["human_turns"] = dec["wait"], dec["human"]
-    pre_note = (" pre-answered by the case definition: " + ", ".join(dec["pre_answered"])) if dec.get("pre_answered") else ""
     st_path = os.path.join(run_dir, "drive_state.json")
     st = json.load(open(st_path)) if os.path.exists(st_path) else {}
     row["status"] = f"{st.get('status', '?')}@{st.get('state', '?')} cycle {st.get('cycle', '?')}" if st else "no drive_state.json"
@@ -132,6 +132,11 @@ def score_run(case: dict, run_name: str, review_missing: bool = False) -> dict:
             elif os.path.exists(rv):
                 stale.append(f"{os.path.basename(c.dir)} REVIEW.md is of candidate {have}, incumbent {I['cid']}")
     fr, fp = review_flags(ref_dir), review_flags(run_dir)
+    inherited = fr is not None and fp is not None and not {f for f in fp - fr if f[0] == "HIGH"} and bool({f for f in fp if f[0] == "HIGH"})
+    dec = decisions_summary(run_dir, tuple(run.get("pre_answered") or ()), inherited_review=inherited)
+    row["wait_decisions"], row["human_turns"] = dec["wait"], dec["human"]
+    pre_note = ((" pre-answered by the case definition" + (" / review-high on a HIGH flag the reference's REVIEW.md carries" if inherited else "")
+                 + ": " + ", ".join(dec["pre_answered"])) if dec.get("pre_answered") else "")
     if stale:
         row["note"] = "; ".join(stale)
     if fr is None or fp is None:

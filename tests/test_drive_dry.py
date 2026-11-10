@@ -144,9 +144,14 @@ class StubCampaign:
         return os.path.join(self.dir, "REPORT.md")
 
 
-def stub_review(c, grid_check=False, figures=0, top=20):
-    fs = [Finding("HIGH", "broad-level-averages-peaks", "test flag")] if c.review_high else []
-    return dict(path=os.path.join(c.dir, "REVIEW.md"), counts={"HIGH": len(fs)}, findings=fs, review=None)
+def stub_review(c, grid_check=False, figures=0, top=20, cid=None, path=None):
+    # cid/path = the drive's one-off review of the init baseline (2026-11-10): a HIGH flag the base model already carried
+    # is reported, not waited on.  baseline_high makes the stub's baseline carry the same flag as the incumbent.
+    if cid is not None:
+        fs = [Finding("HIGH", "broad-level-averages-peaks", "test flag: inherited")] if getattr(c, "baseline_high", False) else []
+    else:
+        fs = [Finding("HIGH", "broad-level-averages-peaks", "test flag: inherited")] if c.review_high else []
+    return dict(path=path or os.path.join(c.dir, "REVIEW.md"), counts={"HIGH": len(fs)}, findings=fs, review=None)
 
 
 def main():
@@ -313,7 +318,7 @@ def main():
         stub2 = StubCampaign(tmp2, d8.decisions)
         stub2.polish_gains = [50.0, 40.0, 30.0, 20.0, 10.0, 5.0]      # never converges within polish_rounds_max 2
         stub2.levelscan_results = []
-        stub2.review_high = False                                        # no REVIEW wait: the gate is what is tested
+        stub2.review_high = True; stub2.baseline_high = True             # the HIGH flag is the base model's own: no REVIEW wait (2026-11-10)
         d8._campaign = stub2
         d8.state["state"] = "TIGHTEN"
         d8.state["recall"] = {"n": 0, "n_pass": 0}
@@ -327,6 +332,12 @@ def main():
         check("polish gate: cycle 2 (the last) ran them anyway", any(c[0] == "sign" for c in stub2.calls) and any(c[0] == "population" for c in stub2.calls)
               and c2 and not any("deferred" in n for n in c2), str(c2) + str(stub2.calls))
         check("polish gate: readme says the budget is too small", "too small for this model" in open(os.path.join(tmp2, "readme")).read())
+        rv8 = [h for h in d8.state["history"] if h["state"] == "REVIEW"]
+        check("REVIEW: a HIGH flag the base model already carried is reported, not waited on", status == "DONE" and rv8
+              and all("inherited from the base model" in h["note"] for h in rv8) and not any(x["slug"] == "review-high" for x in d8.decisions.all()),
+              f"{status}; " + str([h["note"] for h in rv8]))
+        check("REVIEW: the baseline review ran once and is kept in drive_state", d8.state.get("baseline_review") == [["broad-level-averages-peaks", "test flag"]],
+              str(d8.state.get("baseline_review")))
         shutil.rmtree(tmp2, ignore_errors=True)
     finally:
         rvmod.review_campaign = real_review

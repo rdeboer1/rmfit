@@ -1043,26 +1043,36 @@ def review_output(azr_path: str, output_dir: Optional[str] = None, out_dir: Opti
     return dict(path=path, counts=counts, findings=rv.findings, review=rv)
 
 
-def review_campaign(campaign, grid_check: bool = False, figures: int = 6, top: int = 20) -> dict:
+def review_campaign(campaign, grid_check: bool = False, figures: int = 6, top: int = 20, cid=None, path=None) -> dict:
     """Review of a campaign's incumbent through a fresh single session; writes ``<campaign>/REVIEW.md`` and
     ``figures/review_*.png``.  ``grid_check`` re-scores the incumbent on a converged target-integration grid
-    (20/50, ``Campaign.set_grid_setting``) and flags a shift of the objective."""
+    (20/50, ``Campaign.set_grid_setting``) and flags a shift of the objective.
+    ``cid`` reviews that ledger candidate instead (on its own structure's model), ``path`` writes the report elsewhere
+    (2026-11-10: the drive reviews the init baseline once, to tell a HIGH flag the base model already carried from a new one)."""
     from .engine import SingleSession
     from .model import single_variant, base_segments
     from .keys import take
     from .diagnose import theta2_table
     c = campaign
-    cid, x, obj, keys = c.incumbent()
-    src = single_variant(c.base_azr, "review", c.vdir)
-    header = [f"campaign `{c.dir}`, incumbent candidate {cid}, objective {obj:.3f}", f"model `{c.base_azr}`", ""]
+    if cid is None:
+        cid, x, obj, keys = c.incumbent()
+        base_azr = c.base_azr
+    else:
+        x, keys = c.ledger.load(cid)
+        base_azr = c.ledger.structure(c.ledger.candidate(cid)["structure_id"])["azr"]
+        obj = float("nan")
+    src = single_variant(base_azr, "review" if path is None else "review_" + os.path.splitext(os.path.basename(path))[0], c.vdir)
     with SingleSession(src, cwd=c.vdir, flags=c.flags, name="review", objective=c.objective) as ev:
         xb = take(x, keys, ev.keys, ev.x0)
         tab = table_from_evaluator(ev, xb)
         levels = levels_from_evaluator(ev, xb)
         sc = ev.score(xb)
-        header.insert(1, f"single-session score: objective {sc.objective:.3f} = chi2 {sc.chi2:.3f} + penalty {sc.penalty:.3f}")
+        if obj != obj:
+            obj = sc.objective
+        header = [f"campaign `{c.dir}`, {'incumbent ' if path is None else ''}candidate {cid}, objective {obj:.3f}",
+                  f"single-session score: objective {sc.objective:.3f} = chi2 {sc.chi2:.3f} + penalty {sc.penalty:.3f}", f"model `{base_azr}`", ""]
         th = theta2_table(ev, xb)[:10]
-    rv = Review(tab, levels, base_segments(c.base_azr), open(c.base_azr).read(), top=top)
+    rv = Review(tab, levels, base_segments(base_azr), open(base_azr).read(), top=top)
     rv.run(os.path.join(c.dir, "figures") if figures else None, figures)
     if th:
         rv.sections.append(("Largest theta^2 (free widths vs the Wigner limit)",
@@ -1089,7 +1099,7 @@ def review_campaign(campaign, grid_check: bool = False, figures: int = 6, top: i
                 rv.sections.append(("Target-integration grid check", ["no active <targetInt> line: nothing to check"]))
         except Exception as err:
             rv.sections.append(("Target-integration grid check", [f"(failed: {err})"]))
-    path = os.path.join(c.dir, "REVIEW.md")
+    path = path or os.path.join(c.dir, "REVIEW.md")
     counts = rv.write(path, header_lines=header)
     c.log(f"review: {path} " + ", ".join(f"{k} {v}" for k, v in counts.items()))
     return dict(path=path, counts=counts, findings=rv.findings, review=rv)

@@ -119,7 +119,7 @@ decisions stay with the evaluator; the spec records them.
   reference's; `--review` writes a missing or stale REVIEW.md, noting the engine) and applies the yardstick; `run` writes the SGE job
   (reference init, `perturb`, spec, drive).  First rows: 7Be tier 1 attempts 2, 3 (FAIL) and 4 (PASS: data chi2 5082.5 <= 5088.8,
   +0.33 %, 0 wait decisions, no new flag; not exact).  Tier 0 = the AZURE2 tests/13N fixture (4 flips, 3 slots, ~1 h), not the
-  ML superset (pseudo-data, no reference fit).  12C+p tier 1 (26,368 -> 12,067 via DeBoer's background-gamma branch) and tier 2/3
+  ML superset (pseudo-data, no reference fit).  12C+p tier 1 PASS exact 2026-11-10 (26,368 -> 12,040 via DeBoer's background-gamma branch, found by the population stage in 0.06 node-hours); tier 2/3
   cases are still to be defined as case files.
 - **3.2 STARTED 2026-11-09** (DeBoer: "12C+p from scratch for the L3 demo"): `12C+p/11-9-26_L3_demo/` -- base model from the TUNL
   level scheme + background poles + the 8-9-26 data segments (build_base.py), spec.json drafted by Claude with every data-treatment
@@ -140,6 +140,12 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
 (density, Doppler, thickness, screening) in shards; `structure add` exit status on a failed scan.
 
 ## Progress log
+
+- 2026-11-10 05:50  12C+p tier-1 bench PASS exact (job 1718963, bf30536): from Claude's 26,368 basin (100,748 in DeBoer's free scheme)
+  the polish reached 24,740, 22 sign proposals accepted none, and the POPULATION crossover found the 3/2- E2 flip and polished to
+  the reference 12,039.786 to all digits, sign distance 0, in 0.06 node-hours.  The roadmap's "does the method find what the human
+  found" case is answered: yes, by the basin-crossing stage, in minutes.  Scorer: `pre_answered` slugs in a run (case-defined
+  decisions such as audit-high on a reference with known input findings) are excluded from the yardstick and listed in the note.
 
 - 2026-11-10 05:30  L3 demo attempt 4 (job 1718885, drive bc40f84): DONE after 3 cycles in 1.44 node-hours, zero wait decisions, final
   63,456 (attempt 2: 223,352).  The polish gate worked as designed: cycle 1 deferred SIGN/POPULATION, cycle 2's polish converged, 50

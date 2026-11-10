@@ -30,6 +30,11 @@ def main():
         shutil.copy2(os.path.join(src, "output", "chiSquared.out"), os.path.join(tmp, "output", "chiSquared.out"))
     mdl = AzrModel.from_file(os.path.join(src, "13N.azr"))
     mdl.set_segment_norm("meyer_84", vary=True, sys_error=5.0)
+    # 2026-11-10: one background channel free at exactly zero -- SEED_CHANNELS must give it a placeholder and seed it (a zero
+    # width is never an engine parameter; the 12C+p L3 demo 2 ran with no background amplitudes because of that)
+    bg = [lv for lv in mdl.active_levels if float(lv.energy) >= 15.0]
+    ch0 = bg[0].channels[0]; ch0.gamma = 0.0; ch0.channel_fixed = False
+    print("   zeroed free channel:", bg[0].jpi, float(bg[0].energy), "pair", ch0.pair, "L", ch0.L)
     mdl.set_output_dir(os.path.join(tmp, "output"))
     base = mdl.write(os.path.join(tmp, "13N.azr"))
     spec = {"reaction": "12C+p", "compound_nucleus": "13N", "campaign": "drive-13n", "owners": ["test"], "parametrization": "brune",
@@ -84,6 +89,9 @@ def main():
         check(f"state {s} ran", s in done)
     check("REVIEW.md and export exist", os.path.exists(os.path.join(tmp, "REVIEW.md")) and any(f.endswith(".sav") for f in os.listdir(tmp)))
     check("DRIVE.md written", os.path.exists(os.path.join(tmp, "DRIVE.md")))
+    seed = [h for h in st["history"] if h["state"] == "SEED_CHANNELS"]
+    check("SEED_CHANNELS seeded the zero background channel (placeholder path)", seed and "seeds" in seed[0].get("note", "") and "nothing to seed" not in seed[0]["note"],
+          str([h.get("note") for h in seed]))
     rep = st.get("reproduce")
     check("REPRODUCE compared against chiSquared.out", rep is not None and rep.get("nref", 0) > 0, str(rep))
     pop = [h for h in st["history"] if h["state"] == "POPULATION"]

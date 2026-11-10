@@ -564,6 +564,12 @@ class Driver:
                 changed += 1
             except KeyError as err:
                 rows.append(f"{f}: no matching segment ({err})")
+        if self.spec.pre_authorized.get("shifts_free", False) is True:
+            # 2026-11-10 (12C+p L3 demo 2): SHIFTS_FREE polished "223352 -> 223352 in 7 evaluations" because the base varied no
+            # shift, so no shift key existed; a shift is a parameter only when its segment line varies it (BoundsPolicy fixes
+            # it until SHIFTS_FREE).  Every active segment with a shift uncertainty gets varyShift on here.
+            nsh = _vary_shifts_with_error(mdl)
+            rows.append(f"energy shifts: varyShift set on {nsh} segment(s) with a shift uncertainty (fixed by the policy until SHIFTS_FREE)")
         out = os.path.join(self.dir, self._stem() + "_drive.azr")
         os.makedirs(os.path.join(self.dir, "output"), exist_ok=True)
         os.makedirs(os.path.join(self.dir, "checks"), exist_ok=True)
@@ -592,12 +598,31 @@ class Driver:
         flags = self.spec.flags()
         vdir = os.path.join(self.dir, "variants")
         os.makedirs(vdir, exist_ok=True)
+        # 2026-11-10 (12C+p L3 demo 2): a width of exactly 0 is FIXED whatever its flag (Golden rule 3), so the engine never
+        # lists it and the search over ev.keys found "nothing to seed" on a from-scratch model whose 20 background channels were
+        # all free zeros.  Every active channel flagged free with gamma == 0 first gets a placeholder (a tiny physical width, so
+        # that the key exists), then the seed in units of gamma_W as before; photon channels, which have no Wigner limit, keep
+        # the placeholder PHOTON_SEED_EV as their start.
+        PHOTON_SEED_EV = float((self.spec.get("model") or {}).get("photon_seed_ev", 1.0))
+        mdl0 = AzrModel.from_file(self.model)
+        placed = []
+        for lv in mdl0.active_levels:
+            for ch in lv.channels:
+                if not bool(ch.channel_fixed) and float(ch.gamma) == 0.0:
+                    ch.gamma = PHOTON_SEED_EV if ch.is_photon else 1e-3
+                    placed.append(f"{lv.jpi}@{float(lv.energy):.4f} p{ch.pair} L{ch.L} S{ch.S}" + (" (photon)" if ch.is_photon else ""))
+        if placed:
+            self.model = os.path.join(vdir, self._stem() + "_placeholders.azr")
+            mdl0.set_output_dir(os.path.join(vdir, "output_placeholders"))
+            os.makedirs(os.path.join(vdir, "output_placeholders"), exist_ok=True)
+            mdl0.write(self.model)
+            self.log(f"  {len(placed)} free channels at exactly zero given a placeholder so the engine lists them: " + ", ".join(placed[:12]))
         src = single_variant(self.model, "drive_seed", vdir)
         with SingleSession(src, cwd=vdir, flags=flags, name="drive_seed") as ev:
             x = self._seed_vector(ev)
             gW = ev.wigner_amplitudes()
             zero = [j for j, k in enumerate(ev.keys) if k.kind == "width" and gW.get(j, 0) > 0 and abs(x[j]) < eps * gW[j]]
-            if not zero:
+            if not zero and not placed:
                 return "next", "no free width at zero: nothing to seed"
             sc0 = ev.score(x)
             x1 = x.copy()
@@ -617,7 +642,7 @@ class Driver:
                              name="drive_seed_bake", separate=False)
         # non-seeded physical widths must survive the bake (seed_stage1.py width_check: a failed Brune transform at load
         # rescales a whole level)
-        A, B = AzrModel.from_file(self.model), AzrModel.from_file(azr)
+        A, B = AzrModel.from_file(self.state.get("model") or self.model), AzrModel.from_file(azr)
         bad = []
         for la, lb in zip(A.active_levels, B.active_levels):
             for ca, cb in zip(la.channels, lb.channels):
@@ -630,10 +655,10 @@ class Driver:
         self.state["model"], self.state["sav"] = azr, sav
         self.state["seeds"] = dict(frac=frac, n=len(zero), before=sc0.objective, after=sc1.objective, baked=scb.objective)
         self._finding_rows("SEED_CHANNELS", [f"{len(zero)} free widths at zero seeded at {frac:g} gamma_W: objective {sc0.objective:.1f} -> "
-                                             f"{sc1.objective:.1f} (baked {scb.objective:.1f})"] + labels[:40])
+                                             f"{sc1.objective:.1f} (baked {scb.objective:.1f}); {len(placed)} placeholders"] + labels[:40])
         self.note(f"SEED_CHANNELS: {len(zero)} free widths at exactly zero lifted to {frac:g} gamma_W and baked into "
                   f"{os.path.basename(azr)} (objective {sc0.objective:.1f} -> {sc1.objective:.1f}; non-seeded widths unchanged)")
-        return "next", f"{len(zero)} seeds at {frac:g} gamma_W -> {os.path.basename(azr)}"
+        return "next", f"{len(zero)} seeds at {frac:g} gamma_W ({len(placed)} channels given a placeholder) -> {os.path.basename(azr)}"
 
     def _s_pair_completeness(self):
         """First fits item 3 as a check: excited states (ENSDF) of the model's residual nuclei whose partition opens below the
@@ -1106,8 +1131,11 @@ class Driver:
         self.state["dataset_off_tested"].append(r["name"])
         pct = float(st.get("extra_pct", 0.0))
         msg = f"{r['name']} (chi2/N {r['per_pt']:.1f} vs median {med:.1f}): extra recovery {st.get('extra_recovery', 0):+.0f} ({pct:.2f} %)"
-        if pct > float(self.stop["dataset_off_extra_pct"]):
-            self.ask(f"dataset-off-{r['name']}", f"{r['name']} distorts the rest of the fit: {msg}. Keep it, exclude it (role excluded in spec.json, "
+        slug = f"dataset-off-{r['name']}"
+        if pct > float(self.stop["dataset_off_extra_pct"]) and any(d.get("slug") == slug for d in self.decisions.all()):
+            msg += " (decision already queued in an earlier cycle)"
+        elif pct > float(self.stop["dataset_off_extra_pct"]):
+            self.ask(slug, f"{r['name']} distorts the rest of the fit: {msg}. Keep it, exclude it (role excluded in spec.json, "
                      f"then re-init), or change its treatment?", ("keep", "exclude", "retreat"), default="keep", evidence="readme dataset-off entry; REPORT.md")
         return "stay", msg
 
@@ -1210,6 +1238,30 @@ def _nuc(z, m):
         return "n"
     sym = SYMBOLS[z] if 0 <= z < len(SYMBOLS) else f"Z{z}"
     return {(1, 1): "p", (1, 2): "d", (1, 3): "t", (2, 4): "a"}.get((z, a), f"{a}{sym}")
+
+
+def _vary_shifts_with_error(mdl) -> int:
+    """Set varyShift on every active ``<segmentsData>`` line whose shift uncertainty is > 0 (the fields after dataNorm:
+    varyNorm, normError, shift, shiftError, varyShift; dataNorm sits two fields later for phase-shift lines).  Returns the count."""
+    out, inside, n = [], False, 0
+    for line in mdl._suffix.splitlines():
+        s = line.strip()
+        if s == "<segmentsData>":
+            inside = True
+        elif s == "</segmentsData>":
+            inside = False
+        elif inside and s and not s.startswith("#"):
+            t = line.split()
+            try:
+                i = 8 + (2 if int(t[7]) % 10 == 2 else 0)
+                if t[0] == "1" and float(t[i + 4]) > 0 and t[i + 5] == "0":
+                    t[i + 5] = "1"; n += 1
+                    line = " ".join(t)
+            except (ValueError, IndexError):
+                pass
+        out.append(line)
+    mdl._suffix = "\n".join(out)
+    return n
 
 
 def write_job_script(directory, spec: FitSpec, cfg: Optional[dict], name="run_crc_drive", overwrite=False, max_minutes=600) -> str:

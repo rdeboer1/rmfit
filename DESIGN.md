@@ -147,7 +147,7 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
   Armstrong 1966b a duplicate of 1966a, digitizing precision used as point errors (Jackson at 29 % of the weight), 100 free norms for
   36 files, and the channel radius (3.5 fm in the model, 6.0 in a stale readme and my spec; published 3.4-3.6).  Attempt 1 qdel'd 75
   min in; `12C+p/11-9-26_L3_demo2/` built with the corrections (readme lists each, with the provisional ones as open decisions) and
-  queued as job 1718611.  Process lesson, to build: the subagent audits belong BEFORE the first engine state (the drive's AUDIT state
+  queued as job 1718582.  Process lesson, to build: the subagent audits belong BEFORE the first engine state (the drive's AUDIT state
   should emit the prompts and wait for FINDINGS.md), and `spec check` now compares channel radii (b1fdec2).  Verified rows are
   marked in the first attempt's audits/*/FINDINGS.md (`rmfit audit --status`).
 - 2026-11-09 22:50  Phase 3 started (DeBoer: "go ahead with Phase 3, 12C+p from scratch for the L3 demo").  3.1 bench suite built and

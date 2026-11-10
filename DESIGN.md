@@ -141,6 +141,17 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
 
 ## Progress log
 
+- 2026-11-10 05:30  L3 demo attempt 4 (job 1718885, drive bc40f84): DONE after 3 cycles in 1.44 node-hours, zero wait decisions, final
+  63,456 (attempt 2: 223,352).  The polish gate worked as designed: cycle 1 deferred SIGN/POPULATION, cycle 2's polish converged, 50
+  sign proposals accepted none, the POPULATION crossover crossed to a new basin (-5.2 %, a 3/2- E2 flip) and SHIFTS_FREE took
+  -9.5 % more; cycle 3 changed nothing.  LEVELSCAN's three proposals at the 3/2-/5/2+ doublet were unphysical or marginal.  The photon
+  runaway recurred without the cap (background poles' gamma amplitudes 1e9-1e16 eV): attempt 5 (`12C+p/11-10-26_L3_demo5/`, job
+  1719021) runs the same base with the caps; its spec skips the new audit gate by a standing decision (attempt-1 audits stand, 31
+  rows unverified -- open).  13N test job 1718884 passed the gate (SIGN/POPULATION ran) but stalled on the non-blocking recall-low
+  decision the harness did not know; fixed (1adb0af), rerun as job 1719011.  12C+p tier-1 bench: reference converged at 12,039.79,
+  start 100,748; two one-line bugs on the way (audit-high on a reference with known findings -> answered 'accepted' by the
+  supervisor; a base outside the campaign dir kept '..' in its path, 71dfa23); third submission job 1718963.
+
 - 2026-11-10 04:10  Phase 3.3 (part): SKILL.md section 9 relocated to `rmfit-campaign/HISTORY.md` (1,865 lines, nothing deleted),
   section 9 is now a 117-line dated index; the skill is 803 lines.  Phase 3.1: 12C+p tier-1 case `bench/cases/12Cp_tier1.json`
   (reference = DeBoer's background-gamma branch of the 8-9-26 exercise at 12,044 on the 2026-11-09 engine, start = the same model with

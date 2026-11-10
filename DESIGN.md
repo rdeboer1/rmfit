@@ -140,6 +140,17 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
 
 ## Progress log
 
+- 2026-11-10 02:40  Two more gaps closed while demo attempt 4 runs.  (1) Photon widths were unbounded: `default_bounds` caps
+  particle amplitudes through the Wigner limit, which photon channels do not have, so attempt 3's 5/2- background pole polished
+  to Gamma_gamma 1e12 eV.  `BoundsPolicy.photon_width_max_ev` (1e4) / `bg_photon_width_max_ev` (1e5) now bound |x| <=
+  sqrt(Gamma_max / c), c the asymptotic factor of the transform probed at x = 1e4 per photon channel (with external capture the
+  physical width is c (x - x0)^2, x0 of order 1: 13N 1/2+ E1 has x0 = 1.0, so the factor at x_ref would be 12x off); generous
+  stops, not Weisskopf limits, for DeBoer to set per reaction (8f970e9; tests/test_photon_bound.py, stub + 13N engine).  (2) The
+  AUDIT state now writes the three subagent audit prompts and waits for their verified FINDINGS.md before the first engine state
+  (decision `audit-subagents`; rows in status 'decision' become one wait decision each; `pre_authorized.skip_subagent_audits` set
+  in the bench case specs; 5b0e54d).  Neither reached attempt 4 (job 1718885, started 00:52 on bc40f84); the 13N queue test is
+  resubmitted on 5b0e54d once job 1718884 (on bc40f84) reports.
+
 - 2026-11-10 02:00  Seeding verified, next gap found: 13N test job 1718747 passed its new SEED_CHANNELS check (13 free zero channels
   of the fixture given placeholders and seeded) and every other check but POPULATION, which was "deferred to the next cycle" because
   the polish of the now-larger model did not converge in 2 x 30 evaluations -- in a cycles_max 1 run there is no next cycle.  L3

@@ -1870,3 +1870,183 @@ blocks the leg (adopt-level, audit/spec/review HIGH, reproduction mismatch), one
 Open: run on a tier-1 benchmark (7Be) and on 10B+a s5 from its spec draft; `levelscan` inside STRUCTURE_ADD when the bank is
 empty; the 2.2 structure-search defaults (broad first is in CANDIDATES' ordering only).
 
+
+
+# Relocated from SKILL.md on 2026-11-10 (roadmap Phase 3.3: sections 2-8 reduced to rules; nothing deleted)
+
+## Relocated: SKILL.md section 2, 'First fits' (2026-10-25 .. 2026-11-10)
+
+### First fits: build starting parameters before any global fit (DeBoer, 2026-10-25 -- RE-EVALUATE LATER)
+
+**Provisional.** This is DeBoer's general suggestion, written down before it was tried end to end. Re-evaluate it once
+10B+α (the first reaction to use it, `10B+a/10-25-26_Rmatrix_Claude`) has a real fit: record what worked and what
+did not here, and change or drop the procedure accordingly.
+
+DeBoer: "Fix one representative data set's norms but let the others vary. This then provides more of a fixed scale
+for the cross sections initially, but still allows data sets with inconsistent norms but consistent shapes to not
+hinder the fit. In our case, since we have data in every channel, I would suggest we fix our data to begin with and
+let the others vary. Also, we should make sure that we allow the lowest l channels for each particle pair to vary,
+giving it some small non-zero value for every level, even if the literature does not give it a branch to that
+channel. I would also suggest starting at low energy and doing some polishes on one level at a time to see how well
+it can match the data. Then come back and try adding in levels where resonances are clearly present that don't match
+any of the known levels in energy and / or width. I wouldn't try a real fit until you have reasonably good starting
+parameters."
+
+As a procedure:
+1. **Fix the scale with one representative data set.** Fix its norms at 1 (our own data when they cover every
+   channel); let every other set's norm vary. Sets with consistent shapes but a different scale then do not
+   hold the fit back.
+2. **Seed the lowest-L channel of every pair, for every level.** Give it a small non-zero amplitude (0.01 γ_W, set
+   in the engine; physical placeholders tiny, see the 2026-10-25 seeding entry), even where the literature lists no
+   branch to that channel.
+3. **Every channel that opens inside the fit range is in the model -- by default.** Whenever the fit range is
+   extended (a new energy window, or a data set that reaches higher), list every partition open below the TOP of
+   the range: each excited state of each residual nucleus (ENSDF) and the other light-particle partitions (d, t,
+   ³He, ...), with thresholds Ex = sepE + e2. Add a pair for each before fitting, without being asked: the lowest
+   allowed L of each channel spin on every level; seeded per item 2 on levels at or within 0.5 MeV below the
+   threshold and on background poles, inert (0, fixed) elsewhere. Add the new exits to every summed segment
+   (total cross sections, total (n,p), (n,α), ...). Do NOT cap a data window at a threshold instead. A cap is a
+   stop-gap: log it in the readme with the channel that forced it, and list it for the evaluator.
+   (DeBoer 2026-10-30, 11B+α HE extension: the ELBE ¹⁴N+n total cross section had been capped at E_n 5.1 MeV because
+   ¹⁴N(n,n₄) had no pair. That left the top 1.2 MeV of the fit without its strongest constraint, a norm-fixed total.
+   Builder example: `11B+a/10-27-26_HE_claude/model/add_pairs_he.py`, 7 pairs n4 a3 d0 p1 n5 n6 p2.)
+4. **Level by level, from low energy up.** Polish one level at a time (its energy and widths, plus the free norms)
+   against the data around it, and look at how well it can match.
+5. **Then add levels** where a resonance is clearly present and no known level matches it in energy and/or width.
+6. **Only then a real (global) fit**: `init` a campaign on the result.
+
+Why (10B+α stage 1, 2026-10-25): global polishes from a poor start (χ²/N ≈ 200, 2-27-25 levels with new
+channels near zero) traded the missing strength for normalizations. With every norm free, almost all of them fell to
+0.38-0.68 in 150 evaluations. Bounded to 0.7-1.5, eight sat on a bound and the fit stalled at χ²/N 12.7. With
+χ² ~ 10⁵, norm priors of a few percent cost nothing (`10B+a/10-25-26_rmfit_stage1`, `_stage1b`).
+
+## Relocated: SKILL.md section 7, 'Known limits' (September 2026 + the 2026-11-07 note)
+
+## 7. Known limits (September 2026; see the 2026-11-07 note at the end of this section)
+
+- Validated only on 13C+a (particle channels only, `ignore_externals`). With photon
+  channels: the pair-flip symmetry and the shard machinery (`intEC.*` per shard output
+  directory) are untested -- verify sharded == single-session at three vectors before
+  trusting a round (`init` does it at the baseline).
+- The recovery benchmark on 13C+a passed once (signs-only perturbation, 6.4% worse
+  start: four rounds + polish -> 0.25% *below* the target, in a different basin, ~15 h on
+  one node). Recovery from a start that also has jittered magnitudes and kicked energies
+  is untested since the escalations; run `perturb` on every new reaction before trusting
+  the method there.
+- Energy shifts are finite-differenced (kept fixed during exploration, freed in the
+  continuation polish); a shift held by polish's bounds is not differenced at all with
+  AZURE2 >= 77cd6b3 (see the 2026-10-30 entry at the end). Norms of split segments are shared across shards correctly;
+  segments with target effects are never split.
+- Data covariances (`covariance <file>`), normalization groups (`normgroup <label>`) and
+  shift groups (`shiftgroup <label>`) work in both evaluators since 2026-10-22 (`rmfit/covariance.py`; README section "Data
+  covariances and normalization groups"; tests in `13C+a/10-22-26_rmfit_covariance/`).
+  Workers run the model WITHOUT `covariance` and the evaluator whitens the assembled rows
+  with the engine's algorithm (rows = the engine's `residual_jacobian` rows to 1e-14), so
+  a group split across shards keeps its correlations; shards drop `normgroup` and the
+  evaluator rescales a follower's rows to its leader's norm. Before that, rmfit gave a
+  normgroup follower its own norm (single-session fast path) or its own free norm (shards),
+  and whitened only within a shard. What to know:
+  - Needs a pyazr with data covariances (AZURE2 >= 4b71177). With an older one the engine
+    ignores the keyword silently; `SingleSession` compares its chi2 with an engine session
+    on the model as written at its first evaluation and stops on that mismatch.
+  - `relvector` terms: the model is frozen at the evaluator's FIRST evaluation, and every
+    `rmfit` CLI step is a new process, so each polish starts with the model frozen at its
+    own start (the iterative Chiba-Smith scheme); `ev.refreeze_covariance()` in scripts.
+    Objectives of different steps are therefore not strictly comparable.  Since 2026-10-24
+    `polish` refreezes between passes (`--refreeze-every N`; last section).  That oscillated on 13C+a (2026-10-25
+    warning there) and is superseded by the FIX of 2026-10-25: a campaign made since then scales its relvector terms
+    by ONE reference model (`cov_reference.npz`, saved by `rmfit init`), and `--refreeze-every` defaults to 0.
+  - Row weights (`dataset_weight`, `point_weights`) scale the plain rows before
+    whitening; the Sivia loss is refused. Per-segment chi2 are the engine's partition
+    shares and can be negative; `ev.point_chi2(r)` / `ev.point_residuals(r)` give per-row
+    shares / plain residuals (levelscan and diagnose use them).
+  - Keep covariance files under `data/`: shards need none (the evaluator reads it from the
+    base model's directory) and `single_variant` links one next to the model, but the
+    structure, window and levelscan variants link only `data/`.
+  - `shiftgroup` (2026-10-22): all pieces of a group go to ONE shard, which keeps the
+    keyword (a group with a free shift is one shift-solo unit). `shiftfngroup` (AZURE2 dev
+    62392fc) likewise since 2026-10-24: one shard per group, members never split, the
+    declaring member first (`tests/test_shiftfngroup_sharded.py`; needs a >= 62392fc build).
+  - Free `sqrtshift` and `shiftfn` parameters (2026-10-22; before, rmfit refused to open
+    such a model): keys `shift_sqrt[segK]` / `shift_fn[segK aj]`, penalties as in pyazr's
+    `penalties()`, bounds like constant shifts (fixed unless `shifts_free`); a segment with
+    any free shift term is never split.
+  - Conv pieces only for segments without any shift (before 2026-10-22 a fixed nonzero shift,
+    `sqrtshift`, `shiftfn` or group shift was dropped on the conv grid line).
+  - Worker fast path with energy shifts (fixed 2026-10-22, installed with the above on
+    2026-10-23): the engine converts a reaction segment's data to c.m. at its SHIFTED
+    energy, so the worker now re-reads data and errors of every shifted segment after each
+    evaluation. Before, a shard whose shift started nonzero fell back to the slow
+    `residual_jacobian` on every call, and a free shift starting at 0 carried a small bias.
+    Elastic data never showed it. Previous files: `rmfit/*.bak-2026-10-22`.
+- Cost on 13C+a (35k points, 330 free, 24 shards): objective 0.6-1.5 s, Jacobian ~20 s,
+  a 60-iteration polish ~9 min, a sign round 2-4 h, a level test ~1.5 h.
+
+**2026-11-07 (retrospective, `R-matrix/agentic/11-7-26_claude/readme`; design `R-matrix/rmfit/DESIGN.md`).** The list
+above is stale: since September rmfit has run 202 campaigns on 13C+a, 10B+a, 11B+a and 12C+a (photon channels, covariances,
+normgroups, Park mode included), so "validated only on 13C+a" no longer holds. What IS still true: every step other than
+`round --rounds N` is chosen by a session by hand; the decisions about the objective (data sets, anchors, systematics,
+window, frozen block, caps) are made in chat, not declared up front; the checks DeBoer makes by eye in the GUI
+(average-vs-narrow structure, norm trends, target-integration grid exploitation, spurious narrow levels) have no automated
+counterpart; density/Doppler/thickness/screening kinds are single-session only; multi-compound-nucleus models are not
+handled by sign rounds / levelscan. The roadmap (spec per campaign, `rmfit audit`, `rmfit review`, `rmfit drive`, a
+benchmark suite) is in DESIGN.md. **Since 2026-11-07 rmfit is under git** (`R-matrix/rmfit/.git`; commit, do not write
+`.bak` files) **and every new campaign is pinned to one engine**: `init` records the imported engine in
+`campaign.json["engine"]`; polish/round/structure/... refuse to open on another engine (`EnginePinMismatch`) unless
+`RMFIT_ALLOW_ENGINE_CHANGE=1`, which is then noted in the readme; `rmfit <dir> engine` shows the pin; the job template
+sets `AZURE2_ROOT` from it and checks the `.so` md5 before Python starts. Campaigns made earlier (no pin) are never
+refused. The shared `~/AZURE2/pyazr` and `~/bin/AZURE2` change only through `~/AZURE2/scripts/install_shared.sh`
+(refuses while a job or process uses the shared build; weekly releases, DeBoer 2026-11-07); pin a frozen clone under
+`~/AZURE2_work/`, never `~/AZURE2`.
+
+## Relocated: SKILL.md section 8, bake() fixed-parameter gotcha
+
+- `bake()` writes the FIXED parameters' current physical values too since 2026-10-24 (worker
+  `transform_all` + `apply_fit(include_fixed=True)`, as `save_fit`).  A fixed parameter is fixed in
+  rwa space: its observed width moves with the level's free amplitudes (Brune's 1 + Σγ²dS/dE,
+  closed channels included).  Before, a fixed width kept the seed file's observed value, so an export
+  failed the 1e-4 check whenever a level mixed fixed and moving amplitudes (13C+a
+  10-22-26_merged_non16o_non1_anc: frozen levels with free ANCs, 14 fixed widths off by up to 13 %,
+  649,551 vs 646,800).  Exports made before that date with such levels are a slightly different model;
+  re-export from the ledger vector.  Test `rmfit/tests/test_bake_fixed_13n.py`.  The engine's own
+  conversion round-trips exactly.  Note "fixed" does not freeze a level's observed widths: to keep a
+  "frozen" level's widths, fix its closed-channel amplitudes too (13C+a `fix_frozen_anc.py`).
+
+## Relocated: SKILL.md section 8, pkill / quota gotcha
+
+- **`pkill -f` / `pgrep -f` patterns are regular expressions, and every reaction name here has a `+`.**
+  `pgrep -f "13C+a/..."` or `pkill -f "bin/AZURE2 11B+a_udr.azr"` matches nothing (`B+` = one or more
+  B), prints nothing, and looks exactly like "no such process".  2026-10-11: a GUI "stopped" that way
+  kept running, its log was deleted under it, and the deleted file grew to 748 GB and filled the group
+  quota (/groups/rdeboer1, 5 TB) -- every job writing there died ("No space left on device", or a log
+  that ends after the module lines).  Rules: find the pid with a fixed-string match
+  (`ps -eo pid,cmd | grep -F "11B+a_udr.azr"`) or escape the plus (`13C\+a`), kill BY PID, confirm with
+  `kill -0 <pid>` failing, and only then remove its log; launch background programs with
+  `< /dev/null` and a size cap (`2>&1 | head -c 200000 > log`).  A `.nfs...` file in a directory is a
+  deleted file still held open -- `ls -la` shows its size; `ls -l /proc/<pid>/fd` finds the holder.
+- **When a whole batch of jobs dies at once, check `df -h /groups/<group>` first** (the group quota,
+  not the 900 TB filesystem `df /groups` may show).  Seven jobs failing in the same minute with
+  truncated logs looked like a broken node; it was the quota.
+
+## Relocated: SKILL.md section 8, Park-mode gotcha
+
+- **Park-mode campaigns (`"use_park": true`, since 2026-10-06).** (1) The J > 0 wall
+  (`sum (J/1e-3)^2` over levels with `J = 1 - sum gamma^2 dS/dE < 0`) is inside the
+  engine's scalar chi2. **Since 2026-10-24 rmfit carries it as residual rows**
+  (`engine.ParkWall`: one row per level, `min(J, 0)/1e-3`, after the penalty/prior rows,
+  counted in `penalty`; Jacobian rows from the worker's `park_jac`), and in Park mode
+  `objective()` always takes the residual path -- the engine's scalar chi2 already holds
+  the wall, so the old plain path counted it once per shard. Test
+  `tests/test_park_wall_13n.py`. Before that date the LM polish did not see the wall at
+  all; check `m.park_norms(x)` on any Park result from an older rmfit. On the 13C+a merged
+  model 25 broad levels/poles sit at J 0.19-0.43, and a x1.3 amplitude step puts 23 of them
+  past the wall (13C+a/10-24-26_merged_park/readme).
+  (2) `--sav` seeds are applied by parameter NAME with no basis conversion: a Brune
+  campaign's `.sav` seeded into a Park campaign (or back) gives amplitudes in the wrong
+  basis. Convert first: a CLI mode-1 run in the target mode with that `.sav` as the
+  external file writes a converted, tagged `output/param.par`; seed from that. `bake()`
+  writes the `#parametrization` tag (0/1/2) so the CLI converts its exports correctly.
+  (3) The `theta2_cap` policy bounds the fit amplitudes: in Park mode that is the
+  observed theta^2 (what the GUI shows), in Brune mode the formal one -- the same
+  number means a tighter bound in Park mode for broad levels.
+

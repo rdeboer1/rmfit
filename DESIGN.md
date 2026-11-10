@@ -127,9 +127,10 @@ decisions stay with the evaluator; the spec records them.
   placeholder errors; two norm priors from the standing 10 % rule; theta2 cap 1.5 for the s-wave state), pre-build audit fixed the
   inherited normError fraction-vs-percent error on all 111 segments; one job (1718547, 8 slots, <= 20 node-hours) runs the build phase
   and the loop with no chat.
-- 3.3 PART DONE 2026-11-10: skill section 9 (1,865 lines, 117 entries) -> `rmfit-campaign/HISTORY.md` verbatim with a dated index in
-  SKILL.md (803 lines now).  Still open: sections 2-8 become one-line rules
-  pointing at the enforcing function; section 7 rewritten from benchmark results.
+- 3.3 DONE 2026-11-10: skill section 9 (1,865 lines, 117 entries) -> `rmfit-campaign/HISTORY.md` verbatim with a dated index in
+  SKILL.md; "First fits" is the drive's build-state list (one line per item, the enforcing state named); section 7 rewritten from
+  `bench/results.tsv` and the L3 demos (table + what it says + what is still a limit); section 8's long gotchas compressed to
+  one-liners; every displaced paragraph is in HISTORY.md under "Relocated from SKILL.md" (nothing deleted).  SKILL.md 721 lines.
 - **Recovery yardstick (DeBoer 2026-11-09, after the 7Be attempt-4 post-mortem):** a drive run from a degraded start "recovers" the reference when (1) its data chi2 is <= the reference's, (2) its penalized objective is within 0.5 % of the reference's, (3) `rmfit review` raises no flag the reference does not have, and (4) zero wait decisions were asked.  The old "objective within 1e-4" is kept as a secondary column (`exact`): on 7Be it selects one of at least two near-degenerate background-pole configurations (bench readme 2026-11-09 06:05/06:15), which is not a property of the loop.
 ### Phase 4 -- UQ as the standard last stage (~5 agent-days)
 `rmfit uq`: export -> Park if saturated / two-channel levels -> centred priors from the spec -> emcee/NUTS ->
@@ -140,6 +141,14 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
 (density, Doppler, thickness, screening) in shards; `structure add` exit status on a failed scan.
 
 ## Progress log
+
+- 2026-11-10 05:01  Phase 3.3 finished (skill 804 -> 721 lines; HISTORY.md 2,052 lines): section 7 now reads from the bench
+  table instead of the September limits; "First fits" names the drive state behind each of DeBoer's six items and records what the
+  re-evaluation found (1, 2, 5, 6 ran on the demos; 3 and 4 report only).  Phase 3.1 tier 2: `bench/cases/10Bp_tier2.json`
+  (`10B+p/11-10-26_bench_tier2/`): round 8 variant B (DeBoer's final, 5,716.4 on the pinned engine, +0.04 % vs the archived
+  5,713.9) from variant A (the 2022 signs, 6,215.5): five channel signs and four magnitudes apart, 43 free + 12 norms, one
+  evaluation 0.11 s -- far below the roadmap's "a day"; machine audit 0 HIGH; job 1719105.  The "no extra levels" recall run
+  (the b/d/i alternatives as candidates, adopt_level off) is the follow-up.
 
 - 2026-11-10 06:10  13N queue test job 1719011 (1adb0af): all drive 13N checks passed in 73 min on 3 slots, three legs (AUDIT
   gate -> 'skip' answered by the harness, REPRODUCE mismatch accepted, then DONE).  So the polish gate, the photon caps and the

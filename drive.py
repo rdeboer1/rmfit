@@ -450,6 +450,17 @@ class Driver:
         from .audit import audit_model, write_audit
         cfg = self.campaign.cfg if self.campaign is not None else None
         fs = audit_model(self.model, campaign_dir=self.dir, campaign_cfg=cfg, run_target_energies=True)
+        # 2026-11-09 (12C+p L3 demo): a data set the spec EXCLUDES is not fitted, so its data findings cannot block the build;
+        # they are kept in AUDIT.md at INFO with the reason (SCALE_ANCHOR switches the set off after this state)
+        excluded = [ds["file"] for ds in self.spec.data_sets if ds.get("file") and ds.get("role") in ("excluded", "excluded_in_window")]
+        if excluded and self.campaign is None:
+            fs2 = []
+            for f in fs:
+                hit = next((x for x in excluded if x in f.message), None)
+                if hit and f.severity in ("HIGH", "MEDIUM") and f.code.startswith(("data-", "norm-")):
+                    f = Finding("INFO", f.code, f.message + f" [data set excluded by spec.json: not fitted]", f.evidence)
+                fs2.append(f)
+            fs = fs2
         counts = write_audit(fs, os.path.join(self.dir, "AUDIT.md"), self.model)
         highs = [f for f in fs if f.severity == "HIGH"]
         self._finding_rows("AUDIT.md", [f.line() for f in sorted(fs, key=lambda f: {"HIGH": 0, "MEDIUM": 1}.get(f.severity, 2))][:30])

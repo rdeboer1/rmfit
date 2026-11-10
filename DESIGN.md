@@ -162,6 +162,12 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
   scans, one fixed norm in the 11B+a jpi control); 8 differ by design, a script-built base seeded from an older .sav (10B+a
   s4/s5 level adds, 13C+a 10-12-26_replace32m_52p, 12C+a 9-8-26 +8.2 %, and the tier-2 bench's own void run); 33 pairs with
   a deleted seed file.  No campaign so far evaluated a model other than the one its readme describes.
+- 2026-11-10 17:45  REGRESSION fixed: 896f365 had replaced the `init --nshards` argument with `--sav-fixed` instead of adding
+  it, so every `rmfit init` from the shared checkout failed between 10:28 and 17:45 ("unrecognized arguments: --nshards",
+  or AttributeError without it); found by the 13C(a,n) rate session (13C+a job 1723969, which ran on a private copy of
+  07780df instead).  Restored, verified by an `init --nshards 3` on the 13N fixture (baseline 336,673.647, campaign.json
+  nshards 3).  Lesson for the fixture rule: the 13N test of 896f365 called `Campaign.init` directly, not the CLI; a CLI
+  change needs a CLI invocation on the fixture.
 - 2026-11-10 08:50  Tier-2 bench job 1719105 VOID, `init --sav` fixed in 3e57614.  The drive ran to DONE (1.39 node-hours, zero wait
   decisions, 5,685 against a polished reference of 6,162) but on the wrong model: `_seed_vector` took only the FREE parameters from
   the .sav and the sharded evaluator took the fixed ones from the .azr, while AZURE2's parameter-file reader (and pyazr's

@@ -61,6 +61,7 @@ def main(argv=None):
     p = sub.add_parser("init")
     p.add_argument("--base", required=True)
     p.add_argument("--sav")
+    p.add_argument("--nshards", type=int, default=24)
     p.add_argument("--sav-fixed", choices=("ignore", "apply"), default="ignore",
                    help="when the .sav's FIXED level parameters differ from the .azr's (2026-11-10): ignore = the .azr's are used and the "
                         ".sav seeds the free values only (default, a script-built base); apply = the pair is a CLI fit whose param.sav "

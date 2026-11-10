@@ -140,6 +140,18 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
 
 ## Progress log
 
+- 2026-11-10 02:00  Seeding verified, next gap found: 13N test job 1718747 passed its new SEED_CHANNELS check (13 free zero channels
+  of the fixture given placeholders and seeded) and every other check but POPULATION, which was "deferred to the next cycle" because
+  the polish of the now-larger model did not converge in 2 x 30 evaluations -- in a cycles_max 1 run there is no next cycle.  L3
+  demo attempt 3 (job 1718748, 162 free parameters after INIT, 7.59 M -> 101 k in cycle 1) showed the same at scale: TIGHTEN ran its
+  6 x 300 evaluations still gaining 10 % per round, and SIGN and POPULATION were deferred in cycle 1 and again in cycle 2, i.e. the
+  candidate would have had no sign round at all.  Drive change (bc40f84, `_polish_gate`): the deferral happens at most once per
+  campaign and never in the last cycle; after that the stages run on the unconverged incumbent and the readme says the polish
+  budget is too small for the model.  Dry test scenario 5 covers it.  Attempt 3 stopped cleanly (STOP_DRIVE) in cycle 2; attempt 4
+  (`12C+p/11-10-26_L3_demo4/`, same base and spec, job 1718885) and the 13N test (job 1718884) queued on bc40f84.  Also seen in
+  attempt 3's cycle-1 export: 5/2- background photon widths of 1e12 eV -- the policy caps particle theta2, not photon widths; the
+  REVIEW of attempt 4 will show whether it flags them (otherwise a bounds gap to add).
+
 - 2026-11-10 01:10  L3 demo attempt 2 (job 1718582): DONE in 1.06 node-hours, zero wait decisions, REVIEW.md written -- the process
   works end to end on a from-scratch model -- but the candidate is poor (223,352, chi2/N 55.5) because two drive states did nothing on
   a from-scratch base: SEED_CHANNELS searched the engine's free list for zero widths, and an exact zero is never a parameter (Golden

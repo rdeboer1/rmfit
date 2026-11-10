@@ -23,7 +23,10 @@
    "start": {
     "azr": "start_claude/12C+p.azr"
    },
-   "note": "the roadmap's 'did the sign rounds find what the human found' case (DESIGN.md Phase 3.1)"
+   "note": "the roadmap's 'did the sign rounds find what the human found' case (DESIGN.md Phase 3.1); audit-high (56 normError-as-fraction findings of the archived inputs, shared by reference and start) answered 'accepted' by the supervisor before the loop",
+   "pre_answered": [
+    "audit-high"
+   ]
   }
  }
 }

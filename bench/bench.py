@@ -67,15 +67,21 @@ def incumbent_split(c) -> dict:
     return dict(cid=cid, x=x, objective=float(obj), keys=keys, data_chi2=data, penalty=float(obj) - data, table=tab)
 
 
-def decisions_summary(run_dir: str) -> dict:
+def decisions_summary(run_dir: str, pre_answered=()) -> dict:
+    """Wait decisions and human answers of a run.  ``pre_answered`` (case file, per run): decision slugs that are part of the
+    case definition rather than of the fit -- e.g. `audit-high` on a reference whose archived inputs carry known findings
+    (12C+p tier 1: 56 normError-as-fraction segments shared by reference and start); the supervisor answers them once and
+    the yardstick does not count them.  They are listed in the row's note."""
     from rmfit.decisions import DecisionQueue as Decisions
     path = os.path.join(run_dir, "DECISIONS.md")
     if not os.path.exists(path):
-        return dict(wait=0, human=0, n=0)
+        return dict(wait=0, human=0, n=0, pre_answered=[])
     ds = Decisions(path).all()
+    pre = [d for d in ds if any(d["slug"].startswith(x) for x in pre_answered)]
+    ds = [d for d in ds if d not in pre]
     wait = sum(1 for d in ds if (d.get("default_if_unanswered") or "wait").strip() == "wait")
     human = sum(1 for d in ds if d.get("answer") and (d.get("answered_by") or "").strip() not in ("", "default", "rmfit drive", "test"))
-    return dict(wait=wait, human=human, n=len(ds))
+    return dict(wait=wait, human=human, n=len(ds), pre_answered=[f"{d.id} {d['slug']}" for d in pre])
 
 
 def score_run(case: dict, run_name: str, review_missing: bool = False) -> dict:
@@ -102,8 +108,9 @@ def score_run(case: dict, run_name: str, review_missing: bool = False) -> dict:
             row["sign_distance"] = f"{int(dist)} (key sets differ)"
     except Exception as err:  # noqa: BLE001
         row["sign_distance"] = f"n/a ({err})"
-    dec = decisions_summary(run_dir)
+    dec = decisions_summary(run_dir, tuple(run.get("pre_answered") or ()))
     row["wait_decisions"], row["human_turns"] = dec["wait"], dec["human"]
+    pre_note = (" pre-answered by the case definition: " + ", ".join(dec["pre_answered"])) if dec.get("pre_answered") else ""
     st_path = os.path.join(run_dir, "drive_state.json")
     st = json.load(open(st_path)) if os.path.exists(st_path) else {}
     row["status"] = f"{st.get('status', '?')}@{st.get('state', '?')} cycle {st.get('cycle', '?')}" if st else "no drive_state.json"
@@ -146,7 +153,7 @@ def score_run(case: dict, run_name: str, review_missing: bool = False) -> dict:
         # (13N tier 0, 2026-11-09: the fixture's .azr holds start values, its fit lives in param.par): the row is not a recovery score
         row["verdict"] = "REFERENCE-SUSPECT"
         stale.append(f"run beats the reference by {-100 * rel:.1f} %: the reference is not a converged fit; rebuild it")
-    row["note"] = "; ".join(t for t in (run.get("note", ""), row.get("note", ""), "; ".join(stale[1:] if row.get("note") else stale)) if t)
+    row["note"] = "; ".join(t for t in (run.get("note", ""), row.get("note", ""), "; ".join(stale[1:] if row.get("note") else stale), pre_note.strip()) if t)
     return row
 
 

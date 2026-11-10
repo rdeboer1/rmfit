@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Benchmark suite (DESIGN.md Phase 3.1).
 
-A case (``cases/<name>.json``) names a REFERENCE campaign (a finished, human-judged fit re-measured on the pinned engine) and
+A case (``cases/<name>.json``) names a REFERENCE campaign (a finished, human-judged fit re-measured on the pinned engine; with
+``reference.polish_rounds`` > 0 the job first polishes it to convergence, for a reference that is only a start file) and
 RUNS (campaigns the drive produced from a degraded start of that reference).  ``score`` reads the ledgers only (no engine):
 
     objective          incumbent objective of the run and of the reference
@@ -211,7 +212,7 @@ if (! -e {refdir}/campaign.json) then
     echo "`date` reference init FAILED"; exit 1
   endif
 endif
-if (! -e {rundir}/campaign.json) then
+{polish}if (! -e {rundir}/campaign.json) then
   echo "`date` perturb"
   $RM {refdir} perturb --out {rundir} --flips {flips} --seed {seed} --jitter {jitter} --ekick {ekick} --polish-nfev {pnfev}
   if ($status != 0) then
@@ -240,6 +241,17 @@ def write_job(case: dict, run_name: str) -> str:
     spec = run.get("spec") or ""
     if not spec:
         raise SystemExit(f"run {run_name} has no 'spec' (path of the drive spec, relative to the case's base_dir)")
+    polish = ""
+    if int(ref.get("polish_rounds") or 0) > 0:
+        # a reference that is not a converged fit (a start file, a regression fixture) is polished to convergence first;
+        # the marker file keeps a resubmitted job from polishing it again
+        polish = (f"if (! -e {ref['campaign']}/.bench_polished) then\n"
+                  f"  echo \"`date` reference polish ({ref['polish_rounds']} rounds of {ref.get('polish_nfev', 300)})\"\n"
+                  f"  foreach i (`seq 1 {int(ref['polish_rounds'])}`)\n"
+                  f"    $RM {ref['campaign']} polish --nfev {int(ref.get('polish_nfev') or 300)} --tighten\n"
+                  f"  end\n"
+                  f"  touch {ref['campaign']}/.bench_polished\n"
+                  f"endif\n")
     searchpatch = ""
     if run.get("search"):
         searchpatch = (f"python3 -c \"import json; c=json.load(open('{run['dir']}/campaign.json')); c['search']=json.load(open('{run['search']}')); "
@@ -252,7 +264,7 @@ def write_job(case: dict, run_name: str) -> str:
                       pnfev=start["polish_nfev"], spec=spec, casefile=case["_path"], azure2_root=ref.get("azure2_root") or os.path.expanduser("~/AZURE2"),
                       rmatrix=rmatrix, base=base, savarg=(f"--sav {ref['sav']}" if ref.get("sav") else ""), nshards=int(ref.get("nshards") or 8),
                       flagsarg=jarg("--flags", "flags"), policyarg=jarg("--policy", "policy"), searcharg=jarg("--search", "search"),
-                      rundir=run["dir"], searchpatch=searchpatch)
+                      rundir=run["dir"], searchpatch=searchpatch, polish=polish)
     path = os.path.join(base, f"run_crc_bench_{run_name}")
     with open(path, "w") as fh:
         fh.write(text)

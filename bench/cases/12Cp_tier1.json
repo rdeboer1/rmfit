@@ -1,0 +1,29 @@
+{
+ "name": "12Cp_tier1",
+ "tier": 1,
+ "reaction": "12C+p (13N), 8-9-26_claude_learns_12C+p",
+ "base_dir": "/groups/rdeboer1/user/rdeboer1/R-matrix/12C+p/11-10-26_bench_tier1",
+ "reference": {
+  "campaign": "ref",
+  "azr": "ref/12C+p.azr",
+  "nshards": 8,
+  "flags": "flags.json",
+  "policy": "policy.json",
+  "search": "search.json",
+  "polish_rounds": 4,
+  "polish_nfev": 300,
+  "note": "DeBoer's background-gamma branch of the 8-9-26 exercise (12C+p_after_pg_tests_refit.azr: archived 12,067.1 with 123 parameters; 12,044.07 = data 12,022.82 + penalties 21.25 on the engine of 2026-11-09, brune / long wavelength / externals ignored), polished 4 x 300 to convergence by the bench job"
+ },
+ "runs": {
+  "claude26k": {
+   "dir": "claude26k",
+   "label": "start = the reference model with Claude's 26,368 level values (ANC and 1/2+ E1 signs flipped, background gammas 130x smaller); drive: polish 300 x 6, sign rounds, population 4 restarts x 2 passes, <= 4 cycles / 6 h on 8 slots",
+   "spec": "spec_recovery.json",
+   "slots": 8,
+   "start": {
+    "azr": "start_claude/12C+p.azr"
+   },
+   "note": "the roadmap's 'did the sign rounds find what the human found' case (DESIGN.md Phase 3.1)"
+  }
+ }
+}

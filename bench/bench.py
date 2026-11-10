@@ -213,12 +213,7 @@ if (! -e {refdir}/campaign.json) then
   endif
 endif
 {polish}if (! -e {rundir}/campaign.json) then
-  echo "`date` perturb"
-  $RM {refdir} perturb --out {rundir} --flips {flips} --seed {seed} --jitter {jitter} --ekick {ekick} --polish-nfev {pnfev}
-  if ($status != 0) then
-    echo "`date` perturb FAILED"; exit 1
-  endif
-endif
+{startblock}endif
 if (! -e {rundir}/spec.json) cp {spec} {rundir}/spec.json
 {searchpatch}
 echo "`date` drive"
@@ -252,6 +247,19 @@ def write_job(case: dict, run_name: str) -> str:
                   f"  end\n"
                   f"  touch {ref['campaign']}/.bench_polished\n"
                   f"endif\n")
+    if start.get("azr"):
+        # a degraded start that is a FILE (the archived state before the human's key decision), not a random perturbation
+        # of the reference: the run campaign is initialised on it with the reference's engine settings
+        startblock = (f"  echo \"`date` start from {start['azr']}\"\n"
+                      f"  $RM {run['dir']} init --base {start['azr']} {('--sav ' + start['sav']) if start.get('sav') else ''} "
+                      f"--nshards {int(ref.get('nshards') or 8)} {jarg('--flags', 'flags')} {jarg('--policy', 'policy')} {jarg('--search', 'search')} "
+                      f"--note \"bench {case['name']} start {start['azr']}\"\n"
+                      f"  if ($status != 0) then\n    echo \"`date` start init FAILED\"; exit 1\n  endif\n")
+    else:
+        startblock = (f"  echo \"`date` perturb\"\n"
+                      f"  $RM {ref['campaign']} perturb --out {run['dir']} --flips {start['flips']} --seed {start['seed']} --jitter {start['jitter']} "
+                      f"--ekick {start['ekick']} --polish-nfev {start['polish_nfev']}\n"
+                      f"  if ($status != 0) then\n    echo \"`date` perturb FAILED\"; exit 1\n  endif\n")
     searchpatch = ""
     if run.get("search"):
         searchpatch = (f"python3 -c \"import json; c=json.load(open('{run['dir']}/campaign.json')); c['search']=json.load(open('{run['search']}')); "
@@ -264,7 +272,7 @@ def write_job(case: dict, run_name: str) -> str:
                       pnfev=start["polish_nfev"], spec=spec, casefile=case["_path"], azure2_root=ref.get("azure2_root") or os.path.expanduser("~/AZURE2"),
                       rmatrix=rmatrix, base=base, savarg=(f"--sav {ref['sav']}" if ref.get("sav") else ""), nshards=int(ref.get("nshards") or 8),
                       flagsarg=jarg("--flags", "flags"), policyarg=jarg("--policy", "policy"), searcharg=jarg("--search", "search"),
-                      rundir=run["dir"], searchpatch=searchpatch, polish=polish)
+                      rundir=run["dir"], searchpatch=searchpatch, polish=polish, startblock=startblock)
     path = os.path.join(base, f"run_crc_bench_{run_name}")
     with open(path, "w") as fh:
         fh.write(text)

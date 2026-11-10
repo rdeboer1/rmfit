@@ -114,7 +114,8 @@
   "change_norm_prior": false,
   "extend_window": false,
   "add_pairs_on_window_extension": true,
-  "shifts_free": true
+  "shifts_free": true,
+  "skip_subagent_audits": false
  },
  "stop_rules": {
   "polish_gain_rel_min": 0.0005,

@@ -473,7 +473,71 @@ class Driver:
             if ans.lower().startswith("fixed"):
                 return "stay", "re-running the audit after 'fixed'"
             self.note(f"AUDIT.md HIGH findings accepted by decision ({', '.join(f.code for f in highs)})")
+        if self.campaign is None and not self.spec.pre_authorized.get("skip_subagent_audits", False):
+            r = self._subagent_audit_gate(fs)
+            if r is not None:
+                return r
         return "next", ", ".join(f"{k} {v}" for k, v in counts.items())
+
+    def _subagent_audit_gate(self, machine_findings):
+        """The three idle-time reviews (skill section 3b: input, data, literature) BEFORE the first engine state.  12C+p L3
+        demo 1 (2026-11-09): the lab-frame error the data audit found had been fitted for an hour, because the audits ran
+        in the session's idle time after the job was submitted.  The drive cannot start a subagent: it writes the prompts
+        (audits/<kind>/PROMPT.md, rmfit.audit_subagent) and waits for the supervising session to run them, verify every
+        FINDINGS.md row (`rmfit <dir> audit --status KIND N confirmed|rejected|decision`) and answer 'done'; 'skip' builds
+        without them (recorded in the readme; `pre_authorized.skip_subagent_audits` for fixtures and benchmarks).  A row
+        left in status 'decision' is the evaluator's: one wait decision each, the answer recorded on the row."""
+        from . import audit_subagent as asub
+        written = []
+        for kind in asub.KINDS:
+            if not os.path.exists(os.path.join(self.dir, "audits", kind, "PROMPT.md")):
+                try:
+                    asub.write_subagent_audit(kind, self.model, self.dir, self.spec, machine_findings)
+                    written.append(kind)
+                except Exception as err:
+                    self.log(f"audit prompt {kind} not written: {err}")
+        if written:
+            self.note(f"AUDIT: subagent prompts written under audits/ ({', '.join(written)}); the drive waits for their verified FINDINGS.md")
+        summ = asub.findings_summary(self.dir)
+        nrows = sum(x["n"] for x in summ)
+        cand = sum(len(x["unverified"]) for x in summ)
+        ans = self.ask("audit-subagents", f"three audit prompts under audits/{{input,data,literature}}/PROMPT.md: hand each to a background "
+                       f"subagent (a cheaper model), verify every FINDINGS.md row against the files (`rmfit {self.dir} audit --status KIND N "
+                       f"confirmed|rejected|decision`), then answer 'done' ({nrows} rows, {cand} unverified now); 'skip' builds without them.",
+                       ("done", "skip"), default="wait", evidence="audits/*/FINDINGS.md")
+        if ans is None:
+            return "stay", f"subagent audits pending ({nrows} rows, {cand} unverified) -> waiting"
+        if ans.lower().startswith("skip"):
+            self.note("AUDIT: subagent audits skipped by decision")
+            return None
+        summ = asub.findings_summary(self.dir)
+        cand = [(x["kind"], r["n"]) for x in summ for r in x["unverified"]]
+        if cand:
+            self.note(f"AUDIT: 'done' answered with {len(cand)} FINDINGS.md row(s) still 'candidate': {cand[:6]}")
+            self.ask("audit-subagents", f"'done' was answered but {len(cand)} FINDINGS.md row(s) are still 'candidate' ({cand[:6]}): "
+                     f"verify them (`rmfit {self.dir} audit --status KIND N ...`) and answer 'done' again, or 'skip'.",
+                     ("done", "skip"), default="wait", evidence="audits/*/FINDINGS.md")
+            return "stay", f"{len(cand)} audit row(s) unverified after 'done' -> waiting"
+        pending, rows_out = [], []
+        for x in summ:
+            for r in asub.parse_findings(x["path"]):
+                if r["status"] == "decision":
+                    a = self.ask(f"audit-decision-{x['kind']}-{r['n']}", f"{x['kind']} audit finding {r['n']} ({r['severity']}) is the evaluator's: "
+                                 f"{r['where']}: {r['what']} -- {r['why']}.  Record the treatment in spec.json (standing_decisions / data_sets) and "
+                                 f"answer with it.", ("decided",), default="wait", evidence=x["path"])
+                    if a is None:
+                        pending.append(f"{x['kind']} {r['n']}")
+                    else:
+                        asub.set_status(x["path"], r["n"], "confirmed", f"evaluator: {a[:80]}")
+                        self.note(f"audit {x['kind']} finding {r['n']} decided by the evaluator: {a}")
+                elif r["status"] == "confirmed":
+                    rows_out.append(f"{x['kind']} {r['n']} {r['severity']} confirmed: {r['where']}: {r['what'][:100]}")
+        if pending:
+            return "stay", f"{len(pending)} audit finding(s) await the evaluator ({', '.join(pending[:5])}) -> waiting"
+        self._finding_rows("audits/*/FINDINGS.md", rows_out[:30])
+        self.note(f"AUDIT: subagent audits verified ({nrows} rows: {sum(x['by_status'].get('confirmed', 0) for x in summ)} confirmed, "
+                  f"{sum(x['by_status'].get('rejected', 0) for x in summ)} rejected)")
+        return None
 
     def _s_reproduce(self):
         """Mode-1 reproduction before building (skill section 2 item 2): the base model + .sav must give the archived
@@ -1211,7 +1275,7 @@ class Driver:
 
 PLAN_TEXT = {
     "PIN_CHECK": "imported engine vs the campaign pin / spec.engine; writes run_crc_drive",
-    "AUDIT": "rmfit.audit -> AUDIT.md; HIGH -> decision audit-high (wait)",
+    "AUDIT": "rmfit.audit -> AUDIT.md; HIGH -> decision audit-high (wait); then the three subagent audit prompts (audits/<kind>/PROMPT.md) -> decision audit-subagents (wait) unless pre_authorized.skip_subagent_audits",
     "REPRODUCE": "base model + .sav vs the archived chiSquared.out (plain chi2); mismatch -> decision (wait)",
     "SPEC_CHECK": "spec.json vs the model -> SPEC_CHECK.md; HIGH -> decision spec-high (wait)",
     "SCALE_ANCHOR": "spec data-set roles applied to <stem>_drive.azr (anchor fixed, free with prior, excluded off)",

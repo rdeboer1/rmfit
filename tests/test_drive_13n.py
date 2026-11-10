@@ -56,8 +56,8 @@ def main():
                                     source="test", hypothesis="fixture: a level at 3.0 MeV, J^pi scanned")]),
               open(os.path.join(tmp, "candidates.json"), "w"), indent=1)
     t0 = time.time()
-    answers = {"reproduce-mismatch": "accept", "audit-high": "accepted", "spec-high": "accepted", "review-high": "continue",
-               "adopt-level": "reject"}
+    answers = {"reproduce-mismatch": "accept", "audit-high": "accepted", "audit-subagents": "skip", "spec-high": "accepted",
+               "review-high": "continue", "adopt-level": "reject"}
     status, legs = None, 0
     while legs < 12:
         legs += 1

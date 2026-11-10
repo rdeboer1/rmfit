@@ -163,6 +163,14 @@ def main():
     check("AUDIT.md written", os.path.exists(os.path.join(tmp, "AUDIT.md")))
     audit_rec = [h for h in d.state["history"] if h["state"] == "AUDIT"][-1]
     check("AUDIT advanced or queued a decision", audit_rec["result"] in ("next", "stay"), audit_rec["note"])
+    # 2026-11-10: the subagent audit gate -- prompts written, a wait decision queued, 'skip' lets the build go on
+    check("AUDIT wrote the three subagent prompts", all(os.path.exists(os.path.join(tmp, "audits", k, "PROMPT.md")) for k in ("input", "data", "literature")))
+    gate = [x for x in d.decisions.pending() if x["slug"] == "audit-subagents"]
+    check("AUDIT waits on decision audit-subagents", bool(gate) and audit_rec["result"] == "stay", str([x["slug"] for x in d.decisions.pending()]))
+    if gate:
+        d.decisions.answer(gate[0].id, "skip", by="test")
+        d.state["state"] = "AUDIT"; d.step("AUDIT")
+        check("AUDIT advances once 'skip' is answered", d.state["history"][-1]["result"] == "next", d.state["history"][-1]["note"])
     check("SPEC_CHECK.md written", os.path.exists(os.path.join(tmp, "SPEC_CHECK.md")))
     drv = os.path.join(tmp, "13N_drive.azr")
     check("SCALE_ANCHOR wrote the working copy", os.path.exists(drv) and d.state.get("model") == drv, str(d.state.get("model")))

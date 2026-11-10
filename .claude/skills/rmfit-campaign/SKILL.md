@@ -279,8 +279,11 @@ spec does not answer becomes a `DECISIONS.md` entry.
     touch <dir>/STOP_DRIVE                       # stop cleanly after the current state
 
 States: build phase `PIN_CHECK AUDIT REPRODUCE SPEC_CHECK SCALE_ANCHOR SEED_CHANNELS PAIR_COMPLETENESS LADDER CANDIDATES
-INIT RECALL` (section 2 prerequisites and "First fits": the archived chiSquared.out must reproduce, the spec's data-set roles are
-applied to a working copy `<stem>_drive.azr`, free widths at exactly zero are seeded at `model.seed_frac` (0.01) gamma_W,
+INIT RECALL` (section 2 prerequisites and "First fits": AUDIT runs the machine checks and then, on a new campaign, writes the
+three subagent audit prompts (section 3b) and WAITS for their verified FINDINGS.md -- decision `audit-subagents`, 'done' or
+'skip', `pre_authorized.skip_subagent_audits` for fixtures; rows left 'decision' become one wait decision each (2026-11-10:
+12C+p demo 1 had fitted a lab-frame error for an hour before the idle-time data audit found it); the archived
+chiSquared.out must reproduce, the spec's data-set roles are applied to a working copy `<stem>_drive.azr`, free widths at exactly zero are seeded at `model.seed_frac` (0.01) gamma_W,
 ENSDF states of the residual nuclei that open below the window top without a pair are listed, `candidates.json` is built
 from ENSDF broad-first when absent -- every candidate needs a `hypothesis`; RECALL (2026-11-09, `structure.recall_levels`)
 removes the broadest known levels one at a time and asks the level-add procedure to find them again with no J^pi given --

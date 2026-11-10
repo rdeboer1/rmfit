@@ -613,9 +613,10 @@ class Driver:
                     placed.append(f"{lv.jpi}@{float(lv.energy):.4f} p{ch.pair} L{ch.L} S{ch.S}" + (" (photon)" if ch.is_photon else ""))
         seed_src = self.model
         if placed:
-            seed_src = os.path.join(vdir, self._stem() + "_placeholders.azr")
-            mdl0.set_output_dir(os.path.join(vdir, "output_placeholders"))
-            os.makedirs(os.path.join(vdir, "output_placeholders"), exist_ok=True)
+            # next to the base, not in variants/: the model's relative data paths resolve from its own directory, and
+            # single_variant links the data directories of the model it is given (demo 3: "Could Not Fill Segment #1")
+            seed_src = os.path.join(os.path.dirname(self.model), self._stem() + "_placeholders.azr")
+            mdl0.set_output_dir(os.path.join(self.dir, "output"))
             mdl0.write(seed_src)
             self.log(f"  {len(placed)} free channels at exactly zero given a placeholder so the engine lists them: " + ", ".join(placed[:12]))
         src = single_variant(seed_src, "drive_seed", vdir)

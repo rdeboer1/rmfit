@@ -277,13 +277,17 @@ def main():
         rd = [x for x in d6.decisions.pending() if x["slug"] == "review-high"]
         check("review-high decision pending", bool(rd))
         d6.decisions.answer(rd[0].id, "continue", by="test")
-        stub.review_high = False
+        # the flag stays (review_high True): answered 'continue' once, it must not be asked again in cycle 2 (2026-11-10)
         d7 = dv.Driver(tmp, local=True)
         d7._campaign = stub
         status = d7.run()
         hist2 = [(h["state"], h["result"]) for h in d7.state["history"]]
         print("      after answer:", status, [f"{s}:{r}" for s, r in hist2[-12:]])
         check("EXPORT ran", any(c[0] == "export" for c in stub.calls))
+        rhs = [x for x in d7.decisions.all() if x["slug"] == "review-high"]
+        rv7 = [h["note"] for h in d7.state["history"] if h["state"] == "REVIEW" and h["cycle"] >= 2]
+        check("REVIEW: a flag answered 'continue' is not asked again in cycle 2", len(rhs) == 1 and status != "WAITING"
+              and any("already answered 'continue'" in n for n in rv7), f"{len(rhs)} review-high decisions, {status}, {rv7}")
         adds = [c for c in stub.calls if c[0] == "add"]
         scans = [c for c in stub.calls if c[0] == "levelscan"]
         check("cycle 2: broad queue exhausted -> STRUCTURE_ADD went to LEVELSCAN once", len(scans) == 1 and scans[0][1] == 2

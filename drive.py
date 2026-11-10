@@ -1259,14 +1259,20 @@ class Driver:
         highs = [f for f in r["findings"] if f.severity == "HIGH"]
         counts = r["counts"]
         note = ", ".join(f"{k} {v}" for k, v in counts.items())
+        key = lambda f: (f.code, f.message.split(":")[0].strip())
         if highs:
             inherited = self._baseline_review_flags()
-            old = [f for f in highs if (f.code, f.message.split(":")[0].strip()) in inherited]
-            new = [f for f in highs if f not in old]
+            old = [f for f in highs if key(f) in inherited]
             if old:
                 note += f"; {len(old)} HIGH inherited from the base model (the evaluator's, not waited on): " + "; ".join(
-                    f"{f.code}: {f.message.split(':')[0].strip()}" for f in old[:3])
-            highs = new
+                    f"{f.code}: {key(f)[1]}" for f in old[:3])
+            # a flag the evaluator already answered 'continue' is not asked again in a later cycle (10B+p tier-2 bench
+            # 2026-11-10: the same 5/2+ pole flag was queued in cycles 1 and 2)
+            cont = {tuple(k) for k in self.state.get("review_continued", [])}
+            seen = [f for f in highs if f not in old and key(f) in cont]
+            if seen:
+                note += f"; {len(seen)} HIGH already answered 'continue' (not asked again): " + "; ".join(f"{f.code}: {key(f)[1]}" for f in seen[:3])
+            highs = [f for f in highs if f not in old and f not in seen]
         if highs:
             ans = self.ask("review-high", f"REVIEW.md has {len(highs)} new HIGH flag(s): " + "; ".join(f"{f.code}: {f.message[:80]}" for f in highs[:3])
                            + ". Look at figures/review_*.png; 'continue' to export as is, 'stop' to intervene.", ("continue", "stop"),
@@ -1275,6 +1281,8 @@ class Driver:
                 return "stay", f"{len(highs)} new HIGH review flags -> waiting"
             if ans.lower().startswith("stop"):
                 raise DriveStop("STOP", "review HIGH flags: evaluator asked to stop")
+            self.state["review_continued"] = sorted({tuple(k) for k in self.state.get("review_continued", [])} | {key(f) for f in highs})
+            self.save()
         return "next", note
 
     def _s_export(self):

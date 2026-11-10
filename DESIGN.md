@@ -156,9 +156,12 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
   sav_fixed_audit/`): the archive uses BOTH readings -- a CLI fit's param.sav holds the fixed values the fit ran with (10B+p),
   a script-built base means the .azr and seeds free values from a stale .sav (10B+a s4/s5, 125-237 fixed values apart) -- so
   the default stays the .azr's fixed values (the behaviour since the first campaign) with a WARNING giving the objective both
-  ways, and `--sav-fixed apply` (bench case key `sav_fixed`) takes the CLI's reading.  Audit so far: 69 pairs consistent, ~45
-  differ at the 1e-4 level with the objective unchanged (bake-fixed drift before 10-24), 5 script-built 10B+a bases and the
-  September 12C+a campaign differ by design, 21 pairs with a deleted seed file.
+  ways, and `--sav-fixed apply` (bench case key `sav_fixed`) takes the CLI's reading.  Audit at 15:05 (246 of 498 campaigns,
+  job 1719879 still running through the 13C+a merged campaigns at ~700 s each): 69 pairs consistent; 86 differ by a few
+  bake-fixed values at the 1e-4 level with the objective unchanged or moved < 0.2 % (13C+a seeds before 10-24, the 11B+a HE
+  scans, one fixed norm in the 11B+a jpi control); 8 differ by design, a script-built base seeded from an older .sav (10B+a
+  s4/s5 level adds, 13C+a 10-12-26_replace32m_52p, 12C+a 9-8-26 +8.2 %, and the tier-2 bench's own void run); 33 pairs with
+  a deleted seed file.  No campaign so far evaluated a model other than the one its readme describes.
 - 2026-11-10 08:50  Tier-2 bench job 1719105 VOID, `init --sav` fixed in 3e57614.  The drive ran to DONE (1.39 node-hours, zero wait
   decisions, 5,685 against a polished reference of 6,162) but on the wrong model: `_seed_vector` took only the FREE parameters from
   the .sav and the sharded evaluator took the fixed ones from the .azr, while AZURE2's parameter-file reader (and pyazr's

@@ -141,6 +141,12 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
 
 ## Progress log
 
+- 2026-11-10 06:10  13N queue test job 1719011 (1adb0af): all drive 13N checks passed in 73 min on 3 slots, three legs (AUDIT
+  gate -> 'skip' answered by the harness, REPRODUCE mismatch accepted, then DONE).  So the polish gate, the photon caps and the
+  subagent AUDIT gate are exercised end to end on the fixture; log kept as `tests/_queue_drive/drive_1719011_pass_gate_cap.log`.
+  L3 demo attempt 5 (job 1719021) at that time: cycle 1 ended at 63,552 (attempt 4: 63,456) with every background photon width
+  at or below the 1e5 eV cap (three sit at the cap: 1/2+ E1, 5/2- M2, 7/2+ -- the number is DeBoer's to set), cycle 2 running.
+
 - 2026-11-10 05:50  12C+p tier-1 bench PASS exact (job 1718963, bf30536): from Claude's 26,368 basin (100,748 in DeBoer's free scheme)
   the polish reached 24,740, 22 sign proposals accepted none, and the POPULATION crossover found the 3/2- E2 flip and polished to
   the reference 12,039.786 to all digits, sign distance 0, in 0.06 node-hours.  The roadmap's "does the method find what the human

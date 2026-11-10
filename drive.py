@@ -902,12 +902,34 @@ class Driver:
             return "next", msg + " -> converged" if fr.status != "crashed" else msg
         return "stay", msg
 
+    def _polish_gate(self, what):
+        """stop_rules.sign_after_converged_polish: SIGN and POPULATION wait for a converged TIGHTEN.  Returns the deferral note,
+        or None when the stage runs: the polish converged, the gate is off, this is the last cycle (budget.cycles_max -- there is
+        no next cycle to defer to), or the stage was already deferred once in this campaign (a polish that did not converge in
+        polish_rounds_max rounds twice will not in a third: 12C+p L3 demo 3, 2026-11-10, 162 free parameters, 6 x 300 evaluations
+        still gaining 10 % per round, every cycle deferred both stages and the drive would have ended with no sign round; the
+        13N end-to-end test with its seeded channels and cycles_max 1 never reached POPULATION).  The stage then runs on the
+        unconverged incumbent and the readme says so: the cure is a larger budget.polish_nfev / polish_rounds_max."""
+        if not int(self.stop.get("sign_after_converged_polish", 1)) or self.counters.get("polish_converged", 1) != 0:
+            return None
+        gain = 100 * float(self.counters.get("polish_last_gain", 0))
+        last = int(self.state["cycle"]) >= int(self.budget["cycles_max"])
+        nd = int(self.counters.get(f"{what}_deferrals", 0))
+        if last or nd >= 1:
+            why = "the last cycle (budget.cycles_max)" if last else f"already deferred {nd} cycle(s)"
+            self.note(f"{what.upper()} runs on an unconverged polish (last gain {gain:.3f} %): {why}; budget.polish_nfev "
+                      f"{self.budget['polish_nfev']} x polish_rounds_max {self.budget['polish_rounds_max']} is too small for this model")
+            return None
+        self.counters[f"{what}_deferrals"] = nd + 1
+        return (f"polish not converged (last gain {gain:.3f} %): {what} deferred to the next cycle "
+                f"(stop_rules.sign_after_converged_polish)")
+
     def _sign_state(self, label):
         c = self.campaign
-        if int(self.stop.get("sign_after_converged_polish", 1)) and self.counters.get("polish_converged", 1) == 0 \
-                and not self.counters.get(f"{label}_rounds"):
-            return "next", (f"polish not converged (last gain {100*float(self.counters.get('polish_last_gain', 0)):.3f} %): sign rounds "
-                            f"deferred to the next cycle (stop_rules.sign_after_converged_polish)")
+        if not self.counters.get(f"{label}_rounds"):
+            gate = self._polish_gate(label)
+            if gate:
+                return "next", gate
         n = int(self.counters.get(f"{label}_rounds", 0))
         noacc = int(self.counters.get(f"{label}_noaccept", 0))
         if n >= int(self.budget["sign_rounds_max"]):
@@ -944,9 +966,9 @@ class Driver:
         k = int(self.budget.get("restarts_per_cycle", 0) or 0)
         if k <= 0:
             return "next", "budget.restarts_per_cycle 0: skipped"
-        if int(self.stop.get("sign_after_converged_polish", 1)) and self.counters.get("polish_converged", 1) == 0:
-            return "next", (f"polish not converged (last gain {100*float(self.counters.get('polish_last_gain', 0)):.3f} %): "
-                            f"population deferred to the next cycle")
+        gate = self._polish_gate("population")
+        if gate:
+            return "next", gate
         n = int(self.counters.get("population_rounds", 0))
         if n >= int(self.budget.get("population_rounds_max", 3)):
             return "next", f"budget.population_rounds_max {self.budget.get('population_rounds_max', 3)} reached"

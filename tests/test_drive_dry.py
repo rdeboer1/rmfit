@@ -292,6 +292,34 @@ def main():
         check("CYCLE -> second pass (gain large) then DONE", status == "DONE" and d7.state["cycle"] == 2 and d7.state["state"] == "DONE",
               f"{status} cycle {d7.state['cycle']} state {d7.state['state']}")
         check("DRIVE.md shows DONE", "**DONE**" in open(os.path.join(tmp, "DRIVE.md")).read())
+        # -- 5. the polish gate (2026-11-10): an unconverged TIGHTEN defers SIGN/POPULATION once, never past the last cycle ----
+        tmp2 = tempfile.mkdtemp(prefix="rmfit_drive_dry2_")
+        for f in ("spec.json", "13N.azr"):
+            shutil.copy2(os.path.join(tmp, f), os.path.join(tmp2, f))
+        os.makedirs(os.path.join(tmp2, "output"))
+        sp = json.load(open(os.path.join(tmp2, "spec.json")))
+        sp["budget"].update(polish_rounds_max=2, cycles_max=2)
+        json.dump(sp, open(os.path.join(tmp2, "spec.json"), "w"), indent=1)
+        json.dump(dict(candidates=[]), open(os.path.join(tmp2, "candidates.json"), "w"))
+        d8 = dv.Driver(tmp2, local=True)
+        stub2 = StubCampaign(tmp2, d8.decisions)
+        stub2.polish_gains = [50.0, 40.0, 30.0, 20.0, 10.0, 5.0]      # never converges within polish_rounds_max 2
+        stub2.levelscan_results = []
+        stub2.review_high = False                                        # no REVIEW wait: the gate is what is tested
+        d8._campaign = stub2
+        d8.state["state"] = "TIGHTEN"
+        d8.state["recall"] = {"n": 0, "n_pass": 0}
+        d8.save()
+        status = d8.run()
+        h8 = [(h["cycle"], h["state"], h["note"]) for h in d8.state["history"] if h["state"] in ("SIGN", "POPULATION")]
+        print("      gate history:", h8)
+        c1 = [n for cy, st, n in h8 if cy == 1]
+        c2 = [n for cy, st, n in h8 if cy == 2]
+        check("polish gate: cycle 1 deferred SIGN and POPULATION on an unconverged polish", len(c1) == 2 and all("deferred" in n for n in c1), str(c1))
+        check("polish gate: cycle 2 (the last) ran them anyway", any(c[0] == "sign" for c in stub2.calls) and any(c[0] == "population" for c in stub2.calls)
+              and c2 and not any("deferred" in n for n in c2), str(c2) + str(stub2.calls))
+        check("polish gate: readme says the budget is too small", "too small for this model" in open(os.path.join(tmp2, "readme")).read())
+        shutil.rmtree(tmp2, ignore_errors=True)
     finally:
         rvmod.review_campaign = real_review
     shutil.rmtree(tmp, ignore_errors=True)

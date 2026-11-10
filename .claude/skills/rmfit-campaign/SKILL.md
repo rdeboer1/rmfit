@@ -285,7 +285,9 @@ below `recall_min_pass` every add of the run is queued as a decision instead of 
 SHIFTS_FREE LEVELSCAN STRUCTURE_ADD SIGN_POST DATASET_OFF REVIEW EXPORT CYCLE` (section 3 steps 1-7 with section 4's stopping rules: polish rounds
 until the gain is below `polish_gain_rel_min` -- size `budget.polish_nfev` to the model, 150 is far too few for 200 free
 parameters; sign rounds only once the polish converged (`sign_after_converged_polish`, else they are deferred to the next
-cycle: 7Be 2026-11-08, 18 rounds accepted nothing on a moving incumbent) and until `sign_rounds_without_accept`; then
+cycle: 7Be 2026-11-08, 18 rounds accepted nothing on a moving incumbent -- deferred at most once and never in the last cycle,
+after which they run on the unconverged incumbent and the readme says the polish budget is too small: 12C+p L3 demo 3,
+2026-11-10, 162 free parameters never converged in 6 x 300 evaluations) and until `sign_rounds_without_accept`; then
 POPULATION, the basin-crossing stage (`Campaign.run_population`, CLI `population`): `budget.restarts_per_cycle` sign-perturbed
 restarts of the incumbent (random 6-12 high-exposure flips, <= 3 per J^pi, 20 % jitter), each polished sign-locked then
 released to convergence in rounds of `restart_nfev` (0 = `polish_nfev`), plus the control, then `crossover_passes` passes of

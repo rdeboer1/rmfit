@@ -142,6 +142,13 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
 
 ## Progress log
 
+- 2026-11-10 05:15  L3 demo attempt 5 (job 1719021, photon caps): DONE after 2 cycles in 1.28 node-hours, zero wait decisions,
+  63,535 (attempt 4: 63,456 with photon widths of 1e9-1e16 eV).  Every background photon width is inside the 1e5 eV cap and four sit
+  on it: the runaway bought 0.12 % and no physics; the cap value is the evaluator's number (spec bounds).  The course repeats
+  attempt 4's: polish + signs + population stall at 210,853, SHIFTS_FREE carries the drop to 63,552, LEVELSCAN's doublet-region
+  proposals marginal/unphysical, 0 HIGH / 23 MEDIUM.  Phase 3.2 is demonstrated (spec -> candidate -> review, no mid-run chat):
+  what is still Claude's draft, not an evaluation, is the spec itself (nine open decisions) and the 31 unverified audit rows.
+
 - 2026-11-10 05:01  Phase 3.3 finished (skill 804 -> 721 lines; HISTORY.md 2,052 lines): section 7 now reads from the bench
   table instead of the September limits; "First fits" names the drive state behind each of DeBoer's six items and records what the
   re-evaluation found (1, 2, 5, 6 ran on the demos; 3 and 4 report only).  Phase 3.1 tier 2: `bench/cases/10Bp_tier2.json`

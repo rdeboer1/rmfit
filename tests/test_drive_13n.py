@@ -94,6 +94,8 @@ def main():
           str([h.get("note") for h in rec]))
     rtab = " ".join(st.get("findings", {}).get("RECALL", []))
     check("RECALL child campaign ran to a classification (no error)", rtab and "Error" not in rtab and (st.get("recall") or {}).get("n") == 1, rtab[:300])
+    check("RECALL located the removed 1/2+ 2.368 MeV level (J^pi, energy, width)", (st.get("recall") or {}).get("n_located") == 1
+          and "as 1/2+ @ 2.36" in rtab, rtab[:300])
     print("   recall table:", rtab[:400])
     print("   recall:", st.get("recall"), [h.get("note") for h in rec])
     ls = [h for h in st["history"] if h["state"] == "LEVELSCAN"]

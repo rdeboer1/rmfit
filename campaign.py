@@ -697,9 +697,10 @@ class Campaign:
         incumbent with that level switched off -- and the SAME level-add procedure STRUCTURE_ADD uses (window scan over
         every J^pi, pinned + released polish, same-budget control, classification) is asked to find a level at the
         true energy + ``offset_kev`` with no J^pi given.  A level is re-found when the outcome is accept(-pending), the
-        J^pi is the true one, the fitted energy is within max(50 keV, 3 Gamma) and the width within a factor 3.
+        J^pi is the true one, the fitted energy is within max(50 keV, 3 Gamma) and the width within a factor 3; a level
+        that meets the last three but is rejected by the criteria is "located" (result key) and still not re-found.
         ``levels`` = explicit key labels ("3/2-#1") instead of the automatic choice.  Returns dict(results, n, n_pass,
-        fraction, passed_levels); ledger round "recall"; the child campaigns are kept for inspection."""
+        n_located, fraction, passed_levels); ledger round "recall"; the child campaigns are kept for inspection."""
         from .structure import LevelCandidate, deactivate_level_variant
         from pyazr import AzrModel
         cid, x, obj, keys = self.incumbent()
@@ -711,9 +712,12 @@ class Campaign:
         gWa, gWw = ev.wigner_amplitudes(), ev.wigner_widths(xs)
         width_ev: Dict[str, float] = {}
         energy: Dict[str, float] = {}
-        for j, k in enumerate(ev.keys):
+        theta2_max: Dict[str, float] = {}    # the incumbent's largest theta^2 per level: a level the model itself holds AT
+        for j, k in enumerate(ev.keys):      # the policy cap is rejected as "unphysical" by the criteria (13N 1/2+ 2.368, 2026-11-09)
             if k.kind == "width" and gWa.get(j, 0) > 0 and j in gWw:
-                width_ev[k.level] = width_ev.get(k.level, 0.0) + (xs[j] / gWa[j]) ** 2 * gWw[j]
+                t2 = (xs[j] / gWa[j]) ** 2
+                width_ev[k.level] = width_ev.get(k.level, 0.0) + t2 * gWw[j]
+                theta2_max[k.level] = max(theta2_max.get(k.level, 0.0), float(t2))
             elif k.kind == "energy":
                 energy[k.level] = float(xs[j])
         mdl = AzrModel.from_file(self.base_azr)
@@ -768,35 +772,52 @@ class Campaign:
                 jf = st.get("jpi")
                 ef = st.get("energy_fit", cand.energy)
                 gf = st.get("level_gamma_ev")
-                why = []
-                if out not in ("accept", "accept-pending"):
-                    why.append(f"outcome {out}")
+                why, located = [], []
                 if jf != jpi:
-                    why.append(f"J^pi {jf} != {jpi}")
+                    located.append(f"J^pi {jf} != {jpi}")
                 if abs(float(ef) - e_true) > max(0.050, 3.0 * w * 1e-6):
-                    why.append(f"energy {float(ef):.4f} vs {e_true:.4f}")
+                    located.append(f"energy {float(ef):.4f} vs {e_true:.4f}")
                 if gf and w > 0 and not (w / 3.0 <= float(gf) <= 3.0 * w):
-                    why.append(f"Gamma {float(gf) / 1e3:.1f} keV vs {w / 1e3:.1f}")
+                    located.append(f"Gamma {float(gf) / 1e3:.1f} keV vs {w / 1e3:.1f}")
+                # 2026-11-09 (13N drive test 1718060): the 1/2+ at 2.368 MeV was located exactly (J^pi, energy -0.4 keV, Gamma
+                # 122 vs 133 keV, gain 8.6e6) and still classified "unphysical", because its s-wave amplitude ends ON the
+                # theta^2 cap -- where the incumbent's own level sits.  That is a verdict on the POLICY (cap too tight for a
+                # level the model already carries), not on the search; it is reported as such and still counts as not re-found,
+                # since STRUCTURE_ADD would reject the same level.
+                cap_true = self.policy.cap_for(e_true)
+                inc_at_cap = theta2_max.get(label, 0.0) >= cap_true * (1 - 1e-3)
+                if out not in ("accept", "accept-pending"):
+                    if out == "unphysical" and inc_at_cap:
+                        why.append(f"outcome unphysical: amplitude at the theta2 cap {cap_true:g}, where the incumbent's own level "
+                                   f"sits too (theta2 {theta2_max.get(label, 0.0):.3g}) -- the policy cap rejects a level the model "
+                                   f"carries; raise theta2_cap / theta2_cap_windows in spec bounds, not the procedure")
+                    else:
+                        why.append(f"outcome {out}")
+                why += located
                 res.update(removed_objective=c0, outcome=out, jpi_found=jf, energy_found=float(ef),
                            gamma_found_kev=(float(gf) / 1e3 if gf else None), delta=st.get("delta"), scan=st.get("scan", ""),
-                           passed=not why, why="; ".join(why))
+                           at_bound=st.get("at_bound", ""), incumbent_theta2=theta2_max.get(label), cap=cap_true,
+                           located=not located, passed=not why, why="; ".join(why))
             except Exception as err:  # noqa: BLE001 -- one failed child must not end the round
                 res.update(outcome="error", passed=False, why=f"{type(err).__name__}: {err}")
                 self.log(f"recall of {label} failed: {err}")
             results.append(res)
-            self.log(f"recall {label}: " + ("RE-FOUND" if res["passed"] else "NOT re-found (" + res["why"] + ")")
+            self.log(f"recall {label}: " + ("RE-FOUND" if res["passed"]
+                                            else ("LOCATED but rejected by the criteria (" if res.get("located") else "NOT re-found (")
+                                            + res["why"] + ")")
                      + f" -- outcome {res.get('outcome')} as {res.get('jpi_found')} @ {res.get('energy_found', float('nan')):.4f}")
         n_pass = sum(1 for r in results if r["passed"])
+        n_located = sum(1 for r in results if r.get("located"))
         frac = n_pass / len(results)
         self.ledger.finish_round(rid, n=len(results), n_pass=n_pass, fraction=frac, results=json.dumps(results),
                                  wall_min=(time.time() - t0) / 60)
         self.note(f"recall round #{rid} ({len(results)} known levels removed and searched for, {(time.time() - t0) / 60:.0f} min): "
-                  f"{n_pass} of {len(results)} re-found -- "
+                  f"{n_pass} of {len(results)} re-found ({n_located} located: right J^pi, energy and width) -- "
                   + "; ".join(f"{r['level']} {r['energy']:.3f} MeV Gamma {r['gamma_kev']:.0f} keV: "
                               + ("re-found" if r["passed"] else f"NOT ({r['why']})") for r in results)
                   + "; children in recall/")
         self.ledger.write_status_md()
-        return dict(results=results, n=len(results), n_pass=n_pass, fraction=frac,
+        return dict(results=results, n=len(results), n_pass=n_pass, n_located=n_located, fraction=frac,
                     passed_levels=[r["level"] for r in results if r["passed"]])
 
     def run_levelscan(self, ex: Optional[Sequence[float]] = None, top: int = 3, gamma_kev: Optional[float] = 10.0,
@@ -1550,6 +1571,8 @@ class Campaign:
             try:
                 from pyazr import AzrModel
                 for lv in AzrModel.from_file(self.base_azr).find(jpi=best.jpi):
+                    if lv.channels and all(bool(c.channel_fixed) and float(c.gamma) == 0.0 for c in lv.channels):
+                        continue       # a switched-off level (deactivate_level_variant: recall children) is not a neighbour
                     if abs(float(lv.energy) - float(cand.energy)) <= near_same_jpi_kev * 1e-3:
                         near.append(f"{best.jpi}@{float(lv.energy):.4f}")
             except Exception as err:

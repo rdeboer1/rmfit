@@ -121,11 +121,12 @@ class StubCampaign:
     def run_recall(self, n=2, min_width_kev=10.0, global_nfev=150, pinned_nfev=60, local_release=0.0, local_nfev=80, note="", **kw):
         self.calls.append(("recall", n, min_width_kev))
         res = [dict(level="1/2+#1", jpi="1/2+", energy=2.3682, gamma_kev=32.0, outcome="accept", jpi_found="1/2+", energy_found=2.378,
-                    passed=True, why=""),
+                    located=True, passed=True, why=""),
                dict(level="3/2-#1", jpi="3/2-", energy=3.5032, gamma_kev=55.0, outcome="marginal", jpi_found="5/2+", energy_found=3.513,
-                    passed=False, why="outcome marginal; J^pi 5/2+ != 3/2-")][:n]
+                    located=False, passed=False, why="outcome marginal; J^pi 5/2+ != 3/2-")][:n]
         np_ = sum(1 for r in res if r["passed"])
-        return dict(results=res, n=len(res), n_pass=np_, fraction=np_ / max(len(res), 1), passed_levels=[r["level"] for r in res if r["passed"]])
+        return dict(results=res, n=len(res), n_pass=np_, n_located=sum(1 for r in res if r["located"]),
+                    fraction=np_ / max(len(res), 1), passed_levels=[r["level"] for r in res if r["passed"]])
 
     def dataset_table(self, cid, stage="verified"):
         return [dict(name="bad_set", chi2=900.0, n=10, per_pt=90.0), dict(name="ok_a", chi2=50.0, n=50, per_pt=1.0),

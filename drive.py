@@ -804,22 +804,30 @@ class Driver:
                            local_release=float(self.structure.get("local_release_mev") or 0.0),
                            local_nfev=int(self.structure.get("local_nfev") or 80), note="rmfit drive RECALL")
         rows = [f"{r['level']} {r['energy']:.4f} MeV Gamma {r['gamma_kev']:.1f} keV -> {r.get('outcome')} as {r.get('jpi_found')}"
-                f" @ {r.get('energy_found', float('nan')):.4f}: " + ("re-found" if r["passed"] else f"NOT re-found ({r['why']})")
+                f" @ {r.get('energy_found', float('nan')):.4f}: "
+                + ("re-found" if r["passed"] else
+                   ("LOCATED but rejected by the criteria" if r.get("located") else "NOT re-found") + f" ({r['why']})")
                 for r in res["results"]]
         self._finding_rows("RECALL", rows or ["no physical level broad enough inside the window: nothing removed"])
-        self.state["recall"] = dict(n=res["n"], n_pass=res["n_pass"], fraction=res["fraction"])
+        self.state["recall"] = dict(n=res["n"], n_pass=res["n_pass"], n_located=res.get("n_located", res["n_pass"]), fraction=res["fraction"])
         if res["n"] == 0:
             return "next", "no known level broad enough below bg_energy to remove: recall skipped"
         minp = float(self.structure.get("recall_min_pass") or 0.0)
         if res["fraction"] < minp:
             self.state["adds_untrusted"] = True
+            nloc = int(res.get("n_located", res["n_pass"]))
+            cause = (f"the search located {nloc} of {res['n']} (right J^pi, energy, width) but the criteria rejected them: "
+                     f"see the RECALL table (a theta2 cap the incumbent's own level sits at is a spec bounds setting, not a search failure)"
+                     if nloc > res["n_pass"] else "the search did not locate the removed level(s)")
             did = self.decisions.add("recall-low", f"the level-add procedure re-found {res['n_pass']} of {res['n']} known levels "
-                                     f"(below structure.recall_min_pass {minp:g}); its adds are queued as accept-pending decisions "
-                                     f"instead of adopted.  Answer 'trust' to pre-authorize them anyway.",
+                                     f"(below structure.recall_min_pass {minp:g}): {cause}; its adds are queued as accept-pending "
+                                     f"decisions instead of adopted.  Answer 'trust' to pre-authorize them anyway.",
                                      evidence="DRIVE.md RECALL table; recall/<level>/ child campaigns", options=("adopt-manually", "trust"),
                                      default="adopt-manually")
-            self.note(f"RECALL: {res['n_pass']} of {res['n']} known levels re-found (< {minp:g}): level adds untrusted, decision {did} (non-blocking)")
-            return "next", f"recall {res['n_pass']}/{res['n']} below {minp:g}: level adds become decisions until '{did}' is answered 'trust'"
+            self.note(f"RECALL: {res['n_pass']} of {res['n']} known levels re-found, {nloc} located (< {minp:g}): level adds untrusted, "
+                      f"decision {did} (non-blocking)")
+            return "next", (f"recall {res['n_pass']}/{res['n']} below {minp:g} ({nloc} located, rejected by the criteria): "
+                            f"level adds become decisions until '{did}' is answered 'trust'")
         return "next", f"recall {res['n_pass']}/{res['n']} known levels re-found: level adds trusted"
 
     # ==================================================================================================

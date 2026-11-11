@@ -141,7 +141,10 @@ dense metric from the Laplace, checkpointed) -> GATES (split R-hat, ESS, diverge
 re-run with longer chains) -> BANDS (linear vs sampled on spec grids or the model's own energy scans) -> REPORT (`UQ.md`).
 Error inflation is reported, never applied; priors and failed-gate chains go to the evaluator (decision `uq-gates`).
 Fixture: `tests/test_uq_13n.py` on the queue (`tests/_queue_uq/run_crc_uq_test`, ~8 min on 4 slots).  7Be validation:
-`6Li+p/3He+a/AZURE2_evaluation/11-10-26_uq/` (job 1725304, 2026-11-10 22:50).  d+t: not started.
+`6Li+p/3He+a/AZURE2_evaluation/11-10-26_uq/` (job 1725304): PASS 2026-11-11 -- gates automatic (R-hat 1.003, ESS >= 826,
+0.57 % divergent), S34(0) = 0.544 +- 0.007 keV b (1.24 %; sampled = linear within 4 %) against CSEWG 0.56 +- 0.01 on the
+externals-on model: central value within 1.3 sigma combined, width 0.6 x -- a model difference (externals), DeBoer's call.
+d+t: not started.
 
 ## Open items not on the roadmap
 Competing-resolution test for near-duplicate levels; differential-convolution shards; single-session-only kinds
@@ -149,6 +152,18 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
 
 ## Progress log
 
+- 2026-11-11 05:50  Phase 4 verified on 7Be (job 1725304, 24 slots, 4.8 h of sampling): `rmfit uq` PASS with no human input.
+  Setup found the 10-24-26 study's four saturated poles again (J <= 2e-3, 18 parameters held), sampled 177 with the 123 norms;
+  4 chains x (1000 + 2000) at 44.6 gradients per draw; gates split R-hat 1.003, ESS 826 .. 9641, divergent 0.57 %, E-BFMI
+  0.99; sd(NUTS)/sd(Laplace) 0.54 / 1.00 / 1.80.  Bands: S34(0) = 0.544 +- 0.007 keV b linear, sampled [0.537, 0.552] (half-
+  width/linear 1.04-1.14, offset -0.04 sigma); 6Li(p,g) 93.1 +- 2.9 eV b; 6Li(p,a) 3.50 +- 0.06 MeV b.  Against CSEWG
+  0.56 +- 0.01 (externals on): 2.4 % lower, 1.3 sigma combined, band 0.6 x as wide -- the model (externals ignored, Elwyn fix,
+  norms sampled), not the sampler; the number for the evaluation is DeBoer's (externals on or off).  One mistake of mine: the
+  first band run had the pair keys swapped (pair 1 is 3He+a); caught because the "6Li(p,a)" grid read zero (closed channel),
+  fixed in uq.json and BANDS + REPORT rerun in 1 min on the login node (uq_state.json with the two stages removed resumes
+  there -- worth a `--redo bands` flag).  Cosmetic engine item: pyazr's LevelKey prints "@?MeV" for the ground state.
+  Phase 4 remaining: d+t validation (3H+d/11-9-26_MCMC_V1_9fm, S(40 keV) = 25.75 [25.50, 25.98]); drive UQ state end to end
+  on the 13N drive test.
 - 2026-11-10 22:50  Phase 4 built: `rmfit uq` (uq.py, cli `uq`, drive state UQ, spec section `uq`, SKILL.md 3d).  Five fixture
   runs on the queue before it passed (job 1725295, all 16 checks): (1) 1724558 timed out in SAMPLE -- the 13N fixture's
   gradient costs 2.7 s with its target-integrated sets and the at-bound mode drove the trees to depth 10, so the test now

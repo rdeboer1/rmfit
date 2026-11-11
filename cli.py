@@ -54,6 +54,10 @@ def _json_arg(text):
     return json.loads(text)
 
 
+def in_sge_job_env():
+    return bool(os.environ.get("JOB_ID")) and bool(os.environ.get("SGE_TASK_ID") or os.environ.get("PE_HOSTFILE") or os.environ.get("NSLOTS"))
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="rmfit")
     ap.add_argument("campaign")
@@ -172,6 +176,13 @@ def main(argv=None):
     p.add_argument("--grid-check", action="store_true", help="re-score the incumbent on a converged target-integration grid (20/50)")
     p.add_argument("--figures", type=int, default=6, help="figures for the N worst data sets (0 = none)")
     p.add_argument("--top", type=int, default=20, help="rows in the top-points / runs tables")
+    p = sub.add_parser("uq", help="uncertainty quantification of the incumbent (rmfit.uq): export -> saturation -> Laplace -> NUTS -> gates -> "
+                                  "linear vs sampled bands -> UQ.md; resumable (uq/uq_state.json); settings from spec.json 'uq' or --uq JSON")
+    p.add_argument("--uq", default="{}", help="JSON overriding the spec's uq section (chains, warmup, draws, bands, ...)")
+    p.add_argument("--nprocs", type=int, help="chain processes (default = chains)")
+    p.add_argument("--threads", type=int, default=1, help="OMP threads per chain process")
+    p.add_argument("--stop-after", choices=("EXPORT", "SETUP", "SAMPLE", "GATES", "BANDS", "REPORT"))
+    p.add_argument("--reset", action="store_true", help="start the stage over (the old uq_state.json is kept with a timestamp)")
     p = sub.add_parser("drive", help="the closed loop: run states from drive_state.json until DONE / WAITING / STOP or --max-minutes")
     p.add_argument("--base", default=None, help="first call of the build phase: the base .azr (then <dir>/spec.json must exist)")
     p.add_argument("--sav", default=None, help="its parameter file (.sav)")
@@ -377,6 +388,16 @@ def main(argv=None):
             print(f"candidate {a.cid} re-verified as {cid}: {sc.objective:.3f}")
         elif a.cmd == "export":
             c.export(path=a.path)
+        elif a.cmd == "uq":
+            from rmfit import uq as _uq
+            su = dict((getattr(c, "spec", None).get("uq") if getattr(c, "spec", None) is not None else None) or {})
+            su.update(json.load(open(a.uq)) if a.uq.endswith(".json") and os.path.exists(a.uq) else json.loads(a.uq))
+            if not in_sge_job_env() and not os.environ.get("RMFIT_UQ_LOCAL"):
+                print("uq needs the engine for hours: qsub -v RMFIT_CMD=\"uq ...\" run_crc_rmfit (RMFIT_UQ_LOCAL=1 for a fixture test)")
+                return 2
+            st = _uq.run(campaign=c, spec_uq=su, log=c.log, nprocs=a.nprocs, threads=a.threads, stop_after=a.stop_after, reset=a.reset)
+            g = st["stages"].get("GATES", {})
+            print("UQ_STATUS:", "PASS" if g.get("passed") else ("FAIL" if g else "INCOMPLETE"), "->", os.path.join(c.dir, "UQ.md"))
         elif a.cmd == "report":
             print(open(c.report()).read())
         elif a.cmd == "structure" and a.what == "add":

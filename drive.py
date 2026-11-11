@@ -44,10 +44,10 @@ from .spec import FitSpec, Finding, write_findings_md
 BUILD_STATES = ["PIN_CHECK", "AUDIT", "REPRODUCE", "SPEC_CHECK", "SCALE_ANCHOR", "SEED_CHANNELS", "PAIR_COMPLETENESS",
                 "LADDER", "CANDIDATES", "INIT", "RECALL"]
 LOOP_STATES = ["TIGHTEN", "SIGN", "POPULATION", "SHIFTS_FREE", "LEVELSCAN", "STRUCTURE_ADD", "SIGN_POST", "DATASET_OFF", "REVIEW", "EXPORT",
-               "CYCLE"]
+               "CYCLE", "UQ"]
 STATES = BUILD_STATES + LOOP_STATES
 ENGINE_STATES = {"REPRODUCE", "SEED_CHANNELS", "LADDER", "INIT", "TIGHTEN", "SIGN", "POPULATION", "SHIFTS_FREE", "LEVELSCAN", "STRUCTURE_ADD",
-                 "SIGN_POST", "DATASET_OFF", "REVIEW", "EXPORT"}
+                 "SIGN_POST", "DATASET_OFF", "REVIEW", "EXPORT", "UQ"}
 STATUS_WORDS = ("CONTINUE", "WAITING", "DONE", "STOP", "ERROR")
 STATE_FILE = "drive_state.json"
 STOP_FILE = "STOP_DRIVE"
@@ -1313,7 +1313,48 @@ class Driver:
             self.counters["levelscan_last_added"] = 0
             self.state["broad_done"] = False
             return "TIGHTEN", msg + " -> another pass"
+        if (self.spec.get("uq") or {}).get("enabled"):
+            return "UQ", msg + " -> UQ (spec uq.enabled)"
         return "DONE", msg + " -> DONE"
+
+    def _s_uq(self):
+        """Phase 4 (2026-11-10): rmfit.uq on the incumbent after the last cycle -- export, saturation check, Laplace, NUTS chains,
+        gates, linear vs sampled bands, UQ.md.  Chains share the leg's slots; a failed gate after uq.max_attempts is a decision."""
+        from . import uq as _uq
+        su = dict(self.spec.get("uq") or {})
+        slots = int(self.spec.get("nshards") or self.campaign.nshards or 4)
+        chains = max(2, int(su.get("chains", 4)))
+        nprocs = max(1, min(chains, slots))
+        threads = max(1, slots // nprocs)
+        ans = (self.ask("uq-gates", "", [], default="wait") if self.state.get("uq_asked") and any(d["slug"] == "uq-gates" for d in self.decisions.all())
+               else None)
+        if ans == "rerun":
+            sp = os.path.join(self.dir, "uq", "uq_state.json")
+            if os.path.exists(sp):
+                us = json.load(open(sp)); us["attempt"] = int(us.get("attempt", 0)) + 1
+                us["stages"].pop("SAMPLE", None); us["stages"].pop("GATES", None)
+                json.dump(us, open(sp, "w"), indent=1)
+            su["max_attempts"] = int(su.get("max_attempts", 2)) + 1
+        elif ans == "stop":
+            return "DONE", "UQ gates failed; the evaluator stopped the stage"
+        st = _uq.run(campaign=self.campaign, spec_uq=su, log=self.log, nprocs=nprocs, threads=threads)
+        g = st["stages"].get("GATES", {})
+        ba = st["stages"].get("BANDS", {})
+        summary = (f"R-hat max {g.get('rhat_max', float('nan')):.3f}, min ESS {g.get('ess_min', float('nan')):.0f}, divergent {100*g.get('divergent_frac', 0):.2f} %; "
+                   f"sd ratio median {g.get('sd_ratio_median', float('nan')):.2f}; " + "; ".join(
+                       f"{r['label']}: {r['best0']:.4g} +- {100*r['rel_lin0']:.1f} % linear / {100*r['rel_sampled0']:.1f} % sampled at {r['e0']:.3g} MeV"
+                       for r in ba.get("grids", [])[:3]))
+        if g.get("passed") or ans == "accept":
+            self.note("UQ " + ("PASS" if g.get("passed") else "accepted by the evaluator with failed gates") + ": " + summary + " (UQ.md)")
+            return "DONE", summary
+        self.state["uq_asked"] = True
+        self.save()
+        a2 = self.ask("uq-gates", f"the UQ chains failed their gates after {st.get('attempt', 0) + 1} attempt(s): {'; '.join(g.get('fails', []))}. "
+                                  f"accept the result as is (UQ.md says FAIL), rerun with longer chains, or stop the stage?",
+                      ["accept", "rerun", "stop"], default="wait", evidence=summary)
+        if a2 is None:
+            return "stay", "waiting on uq-gates: " + "; ".join(g.get("fails", []))
+        return "stay", f"uq-gates answered {a2}"
 
 
 PLAN_TEXT = {
@@ -1338,7 +1379,8 @@ PLAN_TEXT = {
     "DATASET_OFF": "Botek test on the worst chi2/N sets (budget dataset_off_max); large extra recovery -> decision (keep)",
     "REVIEW": "rmfit review (+ grid check) -> REVIEW.md; a NEW HIGH flag (not in the base model's REVIEW_baseline.md) -> decision review-high (wait)",
     "EXPORT": "export + report",
-    "CYCLE": "another pass from TIGHTEN if the cycle gained >= cycle_gain_rel_min and cycles < cycles_max, else DONE",
+    "CYCLE": "another pass from TIGHTEN if the cycle gained >= cycle_gain_rel_min and cycles < cycles_max, else UQ (spec uq.enabled) or DONE",
+    "UQ": "rmfit.uq on the incumbent: export, saturated poles held, Laplace, NUTS chains, R-hat/ESS/divergence gates, linear vs sampled bands -> UQ.md; failed gates after uq.max_attempts -> decision uq-gates (wait)",
 }
 
 

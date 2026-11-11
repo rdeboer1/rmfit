@@ -135,6 +135,13 @@ decisions stay with the evaluator; the spec records them.
 ### Phase 4 -- UQ as the standard last stage (~5 agent-days)
 `rmfit uq`: export -> Park if saturated / two-channel levels -> centred priors from the spec -> emcee/NUTS ->
 automated R-hat / tau gates -> linear vs sampled comparison -> band.  Validate on 7Be and d+t.
+Built 2026-11-10 (`uq.py`, `rmfit <dir> uq`, drive state UQ when `spec.uq.enabled`): EXPORT -> SETUP (Park's J from a Park
+session on the exported file; J < 0.01 levels held; Laplace = Gauss-Newton covariance at the mode) -> SAMPLE (pyazr NUTS,
+dense metric from the Laplace, checkpointed) -> GATES (split R-hat, ESS, divergences, E-BFMI, sd ratio; one automatic
+re-run with longer chains) -> BANDS (linear vs sampled on spec grids or the model's own energy scans) -> REPORT (`UQ.md`).
+Error inflation is reported, never applied; priors and failed-gate chains go to the evaluator (decision `uq-gates`).
+Fixture: `tests/test_uq_13n.py` on the queue (`tests/_queue_uq/run_crc_uq_test`, ~8 min on 4 slots).  7Be validation:
+`6Li+p/3He+a/AZURE2_evaluation/11-10-26_uq/` (job 1725304, 2026-11-10 22:50).  d+t: not started.
 
 ## Open items not on the roadmap
 Competing-resolution test for near-duplicate levels; differential-convolution shards; single-session-only kinds
@@ -142,6 +149,20 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
 
 ## Progress log
 
+- 2026-11-10 22:50  Phase 4 built: `rmfit uq` (uq.py, cli `uq`, drive state UQ, spec section `uq`, SKILL.md 3d).  Five fixture
+  runs on the queue before it passed (job 1725295, all 16 checks): (1) 1724558 timed out in SAMPLE -- the 13N fixture's
+  gradient costs 2.7 s with its target-integrated sets and the at-bound mode drove the trees to depth 10, so the test now
+  deactivates the four thick-target sets (0.014 s per gradient), raises the theta2 cap to 10 for an interior mode and caps
+  the depth at 6; (2) 1725138: the Park session refused the Brune-basis .sav, so it now takes the level parameters from the
+  exported .azr (physical, basis-free) and the norms from the Brune vector -- Park objective = Brune's to 8e-10; (3) 1725248:
+  no band because the fixture has no <segmentsTest>, so the test gives a spec grid; (4) 1725262: pyazr 2.10.0
+  `bands.trimmed_model` copies intEC.dat into a workdir it never creates (FileNotFoundError) -- uq hands it an existing
+  one (engine follow-up for the next release).  Fixture result: 2 chains x 300 in 3 min, 56 gradients per draw, R-hat 1.03,
+  0 divergences, sd(NUTS)/sd(Laplace) median 1.00, 12C(p,g) band at 92 keV c.m. 0.15 % linear vs 0.14 % sampled.  Grid
+  energies given to add_extrapolation are LAB (e_min 0.1 -> 0.0923 MeV c.m. for p+12C; the docstring says c.m.): a second
+  engine follow-up.  7Be validation job 1725304 submitted 22:50 (`11-10-26_uq/run_crc_uq`: campaign init on the current
+  engine, then 4 chains x (1000 + 2000) on 24 slots, 195 parameters with the norms, depth cap 8).  .sav audit final tally in the
+  10:30 entry below.
 - 2026-11-10 10:30  Tier-2 bench PASS, exact (10B+p round 8, `bench/results.tsv`): from the 2022-sign variant A (6,215.5) the drive
   reaches DeBoer's variant B to 1e-9 (5,676.092 on this engine; reference polished from 5,716.4; sign distance 0, data chi2 equal)
   in 0.96 node-hours -- sign rounds found nothing (68 proposals), the population stage's crossover found the two 9/2+ flips --
@@ -156,12 +177,16 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
   sav_fixed_audit/`): the archive uses BOTH readings -- a CLI fit's param.sav holds the fixed values the fit ran with (10B+p),
   a script-built base means the .azr and seeds free values from a stale .sav (10B+a s4/s5, 125-237 fixed values apart) -- so
   the default stays the .azr's fixed values (the behaviour since the first campaign) with a WARNING giving the objective both
-  ways, and `--sav-fixed apply` (bench case key `sav_fixed`) takes the CLI's reading.  Audit at 15:05 (246 of 498 campaigns,
-  job 1719879 still running through the 13C+a merged campaigns at ~700 s each): 69 pairs consistent; 86 differ by a few
-  bake-fixed values at the 1e-4 level with the objective unchanged or moved < 0.2 % (13C+a seeds before 10-24, the 11B+a HE
-  scans, one fixed norm in the 11B+a jpi control); 8 differ by design, a script-built base seeded from an older .sav (10B+a
-  s4/s5 level adds, 13C+a 10-12-26_replace32m_52p, 12C+a 9-8-26 +8.2 %, and the tier-2 bench's own void run); 33 pairs with
-  a deleted seed file.  No campaign so far evaluated a model other than the one its readme describes.
+  ways, and `--sav-fixed apply` (bench case key `sav_fixed`) takes the CLI's reading.  Audit of all 498 campaigns
+  built with a .sav seed (job 1719879, 08:57-21:55, sav_fixed_audit.tsv): 132 pairs consistent; 221 differ by a few
+  bake-fixed values with the objective unchanged (84) or moved < 0.2 % (137; the 13C+a merged_ancprior_ng A-D variants
+  are in this class, 6-15 values, <= 0.19 %); 29 differ by sign-flipped or re-baked fixed widths where NEITHER reading
+  reproduces the logged baseline (10B+a s4/s5 level adds, 13C+a Sept-Oct level-search and merged variants, 12C+a
+  9-8-26: script-built bases on engines or files that have since changed, so the audit cannot say which model they
+  evaluated, and one is the tier-2 bench's own void run, the only confirmed case); 80 with the seed file deleted, 32
+  whose seed no longer initializes, 4 without campaign.json.  Conclusion unchanged: no finished evaluation in the
+  archive rests on an unintended fixed block; the 29 inconclusive rows are exploratory campaigns whose readmes record
+  their own outcome.
 - 2026-11-10 17:45  REGRESSION fixed: 896f365 had replaced the `init --nshards` argument with `--sav-fixed` instead of adding
   it, so every `rmfit init` from the shared checkout failed between 10:28 and 17:45 ("unrecognized arguments: --nshards",
   or AttributeError without it); found by the 13C(a,n) rate session (13C+a job 1723969, which ran on a private copy of

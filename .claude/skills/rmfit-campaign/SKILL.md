@@ -196,6 +196,7 @@ readme; read both before the next step.
 | 6 | `round --rounds 2` after any structure change | signs may change with the structure | as in 2 |
 | 6b | `crossover --donor <cid> [--donor-dir <other campaign>]` | basin crossover: apply another good fit's sign pattern per channel / J^pi group / all and polish every proposal; use it whenever the ledger (or a sibling campaign, e.g. a recovery benchmark) holds a second verified basin | every donor pattern polished; verified union |
 | 7 | `review [--grid-check]`, `export`, then GUI review | bake the incumbent to `<reaction>.azr` + `.sav`, verified in a fresh process | CLI mode 1 with the `.sav` as external file reproduces the totals |
+| 8 | `uq --uq uq.json --nprocs 4 --threads 6` (queue; section 3d) | uncertainty quantification of the incumbent: export, saturated poles held, Laplace covariance, NUTS chains, R-hat / ESS / divergence gates, linear vs sampled bands -> `UQ.md` | gates PASS; the band table says where the linear band is adequate |
 
 `candidates.json` (write it before step 4): `{"candidates": [{"energy": Ex_MeV, "jpi":
 "5/2+" or null to scan, "energy_fixed": true, "channels": [{"pair": n, "L": l, "S": s,
@@ -437,6 +438,27 @@ candidate is then scored as "nothing there".  The recipe that found it:
 Cost: 11 J^π = 4 node jobs × 6-8 h; the anatomy and the window screen are login-node work.  Full narrative: 13C+a/10-5-26_ex94_floor/readme
 (and 10-3-26_ex94_local, 10-5-26_an0_only, 10-5-26_an0_reconcile, 10-6-26_32m_widen, 10-6-26_lowE_12m_refit, 10-6-26_merged_refresh).
 
+## 3d. Uncertainty quantification: `rmfit uq` (2026-11-10; DESIGN.md Phase 4)
+
+`rmfit <dir> uq [--uq uq.json|JSON] [--nprocs N] [--threads T]` (as a job: `qsub -v RMFIT_CMD="uq --uq uq.json --nprocs 4
+--threads 6" run_crc_rmfit`; the drive runs it after its last cycle when `spec.uq.enabled`) is `rmfit/uq.py`: EXPORT the
+incumbent to `uq/<name>.azr` + `.sav` -> SETUP (Park's J of every level from a Park session on the same file; levels with
+J < `j_saturated` 0.01 are saturated -- their widths sit at the channel-radius ceiling, the data do not set them, the Brune
+Hessian is singular along them -- and are HELD; Laplace covariance of the sampled block) -> SAMPLE (`pyazr.sampling` NUTS,
+`chains` x (`warmup` + `draws`), dense metric from the Laplace covariance, `target_accept` 0.9) -> GATES (split R-hat <=
+1.01, min bulk ESS >= 400, divergences <= 1 %, E-BFMI >= 0.3; a failure re-runs with 2x the draws once, then it is a
+decision `uq-gates`) -> BANDS (the spec's `uq.bands` grids or the model's own `<segmentsTest>` energy scans: the LINEAR
+band from the Laplace covariance on the free R-matrix block, the same x sqrt(chi2/nu) printed beside it and NOT adopted,
+and the SAMPLED band from `band_draws` posterior draws, percentiles 2.5/16/50/84/97.5) -> `UQ.md`.  Norms are sampled
+(the full posterior) unless `sample_norms` is false; `uq.priors` {engine name: [mean, sigma]} adds Gaussian priors beyond
+the objective's own penalties.  Read it as: half-width / linear sigma near 1 and a small median offset = the linear band
+is adequate there; a ratio well above 1 or an offset of a sigma = the posterior is skewed along a direction the Jacobian
+misses (a saturating width, a sign-ambiguous amplitude).  Everything is conditional on the model and the spec's data
+decisions.  Cost: a gradient is ~2 objective evaluations; 7Be (195 free) ~25-50 gradients per draw.  Pitfalls: a script
+that spawns the chains must guard `if __name__ == "__main__"` (spawn re-imports it; without the guard it recurses);
+`pyazr.bands.extrapolation_bands` opens its session with pyazr's DEFAULT flags, so `uq` trims the model and opens the
+extrapolation session with the campaign's flags itself.  Validation: section 7.
+
 ## 4. Judging results
 
 - Acceptance thresholds scale with s^2 = objective / N because errors are
@@ -491,7 +513,9 @@ rmfit hands these to the evaluator rather than deciding them:
 - the energy range of the model (data above the level scheme's range are capped, not
   fitted);
 - accepting a level whose gain is statistically clear but whose J^pi or energy
-  contradicts the literature.
+  contradicts the literature;
+- error inflation (the Birge factor sqrt(chi2/nu) that `UQ.md` prints beside the plain band), priors on R-matrix
+  parameters, and what to do with chains that fail their gates after the automatic rerun (`uq-gates`).
 
 The GUI review: `printf '1\n<reaction>.sav\n\n7\n' | AZURE2 <flags> --no-gui --no-readline
 <reaction>.azr` fills `output/` with the fit (the `.sav` carries the fitted norms), then

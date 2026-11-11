@@ -28,6 +28,8 @@ Schema (every section optional; unknown keys are kept and reported, never refuse
     forbid_near_same_jpi_kev}, flip_adopt, dataset_off_adopt, drop_rows, change_norm_prior, extend_window,
     add_pairs_on_window_extension, shifts_free}, stop_rules{...}
     standing_decisions[]: {date, who, text}      open_decisions[]: strings
+    uq: {enabled, chains, warmup, draws, target_accept, j_saturated, sample_norms, priors{name: [mean, sigma]}, bands[], gates...}
+        (rmfit.uq: the drive runs it after its last cycle when enabled)
 """
 import dataclasses
 import hashlib
@@ -38,7 +40,7 @@ from typing import List, Optional
 
 KNOWN_TOP = {"_status", "reaction", "compound_nucleus", "campaign", "owners", "engine", "parametrization", "model",
              "data_sets", "bounds", "objective", "search", "nshards", "budget", "pre_authorized", "stop_rules", "structure",
-             "standing_decisions", "open_decisions", "notes"}
+             "standing_decisions", "open_decisions", "notes", "uq"}
 ROLES = {"anchor", "anchor_geometry", "free", "excluded", "excluded_in_window", "screen"}
 
 

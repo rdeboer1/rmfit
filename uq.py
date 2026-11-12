@@ -16,6 +16,13 @@ Stages (resumable; state in ``<dir>/uq/uq_state.json``, every product under ``<d
               Levels with J in (j_saturated, 0.9) and two particle channels are listed: Park would decorrelate them, which
               matters for emcee and not for NUTS with a dense metric (11-06-26_nuts).  Norms are sampled unless
               ``sample_norms`` is false.  Then the Laplace covariance C of the sampled block (J^T J + penalty Hessian + priors)^-1.
+              BOUNDS (2026-11-12, d+t): every sampled particle amplitude is bounded at |gamma| <= sqrt(cap) gamma_W with cap =
+              the campaign policy's theta^2 cap for its level (``BoundsPolicy.cap_for``: physical / background / window), the
+              box the polish ran in; ``bounds: "none"`` lifts it, ``theta2_cap`` (a number) sets one cap for every level (a
+              bare .azr + .sav has no policy: without it, no bounds).  Inside the box the posterior is the objective's own
+              (a uniform prior truncated at the box); NUTS runs on x = c + h tanh(u) with the Jacobian, draws are stored in x.
+              Why: the d+t data alone leave the 3/2+ background pole's amplitudes unbounded (width_2_2 beyond its Wigner limit
+              in 67 % of unbounded draws, 3H+d/11-12-26_uq); the archive's d+t MCMCs are uniform within the Wigner limits.
   SAMPLE      ``chains`` NUTS chains from mode + ``start_jitter_sd`` x Laplace sd, inverse metric C (adapted in warm-up),
               ``target_accept`` 0.9 (the 11-06 run had 2.4 % divergences at 0.8), checkpoints every 50 iterations per chain.
   GATES       split R-hat <= rhat_max, min bulk ESS >= ess_min, divergent fraction <= divergent_max_frac, E-BFMI >= bfmi_min.
@@ -34,6 +41,7 @@ Spec section ``uq`` (all optional; ``enabled`` makes the drive run the stage aft
 
     "uq": {"enabled": true, "chains": 4, "warmup": 1000, "draws": 2000, "target_accept": 0.9, "j_saturated": 0.01,
            "sample_norms": true, "priors": {"<engine parameter name>": [mean, sigma]}, "temper": 1.0,
+           "bounds": "policy" | "none", "theta2_cap": null | <one cap for every level>,
            "bands": [{"entrance": 2, "exit": -1, "e_min": 0.01, "e_max": 3.0, "e_step": 0.01, "observable": "total-capture",
                       "quantity": "sfactor", "label": "3He(a,g)7Be"}],
            "rhat_max": 1.01, "ess_min": 400, "divergent_max_frac": 0.01, "bfmi_min": 0.3, "max_attempts": 2}
@@ -53,7 +61,7 @@ from typing import Callable, Dict, List, Optional
 import numpy as np
 
 DEFAULTS = dict(enabled=False, j_saturated=0.01, sample_norms=True, chains=4, warmup=1000, draws=2000, target_accept=0.9,
-                max_tree_depth=10, start_jitter_sd=0.1, seed=11, temper=1.0, priors=None,
+                max_tree_depth=10, start_jitter_sd=0.1, seed=11, temper=1.0, priors=None, bounds="policy", theta2_cap=None,
                 rhat_max=1.01, ess_min=400, divergent_max_frac=0.01, bfmi_min=0.3, max_attempts=2, extend_factor=2.0,
                 band_draws=400, bands=None, bands_max=6, grid_min_points=10, figures=True)
 RMATRIX_KINDS = ("energy", "width")
@@ -108,8 +116,108 @@ def _setup_mode(azr, sav, flags):
             lv.append(dict(label=str(key), jgroup=int(getattr(key, "jgroup", ps[0].jgroup)), level=int(getattr(key, "level", ps[0].level)),
                            energy=float(key.energy if getattr(key, "energy", None) is not None else (ps[0].level_energy if ps[0].level_energy is not None else np.nan)),
                            names=[q.name for q in ps if not q.fixed], nfree=sum(1 for q in ps if not q.fixed), n_particle_channels=npart))
+        # the Wigner limit gamma_W^2 of every free particle amplitude and its level's excitation energy (the sampling box)
+        try:
+            wigner = {w.name: float(w.wigner_gamma2) for w in m.dimensionless_widths(x).particles if w.wigner_gamma2}
+        except Exception:
+            wigner = {}
+        level_energy = {p.name: float(p.level_energy) for p in free if p.kind in RMATRIX_KINDS and p.level_energy is not None}
     return dict(x=x.tolist(), names=names, kinds=kinds, level_of=level_of, objective=obj, chi2=float(chi2), npts=int(r.size),
-                penalties=pen, levels=lv)
+                penalties=pen, levels=lv, wigner=wigner, level_energy=level_energy)
+
+
+def _box(cfg, policy, names, idx, x, wigner, level_energy, log):
+    """[lo, hi] of every sampled parameter: particle amplitudes at +- sqrt(cap) gamma_W, cap from ``cfg["theta2_cap"]`` or the
+    campaign policy's ``cap_for(E_x)``; everything else (energies, norms, shifts, photon amplitudes) unbounded.  A mode outside
+    its bound (a bare fit that never ran in the box) widens that bound to 1.05 |x| with a warning."""
+    n = len(idx)
+    lo, hi = np.full(n, -np.inf), np.full(n, np.inf)
+    rows = []
+    if str(cfg.get("bounds", "policy")) == "none":
+        return lo, hi, rows
+    for a, i in enumerate(idx):
+        nm = names[i]
+        if nm not in wigner:
+            continue
+        if cfg.get("theta2_cap") is not None:
+            cap = float(cfg["theta2_cap"])
+        elif policy is not None and nm in level_energy:
+            cap = float(policy.cap_for(level_energy[nm]))
+        else:
+            continue
+        if not np.isfinite(cap) or cap <= 0:
+            continue
+        b = float(np.sqrt(cap * wigner[nm]))
+        xi = float(x[i])
+        if abs(xi) >= b:
+            log(f"uq SETUP: WARNING {nm} at the mode ({xi:.4g}) is outside its theta^2 box (|gamma| <= {b:.4g}); bound widened to 1.05 |x|")
+            b = 1.05 * abs(xi)
+        lo[a], hi[a] = -b, b
+        rows.append(dict(name=nm, bound=b, cap=cap, theta2_formal=xi * xi / wigner[nm]))
+    return lo, hi, rows
+
+
+class BoundedTarget:
+    """``u -> (log p, grad)`` of a target ``x -> (log p, grad)`` with bounded entries mapped onto the real line,
+    x_i = c_i + h_i tanh(u_i) on [lo_i, hi_i] (c the centre, h the half-width), log p(u) = log p(x(u)) + sum_i log dx_i/du_i:
+    the sampled density is the target's, truncated at the box.  Positions, checkpoints and the inverse metric are in u;
+    ``to_x`` maps draws back.  Picklable; the sample() factory protocol (called with no argument it returns itself)."""
+
+    def __init__(self, target, lo, hi):
+        self.target = target
+        self.lo, self.hi = np.asarray(lo, float), np.asarray(hi, float)
+        self.b = np.isfinite(self.lo) & np.isfinite(self.hi)
+        self.c, self.h = np.zeros(self.lo.size), np.ones(self.lo.size)
+        self.c[self.b] = 0.5 * (self.lo[self.b] + self.hi[self.b])
+        self.h[self.b] = 0.5 * (self.hi[self.b] - self.lo[self.b])
+
+    def __call__(self, u=None):
+        if u is None:
+            return self
+        return self.logp_and_grad(u)
+
+    def to_x(self, u):
+        u = np.asarray(u, float)
+        x = u.copy()
+        x[..., self.b] = self.c[self.b] + self.h[self.b] * np.tanh(u[..., self.b])
+        return x
+
+    def to_u(self, x):
+        x = np.asarray(x, float)
+        u = x.copy()
+        z = np.clip((x[..., self.b] - self.c[self.b]) / self.h[self.b], -1 + 1e-9, 1 - 1e-9)
+        u[..., self.b] = np.arctanh(z)
+        return u
+
+    def dxdu(self, u):
+        d = np.ones_like(u)
+        t = np.tanh(u[self.b])
+        d[self.b] = self.h[self.b] * (1.0 - t * t)
+        return d
+
+    def logp_and_grad(self, u):
+        u = np.asarray(u, float)
+        lp, g = self.target(self.to_x(u))
+        if not np.isfinite(lp):
+            return lp, g
+        d = self.dxdu(u)
+        gu = np.asarray(g, float) * d
+        gu[self.b] -= 2.0 * np.tanh(u[self.b])
+        # |u| > 19 saturates tanh: dx/du underflows to 0, the density there is 0; keep log p finite (-690 per entry)
+        return float(lp) + float(np.sum(np.log(np.maximum(d[self.b], 1e-300)))), gu
+
+    def inside(self, x, margin=1e-3):
+        """``x`` with every bounded entry clipped to the box shrunk by ``margin`` of its width (chain starts)."""
+        x = np.array(x, float, copy=True)
+        b = self.b
+        w = self.hi[b] - self.lo[b]
+        x[..., b] = np.clip(x[..., b], self.lo[b] + margin * w, self.hi[b] - margin * w)
+        return x
+
+    def metric_u(self, C, u0):
+        """The x-space covariance C as an inverse metric in u (linearised at u0)."""
+        d = self.dxdu(np.asarray(u0, float))
+        return np.asarray(C, float) / np.outer(d, d)
 
 
 def _park_J(azr, x_full, kinds, flags):
@@ -176,7 +284,7 @@ class Checkpoint:
                   f"div {int(sum(s['divergent'] for s in b))}  {time.time()-self.t0:.0f} s", flush=True)
 
 
-def _run_chains(azr, flags, idx, x_full, priors, temper, C, theta0, cfg, outdir, nprocs, threads, tag, log):
+def _run_chains(azr, flags, idx, x_full, priors, temper, C, theta0, cfg, outdir, nprocs, threads, tag, log, lo=None, hi=None):
     from pyazr.sampling import AzurePosterior, sample
     os.environ["OMP_NUM_THREADS"] = str(int(threads))
     T = AzurePosterior(azr, flags=_session_flags(flags), sample=list(idx), x_template=np.asarray(x_full, float),
@@ -187,26 +295,41 @@ def _run_chains(azr, flags, idx, x_full, priors, temper, C, theta0, cfg, outdir,
     x0 = np.asarray(theta0, float) + float(cfg["start_jitter_sd"]) * sd * rng.standard_normal((nch, len(theta0)))
     for f in glob.glob(os.path.join(outdir, f"ckpt_{tag}_*.npz")):
         os.remove(f)
-    log(f"uq SAMPLE {tag}: {nch} chains x ({cfg['warmup']} warm-up + {cfg['draws']} draws), {len(theta0)} parameters, "
-        f"target_accept {cfg['target_accept']}, {nprocs} processes x {threads} threads")
+    n = len(theta0)
+    lo = np.full(n, -np.inf) if lo is None else np.asarray(lo, float)
+    hi = np.full(n, np.inf) if hi is None else np.asarray(hi, float)
+    B = BoundedTarget(T, lo, hi) if np.any(np.isfinite(lo) & np.isfinite(hi)) else None
+    if B is not None:
+        # starts inside the box, positions and metric in u
+        u0 = B.to_u(B.inside(x0))      # (an arithmetic clip with infinite bounds gave nan starts: fixture job 1731094)
+        C_u = B.metric_u(C, B.to_u(np.asarray(theta0, float)))
+        target, starts, metric = B, u0, C_u
+    else:
+        target, starts, metric = T, x0, np.asarray(C)
+    log(f"uq SAMPLE {tag}: {nch} chains x ({cfg['warmup']} warm-up + {cfg['draws']} draws), {len(theta0)} parameters"
+        + (f" ({int(B.b.sum())} bounded, tanh-mapped)" if B is not None else "") + f", target_accept {cfg['target_accept']}, {nprocs} processes x {threads} threads")
     t0 = time.time()
-    r = sample(T, x0, n_chains=nch, nprocs=int(nprocs), seed=int(cfg["seed"]) + 100, n_warmup=int(cfg["warmup"]), n_draws=int(cfg["draws"]),
-               inv_metric=np.asarray(C), target_accept=float(cfg["target_accept"]), max_tree_depth=int(cfg["max_tree_depth"]),
+    r = sample(target, starts, n_chains=nch, nprocs=int(nprocs), seed=int(cfg["seed"]) + 100, n_warmup=int(cfg["warmup"]), n_draws=int(cfg["draws"]),
+               inv_metric=metric, target_accept=float(cfg["target_accept"]), max_tree_depth=int(cfg["max_tree_depth"]),
                callback=Checkpoint(outdir, cfg["warmup"], tag))
-    np.savez(os.path.join(outdir, f"chains_{tag}.npz"), samples=r.samples, logp=r.logp, step_size=r.step_size,
+    samples = B.to_x(r.samples) if B is not None else r.samples          # draws stored in x (the engine's parameters)
+    np.savez(os.path.join(outdir, f"chains_{tag}.npz"), samples=samples, logp=r.logp, step_size=r.step_size, lo=lo, hi=hi,
              **{f"stat_{k}": v for k, v in r.stats.items()}, **{f"warm_{k}": v for k, v in r.warmup.items()}, seconds=r.seconds)
     log(f"uq SAMPLE {tag}: done in {(time.time()-t0)/3600:.2f} h; {r.summary().splitlines()[-2]}")
     return r
 
 
-def _chains_from_checkpoints(outdir, tag, n_warmup, n_draws):
-    """Assemble a chains_<tag>.npz from per-chain checkpoints when every chain reached warm-up + draws (a killed job)."""
+def _chains_from_checkpoints(outdir, tag, n_warmup, n_draws, lo=None, hi=None):
+    """Assemble a chains_<tag>.npz from per-chain checkpoints when every chain reached warm-up + draws (a killed job).
+    Checkpoint positions are in the sampling coordinates (u when bounded): mapped back to x here."""
     ck = [np.load(f) for f in sorted(glob.glob(os.path.join(outdir, f"ckpt_{tag}_*.npz")))]
     need = int(n_warmup) + int(n_draws)
     if not ck or any(c["q"].shape[0] < need for c in ck):
         return None
     nw = int(ck[0]["nw"])
     X = np.stack([c["q"][nw:need] for c in ck]); ST = np.stack([c["st"][nw:need] for c in ck]); WS = np.stack([c["st"][:nw] for c in ck])
+    if lo is not None and hi is not None and np.any(np.isfinite(lo) & np.isfinite(hi)):
+        X = BoundedTarget(None, lo, hi).to_x(X)
     out = dict(samples=X, logp=np.zeros(X.shape[:2]), step_size=np.zeros(X.shape[0]),
                stat_accept=ST[:, :, 0], stat_n_leapfrog=ST[:, :, 1], stat_depth=ST[:, :, 2], stat_divergent=ST[:, :, 3], stat_energy=ST[:, :, 4],
                warm_n_leapfrog=WS[:, :, 1], seconds=0.0)
@@ -466,6 +589,11 @@ class UQ:
                  + f"; {len(twoch)} level(s) with J in ({cfg['j_saturated']}, 0.9) and >= 2 particle channels (Park would decorrelate): "
                  + (", ".join(f"{lv['label']} J {lv['J']:.2f}" for lv in twoch) or "none")
                  + f"; sampling {len(idx)} of {len(names)} free ({'norms sampled' if cfg['sample_norms'] else 'norms held'})")
+        policy = getattr(self.campaign, "policy", None) if self.campaign is not None else None
+        lo, hi, box = _box(cfg, policy, names, idx, np.asarray(md["x"], float), md.get("wigner", {}), md.get("level_energy", {}), self.log)
+        self.log(f"uq SETUP: bounds ({cfg.get('bounds', 'policy')}): {len(box)} particle amplitude(s) sampled inside |gamma| <= sqrt(cap) gamma_W"
+                 + (": " + ", ".join(f"{b['name']} |g| <= {b['bound']:.3g} (cap {b['cap']:g}, theta2 at the mode {b['theta2_formal']:.2f})" for b in box) if box else "")
+                 + ("" if box or str(cfg.get("bounds", "policy")) == "none" else " -- none (no campaign policy and no uq.theta2_cap: the posterior is unbounded)"))
         priors = {k: tuple(v) for k, v in (cfg.get("priors") or {}).items()}
         lap = _child(_laplace, self.azr, self.flags, idx, md["x"], priors, cfg["temper"], self.out)
         self.log(f"uq SETUP: Laplace covariance of {len(idx)} parameters in {lap['seconds']:.0f} s; eigenvalues {lap['eig_min']:.3e} .. {lap['eig_max']:.3e}; "
@@ -477,15 +605,17 @@ class UQ:
             C = lap["C"]
         nu = md["npts"] - len(names)
         np.savez(os.path.join(self.out, "laplace.npz"), C=C, theta0=lap["theta0"], idx=np.array(idx, int), names=np.array(names), kinds=np.array(kinds),
-                 x_full=np.array(md["x"], float), J_labels=np.array(pk["levels"]), J=np.array(pk["J"], float))
+                 x_full=np.array(md["x"], float), J_labels=np.array(pk["levels"]), J=np.array(pk["J"], float), lo=lo, hi=hi)
         self.mark("SETUP", objective=md["objective"], chi2=md["chi2"], npts=md["npts"], nfree=len(names), nu=nu, chi2nu=md["chi2"] / max(nu, 1),
-                  n_sampled=len(idx), held=sorted(held), saturated=[dict(label=l["label"], J=l["J"], energy=l["energy"], nfree=l["nfree"]) for l in sat],
+                  n_sampled=len(idx), held=sorted(held), bounds=box, idx=list(map(int, idx)), names=list(names), x_full=list(map(float, md["x"])), saturated=[dict(label=l["label"], J=l["J"], energy=l["energy"], nfree=l["nfree"]) for l in sat],
                   two_channel=[dict(label=l["label"], J=l["J"], energy=l["energy"]) for l in twoch], eig_min=lap["eig_min"], eig_max=lap["eig_max"],
                   grad_norm=lap["grad_norm"], penalties=md["penalties"], park_objective=pk["objective_park"], minutes=round((time.time() - t0) / 60, 1))
 
     def _load_setup(self):
         z = np.load(os.path.join(self.out, "laplace.npz"), allow_pickle=False)
-        return dict(C=z["C"], theta0=z["theta0"], idx=z["idx"].tolist(), names=z["names"].tolist(), kinds=z["kinds"].tolist(), x_full=z["x_full"])
+        n = z["idx"].size
+        return dict(C=z["C"], theta0=z["theta0"], idx=z["idx"].tolist(), names=z["names"].tolist(), kinds=z["kinds"].tolist(), x_full=z["x_full"],
+                    lo=z["lo"] if "lo" in z.files else np.full(n, -np.inf), hi=z["hi"] if "hi" in z.files else np.full(n, np.inf))
 
     def s_sample(self):
         if self.done("SAMPLE"):
@@ -498,12 +628,12 @@ class UQ:
         tag = f"a{att}"
         path = os.path.join(self.out, f"chains_{tag}.npz")
         if not os.path.exists(path):
-            if _chains_from_checkpoints(self.out, tag, cfg["warmup"], cfg["draws"]) is not None:
+            if _chains_from_checkpoints(self.out, tag, cfg["warmup"], cfg["draws"], s["lo"], s["hi"]) is not None:
                 self.log(f"uq SAMPLE {tag}: assembled from the checkpoints of a killed job")
             else:
                 priors = {k: tuple(v) for k, v in (cfg.get("priors") or {}).items()}
                 _run_chains(self.azr, self.flags, s["idx"], s["x_full"], priors, cfg["temper"], s["C"], s["theta0"], cfg, self.out,
-                            self.nprocs, self.threads, tag, self.log)
+                            self.nprocs, self.threads, tag, self.log, lo=s["lo"], hi=s["hi"])
         z = np.load(path)
         self.mark("SAMPLE", tag=tag, attempt=att, warmup=cfg["warmup"], draws=cfg["draws"], chains=int(z["samples"].shape[0]),
                   seconds=float(z["seconds"]), grad_evaluations=int(np.asarray(z["stat_n_leapfrog"]).sum() + np.asarray(z["warm_n_leapfrog"]).sum()))
@@ -594,6 +724,10 @@ class UQ:
              f"- levels with J in ({cfg['j_saturated']}, 0.9) and >= 2 particle channels (Park would decorrelate them; irrelevant to NUTS with a dense metric): "
              + (", ".join(f"{l['label']} (J {l['J']:.2f})" for l in su.get("two_channel", [])) or "none") + ".",
              f"- priors beyond the objective's own penalties: {json.dumps(cfg.get('priors') or {})}; temper {cfg['temper']}.",
+             f"- bounds ({cfg.get('bounds', 'policy')}): " + (", ".join(f"{b['name']} |gamma| <= {b['bound']:.3g} (theta^2 cap {b['cap']:g}; {b['theta2_formal']:.2f} at the mode)"
+                                                                       for b in su.get("bounds", [])) or "none")
+             + ".  Inside the box the posterior is the objective's own (uniform prior truncated at the campaign's theta^2 caps, as the polish); "
+               "a different prior on an amplitude is the evaluator's (uq.priors, or bounds: none).",
              f"- Laplace covariance eigenvalues {su.get('eig_min', float('nan')):.3e} .. {su.get('eig_max', float('nan')):.3e}; |grad log p| at the mode {su.get('grad_norm', float('nan')):.2e}.",
              "", "## Chains", "",
              f"- NUTS (pyazr.sampling): {sa.get('chains')} chains x ({sa.get('warmup')} warm-up + {sa.get('draws')} draws), attempt {sa.get('attempt', 0) + 1}, "

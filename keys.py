@@ -334,18 +334,38 @@ def flip(x, keys: Sequence[ParamKey], which: Sequence[ParamKey]) -> np.ndarray:
     return out
 
 
-def sign_distance(x1, x2, keys: Sequence[ParamKey], fixed: Sequence[ParamKey] = ()):
+def sign_distance(x1, x2, keys: Sequence[ParamKey], fixed: Sequence[ParamKey] = (),
+                  exact_max: int = 20, starts: int = 64):
     """Minimal number of single-amplitude sign flips that turn the width sign
     pattern of ``x1`` into that of ``x2`` modulo the exact gauge symmetries
     (one sign per level, one per particle pair, tied by fixed nonzero
-    amplitudes exactly as in :func:`canonical_signs`).
+    amplitudes exactly as in :func:`canonical_signs`).  Amplitudes that are zero
+    in either vector are ignored.  Returns ``(distance, differing_keys)``, the
+    keys in key order; flipping ``differing_keys`` in ``x1`` gives a pattern
+    gauge-equivalent to ``x2`` (also when the distance is not minimal, below).
 
-    The pair gauges are enumerated (a handful of pairs); for each choice every
-    untied level picks its own gauge sign independently, so the search is
-    exact.  Amplitudes that are zero in either vector are ignored.  Returns
-    ``(distance, differing_keys)`` for the best gauge.
+    The problem is the frustration index of a signed graph: the gauge
+    components (connected components of the level/pair graph joined by fixed
+    amplitudes) are the nodes, every amplitude is an edge between its level's
+    and its pair's component with sign +1 (x1, x2 agree) or -1, and a gauge is
+    one sign per node.  Every edge has a pair end, so the components holding a
+    pair end ("core") cover all edges and each other component is optimal in
+    closed form, ``(n_v - |sum_e d_e h_pair(e)|) / 2``.  With at most
+    ``exact_max`` core components the core gauges are enumerated exactly
+    (vectorised, one global sign fixed); above that the distance is the best of
+    ``starts`` deterministic multistart local searches (single and pair flips
+    of core gauges, from the identity, a spanning-tree parity gauge and random
+    gauges) -- an upper bound that was exact on every test instance, and
+    distance 0 is always detected exactly (a balanced graph's parity gauge has
+    no frustrated edge).
+
+    Until 2026-11-12 the pair gauges were enumerated in a plain Python loop over
+    all 2^(pairs) choices, each rescanning every amplitude per level: fine for
+    the handful of pairs of the earlier campaigns, but 19F+alpha's 27 pairs
+    (134M choices) hung a population round for hours
+    (19F+a/11-12-26_rmfit_campaign readme).  That version also gave several
+    levels tied to the same amplitude-less pair independent signs.
     """
-    import itertools
     x1 = np.asarray(x1, float)
     x2 = np.asarray(x2, float)
     parent: Dict[object, object] = {}
@@ -367,48 +387,100 @@ def sign_distance(x1, x2, keys: Sequence[ParamKey], fixed: Sequence[ParamKey] = 
             union(("L", k.level), ("P", k.member, k.pair))
     amps = [(i, k) for i, k in enumerate(keys)
             if k.kind == "width" and x1[i] != 0 and x2[i] != 0]
-    # d = +1 where the two agree, -1 where they differ (gauge-covariant)
-    d = {k: (1 if (x1[i] > 0) == (x2[i] > 0) else -1) for i, k in amps}
+    if not amps:
+        return (0, [])
     # pair nodes are (member, pair), as the unions above tag them (a joint fit
     # has one gauge per member's pair); plain fits have member "" throughout.
-    # Mismatched 2-tuples here raised KeyError on every call from 2026-10-13
-    # (stage-2 member tags) until 2026-10-13 evening (tests/test_keys.py).
-    pairs = sorted({(k.member, k.pair) for _, k in amps})
-    levels = sorted({k.level for _, k in amps}, key=str)
-    # components that contain a pair node are "pair-driven": their sign is set
-    # by the pair enumeration; levels in a pure-level component are free
-    pair_roots = {find(("P", m, p)) for m, p in pairs}
-    best = None
-    for choice in itertools.product((1, -1), repeat=len(pairs)):
-        gp = {}
-        ok = True
-        for (m, p), s in zip(pairs, choice):
-            r = find(("P", m, p))
-            if r in gp and gp[r] != s:
-                ok = False
+    ea = [find(("L", k.level)) for _, k in amps]
+    eb = [find(("P", k.member, k.pair)) for _, k in amps]
+    dd = np.array([1 if (x1[i] > 0) == (x2[i] > 0) else -1 for i, _ in amps], int)
+    core_ids = {r: j for j, r in enumerate(sorted(set(eb), key=str))}
+    free_ids = {r: j for j, r in enumerate(sorted({a for a in ea if a not in core_ids}, key=str))}
+    R, F = len(core_ids), len(free_ids)
+    const = np.array([a == b for a, b in zip(ea, eb)])          # both ends in one component: gauge-invariant
+    cc = np.array([(a in core_ids) and a != b for a, b in zip(ea, eb)])
+    fr = np.array([a in free_ids for a in ea])
+    ia = np.array([core_ids.get(a, -1) for a in ea])
+    ib = np.array([core_ids[b] for b in eb])
+    fa = np.array([free_ids.get(a, -1) for a in ea])
+    c_ia, c_ib, c_d = ia[cc], ib[cc], dd[cc]
+    M = np.zeros((F, R))                                      # free component x core component: sum of d
+    np.add.at(M, (fa[fr], ib[fr]), dd[fr])
+    n_free = np.bincount(fa[fr], minlength=F).astype(float)
+    base = float(np.sum(dd[const] < 0))
+
+    def cost(H):                                              # H: (m, R) of +-1 -> (m,) frustrated edges
+        H = np.atleast_2d(H)
+        c = np.full(H.shape[0], base)
+        if c_d.size:
+            c += np.sum(H[:, c_ia] * H[:, c_ib] * c_d < 0, axis=1)
+        if F:
+            c += np.sum(n_free - np.abs(H @ M.T), axis=1) / 2.0
+        return c
+
+    if R <= exact_max:
+        best_h, best_c = None, np.inf
+        n = max(R - 1, 0)                                     # h_0 = +1: the global flip is a symmetry
+        chunk = 1 << min(n, 16)
+        bits = np.arange(n)
+        for lo in range(0, 1 << n, chunk):
+            idx = np.arange(lo, min(lo + chunk, 1 << n))
+            H = np.ones((idx.size, R))
+            if n:
+                H[:, 1:] = 1 - 2 * ((idx[:, None] >> bits) & 1)
+            c = cost(H)
+            j = int(np.argmin(c))
+            if c[j] < best_c:
+                best_c, best_h = c[j], H[j].copy()
+    else:
+        # spanning-tree parity gauge over all components (zero cost if balanced)
+        nodes = list(core_ids) + list(free_ids)
+        adj: Dict[object, list] = {u: [] for u in nodes}
+        for a, b, s in zip(ea, eb, dd):
+            if a != b:
+                adj[a].append((b, s))
+                adj[b].append((a, s))
+        sg: Dict[object, int] = {}
+        for u0 in nodes:
+            if u0 in sg:
+                continue
+            sg[u0], stack = 1, [u0]
+            while stack:
+                u = stack.pop()
+                for v, s in adj[u]:
+                    if v not in sg:
+                        sg[v] = sg[u] * s
+                        stack.append(v)
+        rng = np.random.default_rng(0)
+        inits = [np.ones(R), np.array([sg[r] for r in core_ids], float)]
+        inits += [rng.choice([-1.0, 1.0], R) for _ in range(max(int(starts) - 2, 0))]
+        flips = [np.eye(R)[i] for i in range(R)] + [np.eye(R)[i] + np.eye(R)[j] for i in range(R) for j in range(i + 1, R)]
+        Fm = 1 - 2 * np.array(flips)                          # rows: multiply h by these to flip one or two gauges
+        best_h, best_c = None, np.inf
+        for h in inits:
+            c0 = cost(h)[0]
+            while True:
+                cand = cost(Fm * h)
+                j = int(np.argmin(cand))
+                if cand[j] >= c0 - 1e-9:
+                    break
+                h, c0 = Fm[j] * h, cand[j]
+            if c0 < best_c:
+                best_c, best_h = c0, h.copy()
+            if best_c == 0:
                 break
-            gp[r] = s
-        if not ok:
-            continue
-        total = 0
-        diff = []
-        for lv in levels:
-            r = find(("L", lv))
-            ks = [k for _, k in amps if k.level == lv]
-            if r in pair_roots:
-                g = gp[r]
-                bad = [k for k in ks if d[k] * g * gp[find(("P", k.member, k.pair))] < 0]
-                total += len(bad)
-                diff += bad
-            else:
-                bad_plus = [k for k in ks if d[k] * gp[find(("P", k.member, k.pair))] < 0]
-                bad_minus = [k for k in ks if d[k] * gp[find(("P", k.member, k.pair))] > 0]
-                if len(bad_minus) < len(bad_plus):
-                    total += len(bad_minus)
-                    diff += bad_minus
-                else:
-                    total += len(bad_plus)
-                    diff += bad_plus
-        if best is None or total < best[0]:
-            best = (total, diff)
-    return best if best is not None else (0, [])
+    h = best_h
+    # the gauge of each free component given the core gauges, then the frustrated edges
+    g_free = np.sign(M @ h) if F else np.zeros(0)
+    g_free[g_free == 0] = 1
+    diff = []
+    for e, (i, k) in enumerate(amps):
+        if const[e]:
+            bad = dd[e] < 0
+        else:
+            ga = g_free[fa[e]] if fr[e] else h[ia[e]]
+            bad = dd[e] * ga * h[ib[e]] < 0
+        if bad:
+            diff.append(k)
+    assert len(diff) == int(round(best_c)), (len(diff), best_c)
+    return (len(diff), diff)

@@ -179,7 +179,8 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
   25.745 [25.504, 25.976].  NUTS = emcee within 0.15 sd on all 15 parameters.  Reading: the sampler is validated and the
   archive's number reproduced within the model difference; the automatic gate is NOT passed on d+t, and that is the gate
   working -- UQ_STATUS FAIL, decision `uq-gates` for DeBoer (accept the stable band, or 4 x 8000 after the engine install).
-  Phase 4 remaining: drive UQ state end to end on a live campaign; the attempt-2 sampler comparison (after the install).
+  Attempt-2 chains vs emcee (14:00, on the new shared engine e3d67399): S(40) 25.680 vs 25.680 (0.00 sd), parameters
+  within 0.22 sd.  Phase 4 remaining: drive UQ state end to end on a live campaign.
 
 - 2026-11-12 09:30  Phase 4 d+t validation, two stage defects found and fixed before a valid run (`3H+d/11-12-26_uq/readme`).
   (a) Unbounded posterior: `rmfit uq` sampled the objective with no box; on d+t the data alone do not bound the 3/2+

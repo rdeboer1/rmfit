@@ -160,14 +160,30 @@ class Ledger:
             return None
         return int(r[0]), float(r[1])
 
+    def signs_of(self, cid, structure_id=None) -> str:
+        """The candidate's canonical sign string recomputed from its saved vector.  The ``signs`` column of a
+        ledger written before 2026-11-12 may hold the old, not gauge-invariant form (keys.canonical_signs), and a
+        ledger can mix both while older jobs still write to it, so comparisons use this, not the column.  Falls
+        back to the column when the .npz is missing."""
+        if structure_id is None:
+            r = self.db.execute("SELECT structure_id FROM candidates WHERE id=?", (cid,)).fetchone()
+            structure_id = r[0] if r else None
+        try:
+            x, keys = self.load(cid)
+        except Exception:
+            r = self.db.execute("SELECT signs FROM candidates WHERE id=?", (cid,)).fetchone()
+            return r[0] if r else ""
+        return canonical_signs(x, keys, self.fixed_of(structure_id))
+
     def population(self, structure_id, k=4, stage="verified") -> List[Tuple[int, float, str]]:
         """The ``k`` best verified candidates with distinct canonical sign patterns."""
         rows = self.db.execute(
-            "SELECT c.id, MIN(s.objective), c.signs FROM scores s JOIN candidates c ON c.id = s.cid "
+            "SELECT c.id, MIN(s.objective) FROM scores s JOIN candidates c ON c.id = s.cid "
             "WHERE c.structure_id=? AND s.stage=? AND c.status != 'rejected' "
             "GROUP BY c.id ORDER BY MIN(s.objective)", (structure_id, stage)).fetchall()
         out, seen = [], set()
-        for cid, obj, signs in rows:
+        for cid, obj in rows:
+            signs = self.signs_of(cid, structure_id)
             if signs in seen:
                 continue
             seen.add(signs)
@@ -178,10 +194,10 @@ class Ledger:
 
     def duplicate_of(self, structure_id, x, keys, objective, rel=5e-4, stage="verified") -> Optional[int]:
         signs = canonical_signs(x, keys, self.fixed_of(structure_id))
-        for cid, obj, s in self.db.execute(
-                "SELECT c.id, s.objective, c.signs FROM scores s JOIN candidates c ON c.id = s.cid "
-                "WHERE c.structure_id=? AND s.stage=?", (structure_id, stage)):
-            if s == signs and abs(obj - objective) <= rel * abs(objective):
+        for cid, obj in self.db.execute(
+                "SELECT c.id, s.objective FROM scores s JOIN candidates c ON c.id = s.cid "
+                "WHERE c.structure_id=? AND s.stage=?", (structure_id, stage)).fetchall():
+            if abs(obj - objective) <= rel * abs(objective) and self.signs_of(cid, structure_id) == signs:
                 return int(cid)
         return None
 

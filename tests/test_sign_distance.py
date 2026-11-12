@@ -7,7 +7,7 @@ python3 rmfit/tests/test_sign_distance.py [path/to/old_keys.py]
 import itertools, os, sys, time, importlib.util
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 import numpy as np
-from rmfit.keys import ParamKey, flip, sign_distance
+from rmfit.keys import ParamKey, canonical_signs, flip, sign_distance
 
 failures = []
 def check(name, ok, detail=""):
@@ -53,12 +53,12 @@ def brute(x1, x2, keys, fixed):
     return best or 0
 
 def valid(x1, x2, keys, fixed, diff):
-    """Flipping diff in x1 must give x2's pattern up to a gauge (checked by the brute
-    force where small, else by sign_distance == 0, whose zero is exact).  Not checked
-    with canonical_signs: that greedy form is not gauge-invariant when an amplitude
-    joins two partial gauge trees (~8 % of random patterns, 2026-11-12, not changed here)."""
+    """Flipping diff in x1 must give x2's pattern up to a gauge: sign_distance == 0 (exact)
+    and, since the canonical_signs fix of 2026-11-12, equal canonical strings on the common support."""
     y = flip(x1, keys, diff)
-    return sign_distance(y, x2, keys, fixed)[0] == 0
+    both = (np.asarray(x1) != 0) & (np.asarray(x2) != 0)
+    return (sign_distance(y, x2, keys, fixed)[0] == 0
+            and canonical_signs(np.where(both, y, 0), keys, fixed) == canonical_signs(np.where(both, x2, 0), keys, fixed))
 
 rng = np.random.default_rng(12)
 # 1. exact path == brute force, with ties from fixed amplitudes (incl. several levels on one amplitude-less pair)
@@ -112,5 +112,25 @@ check(f"27 pairs / {sum(k.kind=='width' for k in keys)} amplitudes: {dt:.2f} s (
 keys, fixed, x1, x2 = instance(rng, 60, 20, p_amp=0.5, nfix=0)
 t0 = time.time(); d, diff = sign_distance(x1, x2, keys, fixed); dt = time.time() - t0
 check(f"20 pairs exact path: {dt:.2f} s", dt < 30)
+# 6. canonical_signs (2026-11-12 fix): invariant under every gauge transform that keeps the fixed amplitudes,
+#    and equal strings <=> distance 0 (different orbits never share a string)
+def gauge(rng, x, keys, fixed):
+    lv = sorted({k.level for k in keys if k.level}); pr = sorted({(k.member, k.pair) for k in keys if k.pair})
+    for _ in range(50):
+        gl = dict(zip(lv, rng.choice([-1, 1], len(lv)))); gp = dict(zip(pr, rng.choice([-1, 1], len(pr))))
+        if all(gl.get(k.level, 1) * gp.get((k.member, k.pair), 1) > 0 for k in fixed):
+            return np.array([x[i] * gl[k.level] * gp[(k.member, k.pair)] if k.kind == "width" else x[i]
+                             for i, k in enumerate(keys)])
+    return x.copy()
+ninv = nsep = nsame = 0
+for t in range(1000):
+    keys, fixed, x1, x2 = instance(rng, int(rng.integers(1, 30)), int(rng.integers(1, 10)), p_amp=0.5, nfix=int(rng.integers(0, 5)))
+    ninv += canonical_signs(x1, keys, fixed) != canonical_signs(gauge(rng, x1, keys, fixed), keys, fixed)
+    x2 = np.where(x1 != 0, x2, 0)                         # same support
+    same = sign_distance(x1, x2, keys, fixed)[0] == 0
+    nsame += same
+    nsep += same != (canonical_signs(x1, keys, fixed) == canonical_signs(x2, keys, fixed))
+check("canonical_signs invariant under 1000 random gauge transforms (ties, zeros)", ninv == 0, str(ninv))
+check(f"canonical_signs equal <=> sign distance 0 (1000 pairs, {nsame} gauge-equivalent)", nsep == 0, str(nsep))
 print("test_sign_distance:", "FAILED " + ", ".join(failures) if failures else "ok")
 sys.exit(1 if failures else 0)

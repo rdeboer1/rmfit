@@ -271,57 +271,72 @@ def canonical_signs(x, keys: Sequence[ParamKey],
     relative), because some levels carry fixed pair-1 amplitudes, while
     flipping every free pair-1 *and* pair-2 amplitude is one to 1e-16.
     Levels and pairs joined by fixed amplitudes therefore share one gauge
-    sign (connected components of that graph).
+    sign (connected components of that graph).  Zero amplitudes carry no sign.
 
-    The canonical representative is built greedily on those components in key
-    order and depends only on gauge-invariant products of signs, so it is the
-    same for every pattern of one orbit.  Zero amplitudes carry no sign.
+    Canonical form (2026-11-12): the gauge components are nodes and every
+    nonzero amplitude an edge.  In key order, an amplitude that joins two
+    so-far separate trees is a spanning-forest edge: it is written ``+`` and
+    the two trees are merged with the relative gauge that makes it so.  Any
+    other amplitude closes a cycle and is written as its gauge-invariant
+    product with the forest path between its ends.  The forest depends only on
+    which amplitudes are nonzero and on the key order, so every pattern of one
+    orbit gives the same string, and different orbits give different strings
+    (the string is the pattern itself in one particular gauge).  Before
+    2026-11-12 an amplitude joining two trees was written with the trees'
+    unreconciled gauges, so about 8 % of random patterns gave a string that a
+    gauge-equivalent pattern did not (missed duplicates; never a false match).
     """
     x = np.asarray(x, float)
     widths = [(i, k) for i, k in enumerate(keys) if k.kind == "width"]
-    sgn = [0 if x[i] == 0 else (1 if x[i] > 0 else -1) for i, _ in widths]
-    # union-find over level and pair nodes, joined by fixed nonzero amplitudes
-    parent: Dict[object, object] = {}
+    # gauge components: level and pair nodes joined by fixed nonzero amplitudes
+    comp: Dict[object, object] = {}
 
-    def find(u):
-        parent.setdefault(u, u)
-        while parent[u] != u:
-            parent[u] = parent[parent[u]]
-            u = parent[u]
+    def croot(u):
+        comp.setdefault(u, u)
+        while comp[u] != u:
+            comp[u] = comp[comp[u]]
+            u = comp[u]
         return u
-
-    def union(u, v):
-        ru, rv = find(u), find(v)
-        if ru != rv:
-            parent[ru] = rv
 
     for k in fixed:
         if k.kind == "width" and k.level is not None and k.pair is not None:
-            union(("L", k.level), ("P", k.member, k.pair))
-    g: Dict[object, int] = {}          # component root -> gauge sign
+            ru, rv = croot(("L", k.level)), croot(("P", k.member, k.pair))
+            if ru != rv:
+                comp[ru] = rv
+    # spanning forest over the components, with each node's sign relative to its tree root
+    parent: Dict[object, object] = {}
+    par: Dict[object, int] = {}
+
+    def find(u):
+        if u not in parent:
+            parent[u], par[u] = u, 1
+            return u, 1
+        path = []
+        while parent[u] != u:
+            path.append(u)
+            u = parent[u]
+        root, acc = u, 1
+        for v in reversed(path):            # compress: parity of v to the root
+            acc *= par[v]
+            parent[v], par[v] = root, acc
+        return root, (par[path[0]] if path else 1)
+
     out = []
-    for p, (i, k) in enumerate(widths):
-        s = sgn[p]
-        if s == 0:
+    for i, k in widths:
+        if x[i] == 0:
             out.append("0")
             continue
-        A, B = find(("L", k.level)), find(("P", k.member, k.pair))
+        s = 1 if x[i] > 0 else -1
+        A, B = croot(("L", k.level)), croot(("P", k.member, k.pair))
         if A == B:
             out.append("+" if s > 0 else "-")     # gauge-invariant
             continue
-        if A in g and B in g:
-            s = g[A] * g[B] * s
-        elif A in g:
-            g[B] = g[A] * s
-            s = 1
-        elif B in g:
-            g[A] = g[B] * s
-            s = 1
+        (ra, pa), (rb, pb) = find(A), find(B)
+        if ra != rb:
+            parent[ra], par[ra] = rb, pa * pb * s     # makes pa' * pb * s = +1 for this edge
+            out.append("+")
         else:
-            g[A] = 1
-            g[B] = s
-            s = 1
-        out.append("+" if s > 0 else "-")
+            out.append("+" if pa * pb * s > 0 else "-")
     return "".join(out)
 
 

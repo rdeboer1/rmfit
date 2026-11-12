@@ -146,13 +146,33 @@ Fixture: `tests/test_uq_13n.py` on the queue (`tests/_queue_uq/run_crc_uq_test`,
 `6Li+p/3He+a/AZURE2_evaluation/11-10-26_uq/` (job 1725304): PASS 2026-11-11 -- gates automatic (R-hat 1.003, ESS >= 826,
 0.57 % divergent), S34(0) = 0.544 +- 0.007 keV b (1.24 %; sampled = linear within 4 %) against CSEWG 0.56 +- 0.01 on the
 externals-on model: central value within 1.3 sigma combined, width 0.6 x -- a model difference (externals), DeBoer's call.
-d+t: not started.
+d+t: in progress 2026-11-12 (`3H+d/11-12-26_uq/`, the archive's V1-at-9-fm model, d+t data alone).  Two findings before a
+valid run: (1) with no bounds the d+t data leave the 3/2+ background pole's amplitudes unbounded (emcee acceptance 0.11,
+width_2_2 beyond its Wigner limit in 67 % of draws; NUTS R-hat 28-42) -- the stage now samples inside the campaign's
+theta^2 box by default (`bounds: "policy"`, commit ce08b8d); (2) the first bounded run froze (R-hat 9e7, step 5e-8) because
+the metric in u came from the unbounded Laplace, wide along the pole -- the metric is now the Hessian of -log p(u) at the
+mode (commit 72e6fde).  Reference on the same density: bounded emcee (64 x 100000) S(40 keV) = 25.67 [25.43, 25.93] MeV b
+vs the archive's 25.75 [25.50, 25.98] (Haesner in).  Result of the bounded NUTS run (job 1731806): see the progress log.
 
 ## Open items not on the roadmap
 Competing-resolution test for near-duplicate levels; differential-convolution shards; single-session-only kinds
 (density, Doppler, thickness, screening) in shards; `structure add` exit status on a failed scan.
 
 ## Progress log
+
+- 2026-11-12 09:30  Phase 4 d+t validation, two stage defects found and fixed before a valid run (`3H+d/11-12-26_uq/readme`).
+  (a) Unbounded posterior: `rmfit uq` sampled the objective with no box; on d+t the data alone do not bound the 3/2+
+  background pole (unbounded emcee 1731011: width_2_2 beyond its Wigner limit in 67 % of draws, tau 900-2100; NUTS 1731010:
+  R-hat 28 / 42, ESS 2, chains at log p -7500).  The archive's d+t MCMCs are uniform within the Wigner limits, rmfit's polish
+  ran in the theta^2 box -- the stage now samples inside that box by default (`uq.bounds` policy | none, `uq.theta2_cap`
+  for a bare fit; BoundedTarget, x = c + h tanh u with the Jacobian; ce08b8d, 5a0b72c; test_uq_bounds.py; fixture jobs
+  1731094 (nan start, fixed) and 1731128).  (b) Frozen chains in the box (job 1731435, killed): the metric in u was the
+  unbounded Laplace / (dx/du)^2, 3400 in u for width_2_2 where the truncated posterior has sd ~1; step size 5e-8, R-hat 9e7.
+  metric_u is now the inverse Hessian of -log p(u) at the mode (D C^-1 D + Jacobian curvature + the gradient term of an
+  edge-held mode, bounded sd <= 1, Woodbury on the bounded block, g0 saved by SETUP; starts jittered in u; 72e6fde; unit
+  test with an edge-held ridge; fixture jobs 1731781, 1731795 PASS).  7Be is unaffected by both (caps 1e5 / 1e7: no box).
+  Bounded emcee reference on the identical density (1731092, 64 x 100000, chain_bounded.h5): S(40 keV) 25.672 [25.429,
+  25.925], tau 1074-4293, width_2_2 within 2 % of its limit in 5.7 % of draws (archive 4.9 %).  Bounded NUTS: job 1731806.
 
 - 2026-11-11 05:50  Phase 4 verified on 7Be (job 1725304, 24 slots, 4.8 h of sampling): `rmfit uq` PASS with no human input.
   Setup found the 10-24-26 study's four saturated poles again (J <= 2e-3, 18 parameters held), sampled 177 with the 123 norms;

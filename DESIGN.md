@@ -156,13 +156,30 @@ width_2_2 beyond its Wigner limit in 67 % of draws; NUTS R-hat 28-42) -- the sta
 theta^2 box by default (`bounds: "policy"`, commit ce08b8d); (2) the first bounded run froze (R-hat 9e7, step 5e-8) because
 the metric in u came from the unbounded Laplace, wide along the pole -- the metric is now the Hessian of -log p(u) at the
 mode (commit 72e6fde).  Reference on the same density: bounded emcee (64 x 100000) S(40 keV) = 25.67 [25.43, 25.93] MeV b
-vs the archive's 25.75 [25.50, 25.98] (Haesner in).  Result of the bounded NUTS run (job 1731806): see the progress log.
+vs the archive's 25.75 [25.50, 25.98] (Haesner in).  Bounded NUTS (job 1731806, 2026-11-12): gates FAIL twice (split
+R-hat 1.013 then 1.018 on width_1_2, ESS 266 / 145, 0.9 % divergent) on a rarely visited tail of the d+t-alone posterior
+(width_1_2 near 0.45, the background pole's other sign in 1.4 % of one chain) -> decision `uq-gates`; the band at 40 keV is
+stable: 25.615 +- 0.249 linear, sampled 25.652 [25.408, 25.913] (half-width / linear 1.01), NUTS = emcee within 0.15 sd on
+every parameter, 0.09 MeV b (0.4 sd) below the archive with Haesner.  Verdict: sampler and bands validated; "gates pass
+automatically" not met on d+t -- the gate refused a posterior that emcee also could not call converged (walker R-hat 1.15).
 
 ## Open items not on the roadmap
 Competing-resolution test for near-duplicate levels; differential-convolution shards; single-session-only kinds
 (density, Doppler, thickness, screening) in shards; `structure add` exit status on a failed scan.
 
 ## Progress log
+
+- 2026-11-12 13:45  Phase 4 d+t validation run (job 1731806, 4 slots, 4.2 h; `3H+d/11-12-26_uq/readme`, UQ.md).  With the
+  Hessian metric the chains move (sd ratio 0.88, depth cap 8) but the gates fail both attempts: split R-hat 1.013 -> 1.018
+  (width_1_2), ESS 266 -> 145, divergences 0.14 % -> 0.92 % (0/35/15/97 per chain), E-BFMI 0.99.  The divergences sit in a
+  tail at width_1_2 ~0.45 (chain median 0.66), Ex 16.89-16.91, that two chains visit in their first halves; one chain has
+  1.4 % of its draws at the background pole's other sign.  The bounded emcee reference (walker R-hat 1.148, tau 4300) shows
+  the same posterior.  Band 3H(d,n)4He at E_cm 40 keV: 25.615 +- 0.249 MeV b linear; sampled 25.652 [25.408, 25.913];
+  half-width / linear 1.01 (grid median 0.86); emcee on the same density 25.673 [25.431, 25.918]; the archive with Haesner
+  25.745 [25.504, 25.976].  NUTS = emcee within 0.15 sd on all 15 parameters.  Reading: the sampler is validated and the
+  archive's number reproduced within the model difference; the automatic gate is NOT passed on d+t, and that is the gate
+  working -- UQ_STATUS FAIL, decision `uq-gates` for DeBoer (accept the stable band, or 4 x 8000 after the engine install).
+  Phase 4 remaining: drive UQ state end to end on a live campaign; the attempt-2 sampler comparison (after the install).
 
 - 2026-11-12 09:30  Phase 4 d+t validation, two stage defects found and fixed before a valid run (`3H+d/11-12-26_uq/readme`).
   (a) Unbounded posterior: `rmfit uq` sampled the objective with no box; on d+t the data alone do not bound the 3/2+

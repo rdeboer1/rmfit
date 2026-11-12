@@ -23,7 +23,8 @@ Stages (resumable; state in ``<dir>/uq/uq_state.json``, every product under ``<d
               (a uniform prior truncated at the box); NUTS runs on x = c + h tanh(u) with the Jacobian, draws are stored in x.
               Why: the d+t data alone leave the 3/2+ background pole's amplitudes unbounded (width_2_2 beyond its Wigner limit
               in 67 % of unbounded draws, 3H+d/11-12-26_uq); the archive's d+t MCMCs are uniform within the Wigner limits.
-  SAMPLE      ``chains`` NUTS chains from mode + ``start_jitter_sd`` x Laplace sd, inverse metric C (adapted in warm-up),
+  SAMPLE      ``chains`` NUTS chains from mode + ``start_jitter_sd`` x Laplace sd, inverse metric C (adapted in warm-up);
+              bounded: in u, the metric from the Hessian of -log p(u) at the mode (BoundedTarget.metric_u, sd <= 1 in u),
               ``target_accept`` 0.9 (the 11-06 run had 2.4 % divergences at 0.8), checkpoints every 50 iterations per chain.
   GATES       split R-hat <= rhat_max, min bulk ESS >= ess_min, divergent fraction <= divergent_max_frac, E-BFMI >= bfmi_min.
               A failed gate re-runs SAMPLE with ``extend_factor`` x the draws and warm-up, ``max_attempts`` times; after that
@@ -214,10 +215,42 @@ class BoundedTarget:
         x[..., b] = np.clip(x[..., b], self.lo[b] + margin * w, self.hi[b] - margin * w)
         return x
 
-    def metric_u(self, C, u0):
-        """The x-space covariance C as an inverse metric in u (linearised at u0)."""
-        d = self.dxdu(np.asarray(u0, float))
-        return np.asarray(C, float) / np.outer(d, d)
+    def metric_u(self, C, u0, g0=None, sd_max=1.0):
+        """Inverse metric in u from the x-space Laplace covariance C at the mode: the inverse of the Hessian of -log p(u)
+        at u0, H_u = D C^-1 D + diag(2 sech^2 u0 + max(0, 2 g h tanh(u0) sech^2 u0)) on the bounded entries (D = dx/du;
+        the Jacobian's own curvature and, with ``g0`` = grad log p(x) at the mode, the gradient term of a mode held at the
+        box edge), with every bounded entry's sd in u clamped at ``sd_max`` (a density flat across its box has sd 0.9 in u).
+        C / outer(dx/du, dx/du) alone is wrong where C is wide along a bounded direction (the d+t background pole: sd 11
+        for a box of +-0.8 gave an sd of 7000 in u, a step size of 5e-8 and frozen chains, job 1731435)."""
+        u0 = np.asarray(u0, float)
+        C = np.asarray(C, float)
+        C = 0.5 * (C + C.T)
+        d = self.dxdu(u0)
+        ib = np.flatnonzero(self.b)
+        a = np.zeros(ib.size)
+        if ib.size:
+            t = np.tanh(u0[ib])
+            s2 = 1.0 - t * t
+            a = 2.0 * s2
+            if g0 is not None:
+                a = a + np.maximum(0.0, 2.0 * np.asarray(g0, float)[ib] * self.h[ib] * t * s2)
+        # (D C^-1 D + diag(a))^-1 = D^-1 (C^-1 + E)^-1 D^-1 with E = diag(a / d^2) on the bounded entries: Woodbury on the
+        # bounded sub-block only (C itself is never inverted; its condition number is 1e13 on a real campaign)
+        k = ib[a > 0]
+        Cw = C.copy()
+        if k.size:
+            e = d[k] ** 2 / a[a > 0]                       # E_k^-1
+            S = np.diag(e) + C[np.ix_(k, k)]
+            Cw = C - C[:, k] @ np.linalg.solve(S, C[k, :])
+        Cu = Cw / np.outer(d, d)
+        Cu = 0.5 * (Cu + Cu.T)
+        if np.linalg.eigvalsh(Cu).min() <= 0:
+            Cu = np.diag(np.maximum(np.diag(Cu), 1e-300))
+        if ib.size:
+            f = np.ones(u0.size)
+            f[ib] = np.minimum(1.0, sd_max / np.sqrt(np.maximum(np.diag(Cu)[ib], 1e-300)))
+            Cu = Cu * np.outer(f, f)
+        return 0.5 * (Cu + Cu.T)
 
 
 def _park_J(azr, x_full, kinds, flags):
@@ -255,7 +288,7 @@ def _laplace(azr, flags, idx, x_full, priors, temper, workdir):
     C = T.laplace_covariance(th)
     C = 0.5 * (C + C.T)
     ev = np.linalg.eigvalsh(C)
-    return dict(C=C, theta0=th, logp=float(lp), grad_norm=float(np.linalg.norm(g)), eig_min=float(ev.min()), eig_max=float(ev.max()),
+    return dict(C=C, theta0=th, g0=np.asarray(g, float), logp=float(lp), grad_norm=float(np.linalg.norm(g)), eig_min=float(ev.min()), eig_max=float(ev.max()),
                 seconds=time.time() - t0)
 
 
@@ -284,7 +317,7 @@ class Checkpoint:
                   f"div {int(sum(s['divergent'] for s in b))}  {time.time()-self.t0:.0f} s", flush=True)
 
 
-def _run_chains(azr, flags, idx, x_full, priors, temper, C, theta0, cfg, outdir, nprocs, threads, tag, log, lo=None, hi=None):
+def _run_chains(azr, flags, idx, x_full, priors, temper, C, theta0, cfg, outdir, nprocs, threads, tag, log, lo=None, hi=None, g0=None):
     from pyazr.sampling import AzurePosterior, sample
     os.environ["OMP_NUM_THREADS"] = str(int(threads))
     T = AzurePosterior(azr, flags=_session_flags(flags), sample=list(idx), x_template=np.asarray(x_full, float),
@@ -300,9 +333,15 @@ def _run_chains(azr, flags, idx, x_full, priors, temper, C, theta0, cfg, outdir,
     hi = np.full(n, np.inf) if hi is None else np.asarray(hi, float)
     B = BoundedTarget(T, lo, hi) if np.any(np.isfinite(lo) & np.isfinite(hi)) else None
     if B is not None:
-        # starts inside the box, positions and metric in u
-        u0 = B.to_u(B.inside(x0))      # (an arithmetic clip with infinite bounds gave nan starts: fixture job 1731094)
-        C_u = B.metric_u(C, B.to_u(np.asarray(theta0, float)))
+        # positions, metric and start jitter in u: the metric from the Hessian in u at the mode (metric_u), the starts
+        # jittered with its sd (an x-space jitter with the Laplace sd put every start of a wide bounded direction at the
+        # box edge; an arithmetic clip with infinite bounds gave nan starts: fixture job 1731094)
+        u_mode = B.to_u(B.inside(np.asarray(theta0, float)))
+        C_u = B.metric_u(C, u_mode, g0=g0)
+        sd_u = np.sqrt(np.clip(np.diag(C_u), 0, None))
+        u0 = u_mode + float(cfg["start_jitter_sd"]) * sd_u * rng.standard_normal((nch, n))
+        ib = np.flatnonzero(B.b)
+        log("uq SAMPLE " + tag + ": metric in u at the mode: " + ", ".join(f"[{i}] u {u_mode[i]:.2f} sd {sd_u[i]:.3g} (x sd {sd[i]:.3g})" for i in ib))
         target, starts, metric = B, u0, C_u
     else:
         target, starts, metric = T, x0, np.asarray(C)
@@ -605,7 +644,7 @@ class UQ:
             C = lap["C"]
         nu = md["npts"] - len(names)
         np.savez(os.path.join(self.out, "laplace.npz"), C=C, theta0=lap["theta0"], idx=np.array(idx, int), names=np.array(names), kinds=np.array(kinds),
-                 x_full=np.array(md["x"], float), J_labels=np.array(pk["levels"]), J=np.array(pk["J"], float), lo=lo, hi=hi)
+                 x_full=np.array(md["x"], float), J_labels=np.array(pk["levels"]), J=np.array(pk["J"], float), lo=lo, hi=hi, g0=np.asarray(lap["g0"], float))
         self.mark("SETUP", objective=md["objective"], chi2=md["chi2"], npts=md["npts"], nfree=len(names), nu=nu, chi2nu=md["chi2"] / max(nu, 1),
                   n_sampled=len(idx), held=sorted(held), bounds=box, idx=list(map(int, idx)), names=list(names), x_full=list(map(float, md["x"])), saturated=[dict(label=l["label"], J=l["J"], energy=l["energy"], nfree=l["nfree"]) for l in sat],
                   two_channel=[dict(label=l["label"], J=l["J"], energy=l["energy"]) for l in twoch], eig_min=lap["eig_min"], eig_max=lap["eig_max"],
@@ -615,7 +654,8 @@ class UQ:
         z = np.load(os.path.join(self.out, "laplace.npz"), allow_pickle=False)
         n = z["idx"].size
         return dict(C=z["C"], theta0=z["theta0"], idx=z["idx"].tolist(), names=z["names"].tolist(), kinds=z["kinds"].tolist(), x_full=z["x_full"],
-                    lo=z["lo"] if "lo" in z.files else np.full(n, -np.inf), hi=z["hi"] if "hi" in z.files else np.full(n, np.inf))
+                    lo=z["lo"] if "lo" in z.files else np.full(n, -np.inf), hi=z["hi"] if "hi" in z.files else np.full(n, np.inf),
+                    g0=z["g0"] if "g0" in z.files else None)
 
     def s_sample(self):
         if self.done("SAMPLE"):
@@ -633,7 +673,7 @@ class UQ:
             else:
                 priors = {k: tuple(v) for k, v in (cfg.get("priors") or {}).items()}
                 _run_chains(self.azr, self.flags, s["idx"], s["x_full"], priors, cfg["temper"], s["C"], s["theta0"], cfg, self.out,
-                            self.nprocs, self.threads, tag, self.log, lo=s["lo"], hi=s["hi"])
+                            self.nprocs, self.threads, tag, self.log, lo=s["lo"], hi=s["hi"], g0=s["g0"])
         z = np.load(path)
         self.mark("SAMPLE", tag=tag, attempt=att, warmup=cfg["warmup"], draws=cfg["draws"], chains=int(z["samples"].shape[0]),
                   seconds=float(z["seconds"]), grad_evaluations=int(np.asarray(z["stat_n_leapfrog"]).sum() + np.asarray(z["warm_n_leapfrog"]).sum()))

@@ -60,10 +60,53 @@ def main():
     st = B.inside(np.array([[1.3, 5.0, -0.79], [0.0, -2.0, 0.0]]))
     check("inside(): bounded entries clipped, unbounded untouched", np.all(np.isfinite(st)) and st[0, 0] < 1.0 and st[0, 1] == 5.0 and st[1, 1] == -2.0
           and st[0, 2] > -0.8 and np.all(np.isfinite(B(B.to_u(st[0]))[0:1])), str(st))
-    # metric in u: C_u = C / outer(dxdu, dxdu) at u0
+    # metric in u: inverse of H_u = D A D + diag(2 sech^2 u) on the bounded entries (no gradient term without g0)
     C = np.linalg.inv(A)
-    Cu = B.metric_u(C, u)
-    check("metric_u", np.allclose(Cu * np.outer(d, d), C))
+    Cu = B.metric_u(C, u, sd_max=1e9)
+    Hu = A * np.outer(d, d)
+    t = np.tanh(u[B.b]); Hu[np.flatnonzero(B.b), np.flatnonzero(B.b)] += 2 * (1 - t * t)
+    check("metric_u = inv(D A D + Jacobian curvature)", np.allclose(Cu, np.linalg.inv(Hu)), str(Cu))
+    # the d+t pathology (job 1731435): a mode held at the box edge along a direction the unbounded Laplace leaves wide.
+    # log p = -0.5 ((x1 - 3 x2)/0.2)^2 - 0.5 (x2/100)^2 + 5 x2 with x2 in [-0.8, 0.8]: mode x2 = 0.8 (pushed by the linear
+    # term), Laplace sd(x2) = 100, sd(x1) = 300 for a box of half-width 0.8 (the ridge is curved in u, so the chains are
+    # longer than the truncated-normal check's; the old metric's chains are short: they do not move).  Exact: p(x2) on the box ~ exp(5 x2).
+    class Ridge:
+        def __call__(self, x=None):
+            if x is None:
+                return self
+            x1, x2 = float(x[0]), float(x[1])
+            r = (x1 - 3 * x2) / 0.2
+            lp = -0.5 * r * r - 0.5 * (x2 / 100) ** 2 + 5 * x2
+            return lp, np.array([-r / 0.2, 3 * r / 0.2 - x2 / 100 ** 2 + 5])
+    R = Ridge()
+    BR = BoundedTarget(R, [-np.inf, -0.8], [np.inf, 0.8])
+    A_r = np.array([[1 / 0.2 ** 2, -3 / 0.2 ** 2], [-3 / 0.2 ** 2, 9 / 0.2 ** 2 + 1 / 100 ** 2]])
+    C_r = np.linalg.inv(A_r)
+    x_mode = np.array([2.4, 0.8])
+    u_mode = BR.to_u(BR.inside(x_mode))
+    g_mode = R(BR.to_x(u_mode))[1]
+    Cu_old = C_r / np.outer(BR.dxdu(u_mode), BR.dxdu(u_mode))
+    Cu_new = BR.metric_u(C_r, u_mode, g0=g_mode)
+    check("edge mode: the old C / dd^T metric is huge in u", np.sqrt(Cu_old[1, 1]) > 1e3, f"{np.sqrt(Cu_old[1, 1]):.3g}")
+    check("edge mode: the Hessian metric's bounded sd <= 1 in u", np.sqrt(Cu_new[1, 1]) <= 1.0 + 1e-9, f"{np.sqrt(Cu_new[1, 1]):.3g}")
+    check("edge mode: the unbounded coordinate's sd in u follows the ridge, not the Laplace", np.sqrt(Cu_new[0, 0]) < 10, f"{np.sqrt(Cu_new[0, 0]):.3g} (Laplace {np.sqrt(C_r[0, 0]):.3g})")
+    from pyazr.sampling import nuts, split_rhat
+    xg = np.linspace(-0.8, 0.8, 20001); wg = np.exp(5 * xg)
+    m_exact = float((xg * wg).sum() / wg.sum())
+    res = []
+    for lab, M in (("old", Cu_old), ("new", Cu_new)):
+        S = []
+        for c in range(2):
+            nw, nd = (100, 200) if lab == "old" else (500, 2000)
+            rr = nuts(BR, u_mode + 0.1 * np.sqrt(np.diag(M)) * np.random.default_rng(c).normal(size=2), n_draws=nd, n_warmup=nw, inv_metric=M, target_accept=0.9, max_tree_depth=8, seed=10 + c)
+            S.append(BR.to_x(rr.samples[0]))
+        S = np.stack(S)
+        rh = float(np.max(split_rhat(S)))
+        res.append((lab, rh, float(S[:, :, 1].mean()), float(rr.step_size[0]) if np.ndim(rr.step_size) else float(rr.step_size)))
+        print(f"   {lab} metric: R-hat {rh:.3f}, mean x2 {S[:, :, 1].mean():.4f} (exact {m_exact:.4f}), step size {res[-1][3]:.3g}")
+    lab, rh, m2, eps = res[1]
+    check("edge mode: NUTS with the Hessian metric mixes (R-hat < 1.05)", rh < 1.05, f"{rh:.3f}")
+    check("edge mode: NUTS with the Hessian metric gives the exact mean of x2 within 0.03", abs(m2 - m_exact) < 0.03, f"{m2:.4f} vs {m_exact:.4f}")
     # NUTS on a truncated normal N(0, 1) on [-0.5, 2]: mean and sd against the closed form
     from pyazr.sampling import nuts
     from scipy.stats import truncnorm

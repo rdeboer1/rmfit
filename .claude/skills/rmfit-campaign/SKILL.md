@@ -451,7 +451,12 @@ decision `uq-gates`) -> BANDS (the spec's `uq.bands` grids or the model's own `<
 band from the Laplace covariance on the free R-matrix block, the same x sqrt(chi2/nu) printed beside it and NOT adopted,
 and the SAMPLED band from `band_draws` posterior draws, percentiles 2.5/16/50/84/97.5) -> `UQ.md`.  Norms are sampled
 (the full posterior) unless `sample_norms` is false; `uq.priors` {engine name: [mean, sigma]} adds Gaussian priors beyond
-the objective's own penalties.  Read it as: half-width / linear sigma near 1 and a small median offset = the linear band
+the objective's own penalties.  BOUNDS (2026-11-12): the chains run inside the campaign's theta^2 box -- every sampled
+particle amplitude at |gamma| <= sqrt(cap) gamma_W with the policy's cap for its level (`bounds: "policy"`, the default;
+NUTS on x = c + h tanh(u) with the Jacobian, draws stored in x), because the data alone need not bound a background
+pole: on d+t with no box width_2_2 left its Wigner limit in 67 % of the draws and emcee's acceptance fell to 0.11
+(3H+d/11-12-26_uq).  `bounds: "none"` lifts it; `theta2_cap` gives one cap to a bare .azr + .sav that has no policy.  The
+box is the campaign's (the polish ran in it); a different prior on an amplitude is the evaluator's.  Read it as: half-width / linear sigma near 1 and a small median offset = the linear band
 is adequate there; a ratio well above 1 or an offset of a sigma = the posterior is skewed along a direction the Jacobian
 misses (a saturating width, a sign-ambiguous amplitude).  Everything is conditional on the model and the spec's data
 decisions.  Cost: a gradient is ~2 objective evaluations; 7Be (195 free) ~25-50 gradients per draw.  Pitfalls: a script

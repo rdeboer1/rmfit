@@ -66,6 +66,23 @@ def main():
     rev = rv.Review(tab2, [], Segs([Seg()])).run(None)
     opp = [f for f in rev.findings if f.code == "norm-opposite"]
     check("norm-opposite fires at norm 1.32 vs n* 0.64", len(opp) == 1 and "0.640" in opp[0].message, [f.line() for f in rev.findings][:3])
+    # 5b. width-tied close pair (13C+a 7/2+ at 10.42: gap 1 keV, widths ~220 keV): flagged at the default 10 % scale, not when
+    #     the gap exceeds it, not for another J^pi, not outside the data range, and never with the check switched off
+    exc = np.linspace(10.0, 11.0, 30)
+    tabc = rv.PointTable(key=np.full(30, 1), name=np.array(["X"] * 30, dtype=object), ecm=exc, ex=exc, ang=np.full(30, np.nan),
+                         fit=np.full(30, 5.0), data=np.full(30, 5.0), err=np.full(30, 0.5), norm=np.ones(30))
+    lvc = [rv.Level("7/2+", 10.4198, 0.220, [(1, 4, 0.5, 0.2), (2, 3, 0.5, 0.02)]), rv.Level("7/2+", 10.4208, 0.300, [(1, 4, 0.5, 0.3)]),
+           rv.Level("7/2+", 10.60, 0.300), rv.Level("5/2-", 10.4200, 0.250), rv.Level("5/2+", 10.70, 0.100), rv.Level("5/2+", 10.72, 0.100),
+           rv.Level("1/2+", 15.0, 5.0), rv.Level("1/2+", 15.1, 5.0), rv.Level("3/2+", 10.5, None), rv.Level("3/2+", 10.5001, 0.2)]
+    revc = rv.Review(tabc, lvc, None); revc.close_pairs()
+    cl = [f for f in revc.findings if f.code == "level-close-width"]
+    check("level-close-width flags only the 7/2+ pair at 10.42", len(cl) == 1 and cl[0].severity == "MEDIUM" and "7/2+" in cl[0].message
+          and "10.41980" in cl[0].message and "10.42080" in cl[0].message, [f.line() for f in revc.findings])
+    check("its section is written", any(h.startswith("Close same-J^pi pairs") for h, _ in revc.sections))
+    rev20 = rv.Review(tabc, lvc, None, close_fraction=0.25); rev20.close_pairs()
+    check("a larger scale also flags the 5/2+ pair (20 keV of 100 keV)", len(rev20.findings) == 2, [f.line() for f in rev20.findings])
+    rev0 = rv.Review(tabc, lvc, None, close_fraction=0); rev0.close_pairs()
+    check("close_fraction 0 switches the check off", not rev0.findings and not rev0.sections)
     # 6. zigzag: a saw-tooth fit over finely spaced points
     ex = np.linspace(11.40, 11.47, 36); c = 5.0 * (1 + 0.03 * np.where(np.arange(36) % 2, 1, -1)); d = np.full(36, 5.0); e = np.full(36, 0.5)
     tab3 = rv.PointTable(key=np.full(36, 89), name=np.array(["ND_an_t1"] * 36, dtype=object), ecm=ex, ex=ex, ang=np.full(36, np.nan),

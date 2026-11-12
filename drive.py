@@ -1256,7 +1256,8 @@ class Driver:
     def _s_review(self):
         c = self.campaign
         from .review import review_campaign
-        r = review_campaign(c, grid_check=bool(self.budget.get("grid_check", True)), figures=int(self.budget.get("figures", 6)))
+        kw = {} if self.budget.get("close_fraction") is None else {"close_fraction": float(self.budget["close_fraction"])}   # review.CLOSE_GAP_FRACTION otherwise
+        r = review_campaign(c, grid_check=bool(self.budget.get("grid_check", True)), figures=int(self.budget.get("figures", 6)), **kw)
         highs = [f for f in r["findings"] if f.severity == "HIGH"]
         counts = r["counts"]
         note = ", ".join(f"{k} {v}" for k, v in counts.items())

@@ -445,11 +445,21 @@ def _share_count(chi2_sorted_desc, share):
 
 # -- the review ------------------------------------------------------------------------------------------------
 
+# Width-tied closeness of two same-J^pi levels: a gap below this fraction of the NARROWER total width makes the pair a
+# merge candidate for the evaluator (report only; nothing in rmfit enforces a spacing).  Origin: 13C+a 2026-11-08, the
+# 7/2+ pair at 10.42 MeV (gap 1 keV, widths ~220 keV); the 10 % is the scale proposed then and is the evaluator's to
+# change (rmfit review --close-fraction, spec budget "close_fraction"; 0 switches the check off).  Known-level check of
+# the criterion: it flags that pair, and DeBoer's merge tests on the main line found the pair NOT redundant (the
+# (a,n2g) data need both, 13C+a/11-06-26_merged_regionD/readme) -- so the flag is a question, never a verdict.
+CLOSE_GAP_FRACTION = 0.10
+
+
 class Review:
     """Run the detectors on a point table; ``findings`` (``spec.Finding``) and markdown ``sections``."""
 
     def __init__(self, tab: PointTable, levels: Sequence[Level], segments=None, azr_text: str = "",
-                 top: int = 20):
+                 top: int = 20, close_fraction: Optional[float] = None):
+        self.close_fraction = CLOSE_GAP_FRACTION if close_fraction is None else float(close_fraction)
         self.tab = tab
         self.levels = sorted(levels, key=lambda l: l.energy)
         self.segments = segments
@@ -494,6 +504,7 @@ class Review:
         self.structure_scale()
         self.fit_zigzag()
         self.level_support()
+        self.close_pairs()
         if figures_dir:
             try:
                 self.figures(figures_dir, nfig)
@@ -935,6 +946,39 @@ class Review:
                          f"{int(sel.sum())} points within +-{1e3*half:.1f} keV; provisional until a second set or the literature confirms it")
         self.sections.append(("Levels inside the data range", L))
 
+    # ---- close same-J^pi pairs (gap tied to the width) ------------------------------------------------------
+    def close_pairs(self):
+        """Neighbouring levels of one J^pi inside the data range whose gap is below ``close_fraction`` x the narrower
+        total width.  Report only: such a pair is a merge candidate for the evaluator (two levels that close are told
+        apart only by a different pattern of partial widths), it is not moved, tied or merged here."""
+        f = self.close_fraction
+        if not f or f <= 0:
+            return
+        by = {}
+        for lv in self.levels:
+            if lv.gamma_mev is not None and lv.gamma_mev > 0 and np.isfinite(lv.gamma_mev) and self._in_data(lv, margin=0.0):
+                by.setdefault(lv.jpi, []).append(lv)
+        L = [f"| J^pi | Ex (1) | Gamma (1) | Ex (2) | Gamma (2) | gap | gap / narrower Gamma |", "|---|---:|---:|---:|---:|---:|---:|"]
+        for jpi, ls in by.items():
+            ls = sorted(ls, key=lambda l: l.energy)
+            for a, b in zip(ls, ls[1:]):
+                gap = b.energy - a.energy; g = min(a.gamma_mev, b.gamma_mev)
+                if gap >= f * g:
+                    continue
+                gtxt = f"{1e3 * gap:.3g} keV"
+                L.append(f"| {jpi} | {a.energy:.5f} | {_fmt_width(a.gamma_mev)} | {b.energy:.5f} | {_fmt_width(b.gamma_mev)} | {gtxt} | {gap / g:.3g} |")
+
+                def chans(l):
+                    return ", ".join(f"p{c[0]} L{c[1]} S{c[2]:g} {_fmt_width(c[3])}" for c in l.channels if c[3]) or "no open-channel widths listed"
+                self.add("MEDIUM", "level-close-width",
+                         f"two {jpi} levels at {a.energy:.5f} and {b.energy:.5f} MeV: gap {gtxt} is "
+                         f"{100 * gap / g:.2g} % of the narrower width ({_fmt_width(g)}), below the {100 * f:g} % scale -- "
+                         f"a merge candidate for the evaluator (compare the partial-width patterns; test with a merged refit AND "
+                         f"a refit of the pair from the merged solution before deciding)",
+                         f"({a.energy:.5f}: {chans(a)}) vs ({b.energy:.5f}: {chans(b)})")
+        if len(L) > 2:
+            self.sections.append((f"Close same-J^pi pairs (gap below {100 * f:g} % of the narrower width)", L))
+
     # ---- figures ------------------------------------------------------------------------------------------------
     def figures(self, out_dir: str, nfig: int = 6):
         import matplotlib
@@ -1022,7 +1066,7 @@ class Review:
 # -- entry points ---------------------------------------------------------------------------------------------
 
 def review_output(azr_path: str, output_dir: Optional[str] = None, out_dir: Optional[str] = None,
-                  figures: int = 6, top: int = 20) -> dict:
+                  figures: int = 6, top: int = 20, close_fraction: Optional[float] = None) -> dict:
     """Engine-free review of a finished CLI run: ``AZUREOut_*.out`` + ``chiSquared.out`` + ``parameters.out``.
     Writes ``<out_dir>/REVIEW.md`` and ``<out_dir>/figures/review_*.png`` (default ``<azr dir>/review/``)."""
     from .model import base_segments
@@ -1037,13 +1081,14 @@ def review_output(azr_path: str, output_dir: Optional[str] = None, out_dir: Opti
     segs = base_segments(azr_path)
     out_dir = out_dir or os.path.join(os.path.dirname(azr_path), "review")
     os.makedirs(out_dir, exist_ok=True)
-    rv = Review(tab, levels, segs, open(azr_path).read(), top=top).run(os.path.join(out_dir, "figures") if figures else None, figures)
+    rv = Review(tab, levels, segs, open(azr_path).read(), top=top, close_fraction=close_fraction).run(os.path.join(out_dir, "figures") if figures else None, figures)
     path = os.path.join(out_dir, "REVIEW.md")
     counts = rv.write(path, header_lines=[f"model `{azr_path}`", f"levels from `{lsrc}` ({len(levels)})", ""])
     return dict(path=path, counts=counts, findings=rv.findings, review=rv)
 
 
-def review_campaign(campaign, grid_check: bool = False, figures: int = 6, top: int = 20, cid=None, path=None) -> dict:
+def review_campaign(campaign, grid_check: bool = False, figures: int = 6, top: int = 20, cid=None, path=None,
+                    close_fraction: Optional[float] = None) -> dict:
     """Review of a campaign's incumbent through a fresh single session; writes ``<campaign>/REVIEW.md`` and
     ``figures/review_*.png``.  ``grid_check`` re-scores the incumbent on a converged target-integration grid
     (20/50, ``Campaign.set_grid_setting``) and flags a shift of the objective.
@@ -1072,7 +1117,7 @@ def review_campaign(campaign, grid_check: bool = False, figures: int = 6, top: i
         header = [f"campaign `{c.dir}`, {'incumbent ' if path is None else ''}candidate {cid}, objective {obj:.3f}",
                   f"single-session score: objective {sc.objective:.3f} = chi2 {sc.chi2:.3f} + penalty {sc.penalty:.3f}", f"model `{base_azr}`", ""]
         th = theta2_table(ev, xb)[:10]
-    rv = Review(tab, levels, base_segments(base_azr), open(base_azr).read(), top=top)
+    rv = Review(tab, levels, base_segments(base_azr), open(base_azr).read(), top=top, close_fraction=close_fraction)
     rv.run(os.path.join(c.dir, "figures") if figures else None, figures)
     if th:
         rv.sections.append(("Largest theta^2 (free widths vs the Wigner limit)",
@@ -1114,8 +1159,10 @@ def main(argv=None):
     p.add_argument("--out", help="where REVIEW.md and figures/ go (default <azr dir>/review/)")
     p.add_argument("--figures", type=int, default=6, help="figures for the N worst data sets (0 = none)")
     p.add_argument("--top", type=int, default=20)
+    p.add_argument("--close-fraction", type=float, default=None,
+                   help=f"flag same-J^pi pairs with a gap below this fraction of the narrower width (default {CLOSE_GAP_FRACTION}; 0 = off)")
     a = p.parse_args(argv)
-    r = review_output(a.azr, a.output, a.out, figures=a.figures, top=a.top)
+    r = review_output(a.azr, a.output, a.out, figures=a.figures, top=a.top, close_fraction=a.close_fraction)
     for f in r["findings"]:
         print(f.line())
     print("wrote", r["path"], r["counts"])

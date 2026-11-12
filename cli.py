@@ -23,7 +23,7 @@ Commands (all idempotent and resumable from the ledger):
   audit [--azr file] [--no-target-energies]                     pre-flight checks of the model and data -> AUDIT.md (no engine session)
   audit --kind input|data|literature|all                        write audits/<kind>/PROMPT.md (+ FINDINGS.md skeleton) for a background subagent
   audit --findings | --status KIND N confirmed|rejected|decision  the subagents' FINDINGS.md: unverified rows / mark one verified
-  review [--grid-check] [--figures N] [--top K]                 post-fit "GUI eye" on the incumbent -> REVIEW.md + figures/review_*.png (2026-11-07);
+  review [--grid-check] [--figures N] [--top K] [--close-fraction f]  post-fit "GUI eye" on the incumbent -> REVIEW.md + figures/review_*.png (2026-11-07);
                                                                 engine-free on any finished CLI run: python3 -m rmfit.review <file.azr> [--output DIR]
   drive [--base azr --sav sav] [--max-minutes M] [--dry-run] [--local] [--state S] [--write-job]
                                                                 the closed loop (rmfit/drive.py, 2026-11-08): build phase (audit,
@@ -176,6 +176,8 @@ def main(argv=None):
     p.add_argument("--grid-check", action="store_true", help="re-score the incumbent on a converged target-integration grid (20/50)")
     p.add_argument("--figures", type=int, default=6, help="figures for the N worst data sets (0 = none)")
     p.add_argument("--top", type=int, default=20, help="rows in the top-points / runs tables")
+    p.add_argument("--close-fraction", type=float, default=None,
+                   help="flag same-J^pi pairs with a gap below this fraction of the narrower width (default 0.10; 0 = off)")
     p = sub.add_parser("uq", help="uncertainty quantification of the incumbent (rmfit.uq): export -> saturation -> Laplace -> NUTS -> gates -> "
                                   "linear vs sampled bands -> UQ.md; resumable (uq/uq_state.json); settings from spec.json 'uq' or --uq JSON")
     p.add_argument("--uq", default="{}", help="JSON overriding the spec's uq section (chains, warmup, draws, bands, ...)")
@@ -305,7 +307,7 @@ def main(argv=None):
             c.note(f"audit: {', '.join(f'{k} {v}' for k, v in counts.items())} (AUDIT.md)")
         elif a.cmd == "review":
             from rmfit.review import review_campaign
-            r = review_campaign(c, grid_check=a.grid_check, figures=a.figures, top=a.top)
+            r = review_campaign(c, grid_check=a.grid_check, figures=a.figures, top=a.top, close_fraction=a.close_fraction)
             for f in r["findings"]:
                 print(f.line())
             print("wrote", r["path"], r["counts"])

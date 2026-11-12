@@ -71,6 +71,8 @@ decisions stay with the evaluator; the spec records them.
   13N test output reproduces chiSquared.out per segment) or from a campaign's single session; detectors per-point /
   top-points / norm-opposite / norm-{angle,energy}-trend / residual-run / average-not-structure /
   broad-level-averages-peaks / fit-zigzag / level-below-resolution / one-dataset-level / grid-exploited (`--grid-check`).
+  2026-11-12: + `level-close-width` (same-J^pi pair closer than 10 % of the narrower width, MEDIUM, report only; `--close-fraction`,
+  budget `close_fraction`); spacing ENFORCEMENT (centroid + bounded gap) not built, its scale is DeBoer's to choose.
   Calibration on the archived cases: 13C+a 9-17-26 gui_review -> the 12.5 MeV poles, 1/2+ 12.759 (57 MeV), 1/2- 11.468,
   7/2+ 11.507, 5/2+ 12.626 all HIGH/MEDIUM `broad-level-averages-peaks` (the two levels DeBoer kept, 7/2- 11.436 and
   3/2- 10.927, are flagged too: a real 0.5-2 MeV level in a dense region looks the same to this detector -- the

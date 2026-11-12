@@ -37,6 +37,10 @@ decisions stay with the evaluator; the spec records them.
 - `~/AZURE2/scripts/install_shared.sh`: the only way to replace `~/bin/AZURE2` and `~/AZURE2/pyazr`; refuses while
   a job or process uses the shared build; keeps old inodes as `.keep_<date>_pre-<hash>`; writes `~/AZURE2/INSTALLED`.
   DeBoer's cadence decision: weekly tagged releases; campaigns pin a frozen clone, never `~/AZURE2`.
+  Known limits of its job checker (`--check-script`, 2026-11-12, AZURE2 development session; record in
+  `AZURE2_code_audit/11-12-26_isospin_brune_tie/readme`): it follows only one level of called scripts, so a job whose
+  PYTHONPATH comes from a script two levels down is reported "pinned or no reference"; a '+' in a followed script's path
+  was cut until 2026-11-12 13:07 (jobs 1731764/1731770 missed).
 - AZURE2-side follow-up (open): `pyazr.build_id()` compiled into `_azure2` so the pin can name a commit directly.
 
 ### Phase 1 -- declare the objective, automate the eye (~8 agent-days)

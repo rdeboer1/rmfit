@@ -697,7 +697,8 @@ class UQ:
             self.log(ln)
         json.dump(dict(g, names=names), open(os.path.join(self.out, f"gates_{tag}.json"), "w"), indent=1)
         slim = {k: v for k, v in g.items() if not isinstance(v, list)}
-        self.mark("GATES", tag=tag, **slim)
+        slim["fails"] = list(g["fails"])          # the reasons: UQ.md and the drive's uq-gates question read them (dropped with the
+        self.mark("GATES", tag=tag, **slim)       # per-parameter lists before 2026-11-13: "failed their gates after 1 attempt(s): .")
         if not g["passed"]:
             att = int(self.state.get("attempt", 0))
             if att + 1 < int(self.cfg["max_attempts"]):

@@ -173,6 +173,13 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
 
 ## Progress log
 
+- 2026-11-13 00:30  d+t `uq-gates` closed by DeBoer ("I think we're good now"): run 2 accepted as the validation's band
+  (S(40 keV) 25.66 [25.41, 25.88] MeV b sampled; R-hat 1.009, ESS 261).  Phase 4 d+t validation closed.  Last Phase 4 item
+  started: the drive's UQ state end to end on the 7Be tier-1 drive campaign pert4 (`6Li+p/3He+a/AZURE2_evaluation/
+  11-8-26_drive_bench/`, job 1738640, 8 slots): `drive --state EXPORT` with spec.uq = the 11-10-26_uq grids and cycles_max 7,
+  so EXPORT -> CYCLE -> UQ -> DONE or `uq-gates`; engine change allowed (the pinned clone is gone), EXPORT must reproduce
+  5307.464.  It also answers whether the recovered basin's 3He(a,g) band matches the reference's 0.544 +- 0.007 keV b.
+
 - 2026-11-12 20:30  d+t run 2 (job 1735119; DeBoer 14:10 "Let's run longer"; 4 x (2000 + 8000), one attempt, on the shared
   engine e3d67399 installed 13:33 with RMFIT_ALLOW_ENGINE_CHANGE -- EXPORT objective 100.854 unchanged): gates FAIL on ESS
   alone (split R-hat 1.009, min ESS 261 on width_1_2, median ESS 2942, 0.81 % divergent, E-BFMI 0.99).  Doubling the draws

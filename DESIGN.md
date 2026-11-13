@@ -162,12 +162,26 @@ R-hat 1.013 then 1.018 on width_1_2, ESS 266 / 145, 0.9 % divergent) on a rarely
 stable: 25.615 +- 0.249 linear, sampled 25.652 [25.408, 25.913] (half-width / linear 1.01), NUTS = emcee within 0.15 sd on
 every parameter, 0.09 MeV b (0.4 sd) below the archive with Haesner.  Verdict: sampler and bands validated; "gates pass
 automatically" not met on d+t -- the gate refused a posterior that emcee also could not call converged (walker R-hat 1.15).
+Run 2 on DeBoer's "Let's run longer" (job 1735119, 4 x (2000 + 8000), 4.1 h): R-hat 1.009 passes, divergences 0.81 % pass,
+ESS 261 on width_1_2 fails the 400 gate (a 4.6 % tail at width_1_2 < 0.55 with tau 130-210 draws in two chains); band at
+40 keV 25.660 [25.405, 25.882] sampled vs 25.615 +- 0.249 linear (ratio 0.96); NUTS = emcee to 0.02 sd on S(40).  `uq-gates`
+stays DeBoer's: accept, or ~4 x 12000 for the ESS number.
 
 ## Open items not on the roadmap
 Competing-resolution test for near-duplicate levels; differential-convolution shards; single-session-only kinds
 (density, Doppler, thickness, screening) in shards; `structure add` exit status on a failed scan.
 
 ## Progress log
+
+- 2026-11-12 20:30  d+t run 2 (job 1735119; DeBoer 14:10 "Let's run longer"; 4 x (2000 + 8000), one attempt, on the shared
+  engine e3d67399 installed 13:33 with RMFIT_ALLOW_ENGINE_CHANGE -- EXPORT objective 100.854 unchanged): gates FAIL on ESS
+  alone (split R-hat 1.009, min ESS 261 on width_1_2, median ESS 2942, 0.81 % divergent, E-BFMI 0.99).  Doubling the draws
+  took R-hat 1.018 -> 1.009 and ESS 145 -> 261; the width_1_2 tail (4.6 % of draws below 0.55, tau 130-210 in two chains,
+  every divergence there) sets the autocorrelation.  Band at 40 keV 25.660 [25.405, 25.882] (run 1: 25.652 [25.408, 25.913];
+  emcee 25.673 [25.431, 25.918]; archive with Haesner 25.745 [25.504, 25.976]); run-2 chains vs emcee: S(40) +0.005 MeV b
+  (0.02 sd), parameters within 0.23 sd.  Decision `uq-gates` back to DeBoer.  A note for the stage: on a posterior with a
+  rarely visited tail ESS grows linearly with the draws, so the extend factor 2 is one step of several; more chains (8 x) is
+  the cheaper route to the ESS gate at the same wall time.
 
 - 2026-11-12 13:45  Phase 4 d+t validation run (job 1731806, 4 slots, 4.2 h; `3H+d/11-12-26_uq/readme`, UQ.md).  With the
   Hessian metric the chains move (sd ratio 0.88, depth cap 8) but the gates fail both attempts: split R-hat 1.013 -> 1.018

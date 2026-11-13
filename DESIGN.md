@@ -166,12 +166,25 @@ Run 2 on DeBoer's "Let's run longer" (job 1735119, 4 x (2000 + 8000), 4.1 h): R-
 ESS 261 on width_1_2 fails the 400 gate (a 4.6 % tail at width_1_2 < 0.55 with tau 130-210 draws in two chains); band at
 40 keV 25.660 [25.405, 25.882] sampled vs 25.615 +- 0.249 linear (ratio 0.96); NUTS = emcee to 0.02 sd on S(40).  `uq-gates`
 stays DeBoer's: accept, or ~4 x 12000 for the ESS number.
+Closed 2026-11-13 by DeBoer ("I think we're good now": run 2 accepted).  Drive UQ state end to end: DONE 2026-11-13 on 7Be
+pert4 (EXPORT -> CYCLE -> UQ -> gates FAIL -> `uq-gates` -> WAITING -> answer -> DONE, no other input; see the progress log).
+Phase 4 open items: a wall estimate per UQ leg after warm-up (the slowest chain sets the cost) and no automatic re-run when
+R-hat is far off (> ~1.5), where doubling the draws cannot pass; the d+t lesson that ESS grows only linearly on a rarely
+visited tail (8 chains is the cheaper route to the ESS gate).
 
 ## Open items not on the roadmap
 Competing-resolution test for near-duplicate levels; differential-convolution shards; single-session-only kinds
 (density, Doppler, thickness, screening) in shards; `structure add` exit status on a failed scan.
 
 ## Progress log
+
+- 2026-11-13 11:20  Phase 4 done: the drive's UQ state end to end on 7Be pert4 (short leg job 1739904, 4 x (300 + 500), 8 slots,
+  frozen e3d67399 clone).  Gates FAIL (split R-hat 1.297, ESS 6 on width_16_2) -> D-002 `uq-gates` queued, drive WAITING; answered
+  "stop" for the test (500-draw chains); the next leg consumed it -> DONE.  Defect fixed on the way: the GATES stage record
+  dropped the failure reasons, so the drive's question and UQ.md printed none (14c7dc3; d+t's UQ.md had "**FAIL** ()" too).
+  Finding for DeBoer: the drive's recovered basin (5307.5, data chi2 5082.5) and the reference (5290.1, 5088.8) give 3He(a,g)
+  S at E_cm 4.6 keV 0.5596 vs 0.5430 keV b (3.1 %, 2.3 linear sigma), the difference in the 3/2+ 30 MeV background pole
+  (free J 0.65 vs saturated J 0.002): the basin is an S34(0) uncertainty of its own, larger than either fit's statistical band.
 
 - 2026-11-13 09:15  Drive UQ end-to-end test on 7Be pert4, first leg (job 1738644, 02:39-09:09, 8 slots, pinned to the frozen
   e3d67399 clone so the day's shared installs were not blocked): the drive went `--state EXPORT` -> EXPORT -> CYCLE -> UQ with no

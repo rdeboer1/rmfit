@@ -173,6 +173,16 @@ Competing-resolution test for near-duplicate levels; differential-convolution sh
 
 ## Progress log
 
+- 2026-11-13 09:15  Drive UQ end-to-end test on 7Be pert4, first leg (job 1738644, 02:39-09:09, 8 slots, pinned to the frozen
+  e3d67399 clone so the day's shared installs were not blocked): the drive went `--state EXPORT` -> EXPORT -> CYCLE -> UQ with no
+  input; uq EXPORT reproduced the incumbent 5307.464 on the new engine (Park check 5e-11).  Finding: in the recovered basin the
+  3/2+ 30 MeV background pole is not saturated (Park J 0.65; the reference's UQ run held it at J 0.002), so it is sampled in the
+  background box and one of four chains wanders along its amplitudes (split R-hat 2.0 after 300 draws).  One chain at the
+  tree-depth cap made attempt 1 a further 15 h and attempt 2 ~4 x that: killed, kept in pert4/uq_long_killed/, and rerun short
+  (4 x (300 + 500), one attempt, depth 7; job 1739904) to exercise GATES -> `uq-gates` -> WAITING and the answer path.
+  Note for the stage: the automatic re-run doubles a leg whose cost is set by its slowest chain; a per-leg wall estimate after
+  warm-up (and skipping the re-run when R-hat > ~1.5) would have saved most of this.
+
 - 2026-11-13 00:30  d+t `uq-gates` closed by DeBoer ("I think we're good now"): run 2 accepted as the validation's band
   (S(40 keV) 25.66 [25.41, 25.88] MeV b sampled; R-hat 1.009, ESS 261).  Phase 4 d+t validation closed.  Last Phase 4 item
   started: the drive's UQ state end to end on the 7Be tier-1 drive campaign pert4 (`6Li+p/3He+a/AZURE2_evaluation/

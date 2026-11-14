@@ -1476,6 +1476,8 @@ def write_job_script(directory, spec: FitSpec, cfg: Optional[dict], name="run_cr
     text = text.replace("{setup_lines}", site.setup_lines())
     text = (text
             .replace("{mail_line}", site.mail_line())
+            .replace("{queue_line}", site.queue_line())
+            .replace("{pe_line}", site.pe_line(slots))
             .replace("{jobname}", "drive_" + reaction.replace("+", ""))
             .replace("{campaign_dir}", os.path.abspath(directory))
             .replace("{slots}", str(slots))

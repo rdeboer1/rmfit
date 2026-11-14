@@ -193,8 +193,8 @@ def print_rows(rows: List[dict]):
 JOB = """#!/bin/csh
 {mail_line}
 #$ -m a
-#$ -q long
-#$ -pe smp {slots}
+{queue_line}
+{pe_line}
 #$ -N {jobname}
 #$ -cwd
 #$ -j y
@@ -333,7 +333,8 @@ def write_job(case: dict, run_name: str) -> str:
     slots = int(run.get("slots") or ref.get("nshards") or 8)
     jobname = f"bench_{case['name']}_{run_name}"[:40]
     extra = (dict(slurm_header=site.slurm_header(jobname, slots, f"bench_{run_name}.log", "a"), setup_lines=site.setup_lines())
-             if slurm else dict(mail_line=site.mail_line(), setup_lines=site.setup_lines()))
+             if slurm else dict(mail_line=site.mail_line(), setup_lines=site.setup_lines(), queue_line=site.queue_line(),
+                               pe_line=site.pe_line(slots)))
     text = (JOB_SLURM if slurm else JOB).format(**extra, slots=slots, jobname=jobname,
                       log=f"bench_{run_name}.log", case=case["name"], run=run_name, label=run.get("label", ""), refdir=ref["campaign"],
                       refazr=ref["azr"], flips=start["flips"], seed=start["seed"], jitter=start["jitter"], ekick=start["ekick"],

@@ -11,8 +11,8 @@
 
 {mail_line}
 #$ -m abe
-#$ -pe smp 24
-#$ -q long
+{pe_line}
+{queue_line}
 #$ -N {jobname}
 #$ -cwd
 #$ -j y

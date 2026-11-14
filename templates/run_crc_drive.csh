@@ -12,8 +12,8 @@
 
 {mail_line}
 #$ -m a
-#$ -pe smp {slots}
-#$ -q long
+{pe_line}
+{queue_line}
 #$ -N {jobname}
 #$ -cwd
 #$ -j y

@@ -11,6 +11,11 @@ Keys:
   scheduler        "sge" (default) or "slurm" (env ``RMFIT_SCHEDULER``): which job templates rmfit writes and which
                    submit command its messages name.  SGE templates: ``templates/run_crc_*.csh`` (written for one SGE
                    site); Slurm templates: ``templates/run_slurm_*.sh`` (bash).
+  sge_queue        SGE queue for the ``-q`` line (env ``RMFIT_SGE_QUEUE``), e.g. "long".  Unset: no ``-q`` line, so SGE
+                   picks the queue from its defaults and the job's requests.
+  sge_pe           SGE parallel environment for the ``-pe <pe> <slots>`` line (env ``RMFIT_SGE_PE``; default "smp", a
+                   common name for a one-node shared-memory PE: ``qconf -spl`` lists a site's PEs).  Slurm needs neither:
+                   ``--cpus-per-task`` and ``slurm_partition`` play these parts.
   slurm_partition  ``--partition`` (omitted when unset: the cluster's default partition)
   slurm_account    ``--account``
   slurm_time       ``--time`` for campaign steps and bench jobs (Slurm formats MM, HH:MM:SS, D-HH:MM:SS; omitted when
@@ -20,6 +25,10 @@ Keys:
   setup            list of shell lines run before Python in every job script rmfit writes (modules, a Python with numpy
                    and scipy on PATH, ...), in that script's shell: csh for the SGE templates, bash for the Slurm
                    ones.  Unset: a comment, and the job uses the environment it starts with.
+
+Example for an SGE site::
+
+    {"mail": "you@example.org", "sge_queue": "long", "sge_pe": "smp", "setup": ["module load python/3.12 gsl"]}
 
 Example for a Slurm site::
 
@@ -62,6 +71,32 @@ def mail_line() -> str:
     if addr:
         return f"#$ -M {addr}"
     return "# no -M line: set RMFIT_MAIL or \"mail\" in ~/.rmfit/site.json (rmfit/site.py); SGE mails the submitting user"
+
+
+def sge_queue() -> str:
+    """The SGE queue: ``RMFIT_SGE_QUEUE``, else the site file's ``sge_queue``, else '' (no -q line)."""
+    return (os.environ.get("RMFIT_SGE_QUEUE") or str(load().get("sge_queue") or "")).strip()
+
+
+def queue_line() -> str:
+    """The SGE ``-q`` line for a job script, or a comment saying how to set one (SGE templates)."""
+    q = sge_queue()
+    if q:
+        return f"#$ -q {q}"
+    return "# no -q line: set RMFIT_SGE_QUEUE or \"sge_queue\" in ~/.rmfit/site.json (rmfit/site.py); SGE picks the queue"
+
+
+SGE_PE_DEFAULT = "smp"
+
+
+def sge_pe() -> str:
+    """The SGE parallel environment: ``RMFIT_SGE_PE``, else the site file's ``sge_pe``, else 'smp'."""
+    return (os.environ.get("RMFIT_SGE_PE") or str(load().get("sge_pe") or SGE_PE_DEFAULT)).strip()
+
+
+def pe_line(slots: int) -> str:
+    """The SGE ``-pe <pe> <slots>`` line (SGE templates)."""
+    return f"#$ -pe {sge_pe()} {int(slots)}"
 
 
 SCHEDULERS = ("sge", "slurm")

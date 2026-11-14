@@ -187,6 +187,8 @@ class Campaign:
         text = text.replace("{setup_lines}", site.setup_lines())
         guard = enginepin.guard_lines_sh if slurm else enginepin.guard_lines_csh
         text = (text.replace("{mail_line}", site.mail_line())
+                    .replace("{queue_line}", site.queue_line())
+                    .replace("{pe_line}", site.pe_line(24))         # the SGE template's 24 slots (2026-11-07 on)
                     .replace("{jobname}", jobname)
                     .replace("{campaign_dir}", self.dir)
                     .replace("{engine_guard}", guard(self.cfg.get("engine")))

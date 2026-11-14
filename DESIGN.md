@@ -97,10 +97,10 @@ benchmark yardstick, the decisions queued, the cost, and what the evaluator chan
 ## Open items
 
 - A scheduler layer: the site file (`site.py`: `~/.rmfit/site.json` or `$RMFIT_SITE`) chooses SGE or Slurm templates and
-  holds the mail address, Slurm partition / account / time / extra options and the setup lines both kinds of template
-  run.  Still fixed in the SGE templates: the queue name (`long`) and the parallel environment (`smp`); the Slurm
-  templates have not yet run under a real Slurm scheduler (checked with bash and a simulated job environment); no
-  plain-shell template.
+  holds the mail address, the SGE queue and parallel environment, Slurm partition / account / time / extra options and
+  the setup lines both kinds of template run.  Still open: the Slurm templates have not yet run under a real Slurm
+  scheduler (checked with bash and a simulated job environment); no plain-shell template; SGE resource requests other
+  than the slot count (memory, run time) go in no setting yet.
 - Multi-compound-nucleus models in sign rounds and the level search; density, Doppler, thickness and screening kinds in
   shards.
 - Channel lines and particle pairs are not added automatically; the energy ladder is unexercised.

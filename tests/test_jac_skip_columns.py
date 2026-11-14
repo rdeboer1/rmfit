@@ -3,7 +3,7 @@
 
 Energy-shift, sqrt(E)-shift, shift-function and density columns are finite-differenced by the engine (two residual
 evaluations each).  Before this, every free one was differenced on every Jacobian even when polish's bounds held it:
-the 17O+a an6pre polish (8 held shift/shift_fn terms) spent ~16 of ~18 evaluations per Jacobian (41 min each) on
+a polish with several compound nuclei (8 held shift/shift_fn terms) spent ~16 of ~18 evaluations per Jacobian (41 min each) on
 columns it threw away and ran 7.5 h without finishing one.  Now ``Evaluator.residuals(x, jac=True, cols=...)``
 passes the complement to the workers (pyazr ``residual_jacobian(skip=)``), and polish / gn_step ask for theirs.
 

@@ -216,7 +216,7 @@ def template_variant(base_azr: str, path: str, ex: float, jpis: Optional[Sequenc
     engine's initial vector gives the rwa of that physical width.
     ``jpis`` None/empty = the model's own groups; a J^pi no particle pair can couple to
     raises (structure.resolve_jpis, 2026-11-04 -- the old default was the half-integer
-    13C+alpha list, unphysical on integer-spin systems)."""
+    list (17O-like), unphysical on integer-spin systems)."""
     from pyazr import AzrModel
     # AZURE2's level-line reader mis-parses energies written with ~16 significant
     # digits (13N: a 17-character energy turned the model into garbage); keep 1 eV
@@ -449,7 +449,7 @@ def _patterns(n: int, max_signs: int, seed: int = 0, priors: Sequence[dict] = ()
     if n >= 2:
         # Only the channels the group's existing levels actually use strongly are
         # worth a dominant-channel template, and at most `dominant_top` of them:
-        # 3/2- on 13C+a has 19 channels, and 4n patterns per scale per group is how
+        # one J^pi group of a large model has 19 channels, and 4n patterns per scale per group is how
         # a screen ends up at 77 min an energy.
         if priors:
             strength = np.zeros(n)
@@ -729,7 +729,7 @@ def template_screen(ev: Evaluator, x_inc, variant: dict, gamma_total_ev: float,
         + ", ".join(f"{r['jpi']} {r['desc']} @{r['ex']:.3f} {r['frozen']:.1f}" for r in rows[:3]))
     t1 = time.time()
     # allocate the GN budget PER J^pi GROUP first.  Ranking globally let one group
-    # take every slot on 13C+a, so five groups reported a gain of ~0 that had never
+    # take every slot on a large model, so five groups reported a gain of ~0 that had never
     # been GN-stepped at their own best pattern.
     picked, per = [], {}
     for r in rows:

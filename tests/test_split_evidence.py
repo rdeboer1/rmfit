@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """A level add that takes its width from an unresolved same-J^pi neighbour is a SPLIT (2026-09-21).
-Numbers are the real 13C+a cases (widths read from the exported .azr files)."""
+Numbers are from real archive cases (widths read from the exported .azr files)."""
 import os, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.normpath(os.path.join(HERE, "..", "..")))

@@ -111,7 +111,7 @@ def audit_model(azr_path: str, campaign_dir: Optional[str] = None, campaign_cfg:
         home = os.path.normpath(campaign_dir or base)
         if os.path.isabs(outdir) and not os.path.normpath(od).startswith(home + os.sep) and os.path.normpath(od) != home:
             out.append(Finding("HIGH", "output-path", f"absolute output path {outdir} outside {home}: a run here writes into another directory "
-                               "(6Li+p 2026-10: a scratch run overwrote 10 archive output files)"))
+                               "(a scratch run once overwrote an archived fit's output files)"))
         elif not os.path.isdir(od):
             out.append(Finding("MEDIUM", "output-path", f"output directory {od} does not exist (AZURE2 needs it before a run)"))
 
@@ -187,13 +187,13 @@ def audit_model(azr_path: str, campaign_dir: Optional[str] = None, campaign_cfg:
         if abs(s.norm - 1.0) > 1e-9:
             out.append(Finding("LOW" if cov else "MEDIUM", "norm-nominal", f"seg {s.key} {os.path.basename(s.data_file)}: nominal norm {s.norm} != 1 "
                                + ("(covariance file present: the prior may live there, t0 method -- confirm)" if cov else
-                                  "(a fitted value used as the nominal biases the penalty; 11B+a 9-22-26)")))
+                                  "(a fitted value used as the nominal biases the penalty)")))
         if s.vary_norm and s.norm_error == 0:
             out.append(Finding("LOW" if cov else "MEDIUM", "norm-unpenalized", f"seg {s.key} {os.path.basename(s.data_file)}: free norm with no "
                                "systematic error" + (" (covariance file present: cov_free_norm_ok?)" if cov else "")))
         if 0 < s.norm_error < 1.0:
             out.append(Finding("HIGH", "norm-error-units", f"seg {s.key} {os.path.basename(s.data_file)}: normError {s.norm_error} -- AZURE2 reads PERCENT; "
-                               "a fraction gives a penalty 100x too tight (12C+p 9-11-26)"))
+                               "a fraction gives a penalty 100x too tight"))
         if s.vary_shift and s.energy_shift_error == 0:
             out.append(Finding("MEDIUM", "shift-unpenalized", f"seg {s.key} {os.path.basename(s.data_file)}: free energy shift with no error"))
         if s.observable == "differential" and (s.angle_min < -1 or s.angle_max > 180.5):
@@ -255,13 +255,13 @@ def audit_model(azr_path: str, campaign_dir: Optional[str] = None, campaign_cfg:
                 sev = "HIGH" if (eq_pts >= 100 or tiny >= 50 or tiny > 0.1 * len(r)) else "MEDIUM"
                 out.append(Finding(sev, "data-error-tiny", f"{name}: {tiny} of {len(r)} rows have an error below 0.1 % of the value "
                                    f"(min {r.min():.3g} %, median {med:.3g} %: the worst row weighs like {eq_pts:,.0f} typical points; "
-                                   "13C+a Cierjacks 2026-10-02)"))
+                                   "seen in an archived data set)"))
             if len(r) >= 8:
                 distinct = np.unique(np.round(r, 1))
                 integers = np.all(np.abs(distinct - np.round(distinct)) < 0.06) and distinct.max() <= 10 and distinct.min() >= 0.5
                 if 3 <= len(distinct) <= 5 and integers:
                     out.append(Finding("HIGH", "data-error-pattern", f"{name}: error/value is {sorted(np.round(distinct).astype(int).tolist())} % "
-                                       "(integer percent) in every row -- an EXFOR FLAG or quality code read as the uncertainty? (3H+d Conner, 2026-11-02)"))
+                                       "(integer percent) in every row -- an EXFOR FLAG or quality code read as the uncertainty?"))
                 elif len(distinct) == 2 and integers:
                     out.append(Finding("LOW", "data-error-pattern", f"{name}: errors are {sorted(np.round(distinct).astype(int).tolist())} % of the value in every row"))
                 elif len(distinct) == 1 and len(r) >= 20:

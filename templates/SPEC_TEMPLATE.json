@@ -1,6 +1,6 @@
 {
  "_status": "TEMPLATE -- copy to <campaign>/spec.json, fill in, delete this line.  Schema: rmfit/spec.py docstring.",
- "reaction": "13C+a",
+ "reaction": "<A><El>+<proj>",
  "compound_nucleus": "17O",
  "campaign": "<M-D-YY>_<name>",
  "owners": [

@@ -1,7 +1,7 @@
 """Engine pin: which AZURE2 engine a campaign was started on, and a refusal to run on another.
 
 Why (retrospective 2026-11-07, DESIGN.md): the shared ``~/AZURE2/pyazr`` .so was
-replaced under running campaigns many times in October 2026 ("replaced three times on 10-21"), the 17O+a fit
+replaced under running campaigns many times in October 2026 ("replaced three times on 10-21"), one fit
 needed eight frozen builds in eight days, and campaigns compared objectives across engine changes without
 noticing.  The practice that grew up by hand -- a frozen clone named by commit, ``setenv AZURE2_ROOT`` and an
 md5 guard in every job script (an archived campaign, an archived campaign

@@ -2,7 +2,7 @@
 """Data files outside data/ (model.data_dirs / link_data_dirs), 2026-11-07 (the evaluator: "Yes, fix it in rmfit").
 
 Before: every working directory rmfit writes a model copy into linked data/ only, so segments reading e.g.
-akdata/ or thermal/ were lost there (11B+a paper fit: 4 of 75 segments; pyazr refused the segment count).
+akdata/ or thermal/ were lost there (4 of 75 segments in one fit; pyazr refused the segment count).
 Fixture: 13N with two of its data files moved to other/ and sub/deeper/ (segment paths rewritten), plus a shift
 function whose expression holds a "/" (must not count as a path).
 Part A (no engine): data_dirs, link_data_dirs (idempotent, broken links left alone), shards, single_variant.

@@ -22,7 +22,7 @@ levels at the end of the file and by "removing" levels with
 deleting lines mid-campaign.
 
 A project with several compound nuclei (natural targets, AZURE2 >= the multi-CN work) has one J-group per (J^pi,
-nucleus), each numbered from 1, so ``"1/2-#2"`` alone names two levels there (21Ne and 23Ne in 17O+a an6pre, 2026-10-30).
+nucleus), each numbered from 1, so ``"1/2-#2"`` alone names two levels there (21Ne and 23Ne in a natural-neon target, 2026-10-30).
 In such a model every level label carries its nucleus, ``"<J^pi>#<ordinal>@<nucleus>"`` (``"1/2-#2@21Ne"``); a
 single-nucleus model keeps the plain label, byte for byte.  :func:`level_label` is the one place labels are made;
 :func:`level_group` gives the same-J^pi group of a label (``"1/2-@21Ne"``, or ``"1/2-"``).
@@ -376,7 +376,7 @@ def sign_distance(x1, x2, keys: Sequence[ParamKey], fixed: Sequence[ParamKey] = 
 
     Until 2026-11-12 the pair gauges were enumerated in a plain Python loop over
     all 2^(pairs) choices, each rescanning every amplitude per level: fine for
-    the handful of pairs of the earlier campaigns, but 19F+alpha's 27 pairs
+    the handful of pairs of the earlier campaigns, but a model with 27 pairs
     (134M choices) hung a population round for hours
     (an archived campaign readme).  That version also gave several
     levels tied to the same amplitude-less pair independent signs.

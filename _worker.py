@@ -76,7 +76,7 @@ def worker_main(conn, azr, cwd, flags, seg_map, omp_threads=1):
                             if d.key in groups.leader else sn for d, sn in zip(active, seg_norm)]
             x0 = np.asarray(m.params_rwa, float)
 
-            # 2026-10-22 (13C+a merged session): the engine converts a segment's data to the c.m. frame at its
+            # 2026-10-22: the engine converts a segment's data to the c.m. frame at its
             # SHIFTED energy, so with an energy shift the data and errors read at start-up are stale (exact only
             # where the lab -> c.m. factor does not depend on energy, e.g. elastic scattering).  Segments with any
             # shift term are re-read from the engine after each evaluation (update_data copies its current points).
@@ -111,7 +111,7 @@ def worker_main(conn, azr, cwd, flags, seg_map, omp_threads=1):
 
             # The fast path is checked against the engine's own residuals the
             # first time a Jacobian is requested (residual_jacobian costs ~14
-            # forward evaluations single-threaded on the 13C+alpha model, so
+            # forward evaluations single-threaded on a large model, so
             # it is not run at start-up just for the check).
             fast_state = {"ok": True, "checked": False}
             # residual_jacobian(skip=): held columns not finite-differenced (AZURE2 2026-10-30); older pyazr: all

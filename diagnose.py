@@ -30,7 +30,7 @@ def dataset_table(ev: Evaluator, score: Score) -> List[dict]:
         d = by.setdefault(name, dict(name=name, chi2=0.0, n=0, segments=set()))
         # a Sharded evaluator lists one row range per PIECE of a split segment, while
         # segment_chi2 is per base segment: count the chi2 once per key, the points per piece
-        # (until 2026-09-18 a segment split in two was counted twice -- Heil on 13C+a)
+        # (until 2026-09-18 a segment split in two was counted twice)
         if key not in d["segments"]:
             d["chi2"] += float(score.segment_chi2.get(key, 0.0))
         d["n"] += b - a

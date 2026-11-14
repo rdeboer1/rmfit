@@ -3,7 +3,7 @@
 Why (DESIGN.md, finding 2.1): in every campaign of Aug-Nov 2026 the decisions that define
 the objective -- which data sets, which scale anchors, systematics, excluded rows, fit window, frozen block, caps,
 parametrization -- were made in chat, late, often after a campaign had run.  Where they were written down with an
-owner (12C+a MCMC "Standing decisions") it worked.  The spec is that document in a form rmfit can read:
+owner (an MCMC study's "Standing decisions") it worked.  The spec is that document in a form rmfit can read:
 
 * ``rmfit spec check``  compares the .azr (segment table, pairs, flags) and campaign.json with the spec and lists
   every disagreement (nothing is changed);
@@ -251,7 +251,7 @@ class FitSpec:
             except Exception as err:   # pyazr unavailable: say so, do not fail
                 out.append(Finding("INFO", "spec-pairs-unchecked", f"pairs_required not checked ({err})"))
         # engine / flags / config vs campaign.json
-        # 2026-11-09 (12C+p L3 demo): model.radius_fm {pair: fm} vs the channel radius the .azr carries -- the spec said 6.0 fm
+        # 2026-11-09 (from-scratch demo): model.radius_fm {pair: fm} vs the channel radius the .azr carries -- the spec said 6.0 fm
         # (copied from a readme), the file 3.5 fm; nothing compared them
         rad = (self.data.get("model") or {}).get("radius_fm") or {}
         if rad:
@@ -316,7 +316,7 @@ def _ranges(keys):
 
 def pair_lines(model) -> dict:
     """``{pair key: first channel line naming it}`` -- ``AzrModel.pair_lines`` where it exists (pyazr >= 2026-10-29),
-    else built from the channels (frozen snapshots such as 10B+a's 379c6de3 predate it)."""
+    else built from the channels (older frozen snapshots predate it)."""
     if hasattr(model, "pair_lines"):
         return model.pair_lines()
     out = {}

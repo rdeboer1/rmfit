@@ -77,9 +77,9 @@ def main():
         check("large model: every seed has theta^2 <= 0.01 and none is near the dead rule",
               all(c["gamma"] <= 0.01 * c["wigner_ev"] + 1e-12 and c["wigner_ev"] >= 10.0 for c in ex))
         h = add_level_variant(big, os.path.join(tmp, "h.azr"), one, "5/2+")
-        check("13C+a: default still leaves one free channel", len(h["channels"]) == 1)
+        check("large model: default still leaves one free channel", len(h["channels"]) == 1)
     else:
-        print("   (13C+a export not present: many-channel block skipped)")
+        print("   (archive model not present: many-channel block skipped)")
 
     print()
     if failures:

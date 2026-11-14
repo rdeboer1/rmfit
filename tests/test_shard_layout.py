@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Shard layout (2026-10-10): composite "sum" segments are split by energy with a per-component cost, and every segment with a
 free energy shift gets a shard of its own; RMFIT_SPLIT_SUM=0 / RMFIT_SHIFT_SOLO=0 restore the old layout.  Parsing only (no engine).
-Uses the 13C+a merged model (a sum segment over 8 exits + 6 free-shift segments); skipped if it is not on disk.
+Uses an archive merged model (a sum segment over 8 exits + 6 free-shift segments); skipped if it is not on disk.
 Run: python3 rmfit/tests/test_shard_layout.py"""
 import os, sys, tempfile, shutil
 HERE = os.path.dirname(os.path.abspath(__file__))

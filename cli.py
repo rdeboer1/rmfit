@@ -90,7 +90,7 @@ def main(argv=None):
     p.add_argument("--tighten", action="store_true", help="walk out-of-cap amplitudes into the theta^2 box in stages")
     p.add_argument("--refreeze-every", type=int, default=0,
                    help="relvector covariance WITHOUT a fixed reference only: re-freeze its model every <= N "
-                        "evaluations (default 0 = never, since 2026-10-25: the iteration oscillated on 13C+a)")
+                        "evaluations (default 0 = never, since 2026-10-25: the iteration oscillated on a large model)")
     p = sub.add_parser("round")
     p.add_argument("--jpi", nargs="*")
     p.add_argument("--local-release", type=float, default=None,

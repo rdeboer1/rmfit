@@ -50,7 +50,7 @@ def part_a():
         check("backwards range raises", False)
     except ValueError:
         check("backwards range raises", True)
-    # a minimal <targetInt> block in the 11B+a format (entries copied from 11-04-26_park_gpSM/fixonly_npen)
+    # a minimal <targetInt> block in an archive model's format
     line_r = '1  "41,47-50,54-56"  30  0  0  1  4.6e18  "a0*exp(-a1*x)"  2  1  1  0  0  1  ""  0'
     line_p = '1  "40"  30  0  0  1  4.6e18  "a0*exp(-a1*x)"  2  1  1  0  0  1  ""  0'
     text = f"<targetInt>\n{line_r}\n{line_p}\n</targetInt>\n"
@@ -61,10 +61,10 @@ def part_a():
           f"{[e.keys for e in target_effects(text)]}")
     check("parse_target_effect keys", parse_target_effect(line_r).keys[-1] == 56)
 
-    # shards of the real 11B+a paper-fit model (no engine: plan + write only)
+    # shards of a real archive model (no engine: plan + write only)
     base = os.path.join(os.environ.get("RMFIT_ARCHIVE", os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))), "an archived campaign")  # archive model; RMFIT_ARCHIVE
     if not os.path.exists(base):
-        print("  (11B+a model not found, shard check skipped)")
+        print("  (archive model not found, shard check skipped)")
         return
     from rmfit.model import build_shards
     tmp = tempfile.mkdtemp(prefix="rmfit_ranges_")
@@ -76,7 +76,7 @@ def part_a():
                 integ.update(keys)
         n_range = sum(1 for en, keys, line in target_int_entries(text)
                       if en and "-" in line.split('"')[1])
-        check("11B+a: the 9 enabled range entries read", n_range == 9, f"{n_range}")
+        check("archive model: the 9 enabled range entries read", n_range == 9, f"{n_range}")
         shards = build_shards(base, 8, tmp)
         covered, sl_lines = set(), 0
         for s in shards:

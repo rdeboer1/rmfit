@@ -42,7 +42,7 @@ def main():
     cfg = dict(enabled=True, chains=2, warmup=150, draws=150, target_accept=0.9, max_tree_depth=6, ess_min=20, rhat_max=1.2,
                divergent_max_frac=0.2, bfmi_min=0.1, max_attempts=1, band_draws=60, bands_max=2,
                bands=[dict(entrance=1, exit=-1, e_min=0.1, e_max=2.0, e_step=0.02, observable="total-capture", quantity="sfactor", label="12C(p,g)13N")])
-    # the fixture has no <segmentsTest>, so the band comes from a spec grid (the 7Be campaign's way)
+    # the fixture has no <segmentsTest>, so the band comes from a spec grid (as a campaign's spec does)
     st = U.run(campaign=c, spec_uq=cfg, log=print, nprocs=2, threads=1)
     c.close()
     S = st["stages"]

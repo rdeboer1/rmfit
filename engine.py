@@ -3,7 +3,7 @@
 Two implementations share one interface:
 
 - :class:`SingleSession` -- one engine session on the full model.  Slow
-  (23 s per evaluation on the 13C+alpha model) but authoritative: every
+  (23 s per evaluation on a large model) but authoritative: every
   number that is recorded as *verified* comes from here.
 - :class:`Sharded` -- the data split across N worker processes (see
   :mod:`rmfit.model`), each evaluating its share; residuals are concatenated,
@@ -407,7 +407,7 @@ class ObjectiveSpec:
     cov_reference: str = ""         # .npz of covariance.save_reference: the data covariance's model-scaled (relvector)
                                     # terms are scaled by this FIXED model at every evaluation instead of the model of
                                     # the evaluator's first evaluation (the evaluator 2026-10-25, after the refreeze iteration
-                                    # oscillated on 13C+a).  Campaign.init writes the seed's (cov_reference.npz).
+                                    # oscillated on a large model).  Campaign.init writes the seed's (cov_reference.npz).
     cov_free_norm_ok: list = field(default_factory=list)   # covariance file basenames whose relvector rows may carry
                                     # a FREE data normalization.  Campaign.init refuses any other (2026-10-26, the evaluator:
                                     # "build the t0 version"): a free norm on relvector rows is biased whichever way
@@ -1569,7 +1569,7 @@ def bake(base_azr, x, keys, path, flags, workdir=None, output_dir=None,
 
     This replaces ``pyazr.azure2.save_fit`` for campaign use.  ``save_fit``
     opens its verification session inside the same process as the fit
-    session, and on the 13C+alpha model that second session has come back
+    session, and on a large model that second session has come back
     with a parameter table that does not match the first (the engine keeps
     per-process state); here every session is its own process.
 
@@ -1668,7 +1668,7 @@ def bake(base_azr, x, keys, path, flags, workdir=None, output_dir=None,
             # (under a keV apart), and the engine reading the written file treats them as
             # ONE level, so the group's labels shift (9/2+#6 -> #5) and 8 keys disappear.
             # Delete the files as the rtol branch does -- leaving them on disk left a
-            # directory holding a `13C+a.azr` that looks like an export and is not.
+            # directory holding a `<name>.azr` that looks like an export and is not.
             missing = sorted(map(str, set(ev.keys) - set(ev2.keys)))
             extra = sorted(map(str, set(ev2.keys) - set(ev.keys)))
             for f in (path, sav):

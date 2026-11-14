@@ -64,8 +64,8 @@ the shared data as an ordinary segment (same data file, window and observable, i
 normalization free and 1).  The model of a shared data set is `sum_k w_k f_k`, its one
 normalization applies to all members, and a member's energy shift of it stays at the file's
 value.  Test (13N and the p+p model sharing a 90-degree elastic set, ~20 min):
-`python3 rmfit/tests/test_mixture_13n_pp.py`.  First use: natural neon, `17O+a` (20Ne+n) with
-`22Ne+n` and `21Ne+n` (2026-10-12, an archived campaign).  Since 2026-10-13 the mixture feature
+`python3 rmfit/tests/test_mixture_13n_pp.py`.  First use: a natural-neon target, the 20Ne compound with
+the 22Ne and 21Ne admixtures (2026-10-12).  Since 2026-10-13 the mixture feature
 (engine, pyazr API) is not on AZURE2 `dev` but on `feature/multi-compound-nucleus`: run anything that
 imports `rmfit.mixture` with `AZURE2_ROOT` pointing at a build of that branch AT COMMIT bc3bd57 (the last
 one with the mixture pyazr API; the branch moved on to several compound nuclei in one project on
@@ -73,12 +73,12 @@ one with the mixture pyazr API; the branch moved on to several compound nuclei i
 `abundance` (`ParamKey.nucleus = (Z, A)`) and `Penalties.from_segments(keys, segs, azr)` adds the
 `<abundances>` priors as rows (the sum-to-one term is not a row); on `dev`'s engine neither path is ever
 taken.  Two 2026-10-13 regressions, both fixed the same day: `from_segments` was first called with
-`self.azr` from `Sharded`, which only has `base_azr` (killed five sharded 13C+a jobs; `engine.py.bak-2026-10-13b`),
+`self.azr` from `Sharded`, which only has `base_azr` (killed five sharded jobs),
 and `sign_distance` enumerated pair nodes without the stage-2 member tag (`KeyError` on every call;
 `keys.py.bak-2026-10-13c`).  Any edit here must pass `tests/test_keys.py` (seconds) and a `Sharded` fixture
 (`tests/test_levelscan_13n.py`, queue job template `tests/_queue_sharded/run_crc_sharded`) before it stays.
 
-Level labels with several compound nuclei in one project (2026-10-30, report from the 17O+a session).  The engine
+Level labels with several compound nuclei in one project (2026-10-30).  The engine
 has one J-group per (J^pi, nucleus), each numbered from 1, so in a natural-target project with two odd-A nuclei
 (21Ne and 23Ne in an archived campaign) the plain label `"1/2-#2"` named two levels: before
 this fix `level_energy` kept ONE energy per label (`default_bounds` then took width caps and floors, the background
@@ -135,7 +135,7 @@ Data covariances, normalization and shift groups (2026-10-22, `covariance.py`). 
   the ones polish's bounds hold.  `Evaluator.residuals(x, jac=True, cols=...)` now names the columns the caller reads;
   the workers skip the others (pyazr `residual_jacobian(skip=)`, AZURE2 dev 753c6f0 or later), which come back zero
   on the data rows.  `polish` asks for its free columns, `gn_step` for its own.  Older pyazr builds compute every
-  column as before.  Before this, a 17O+a an6pre polish with 8 held shift terms spent ~16 of ~18 evaluations per
+  column as before.  Before this, a multi-nucleus polish with 8 held shift terms spent ~16 of ~18 evaluations per
   Jacobian on columns it discarded (7.5 h without a finished Jacobian).  Test tests/test_jac_skip_columns.py.
 - Fitted target densities (`densityfit` / `densitygroup` on a `<targetInt>` line; AZURE2 branch
   dev f272a35, 2026-10-29): key `density[t<n>]` (`ParamKey.effect` = the

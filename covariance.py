@@ -58,7 +58,7 @@ import numpy as np
 #: (pyazr.datasets._KEYWORDS of AZURE2 dev; shiftfn takes a variable number).
 _KEYWORDS = {"sqrtshift": 3, "sample": 1, "natural": 1, "shiftgroup": 1, "normgroup": 1,
              "covariance": 1, "shiftfn": None,
-             "shiftfngroup": 1,   # feature/shift-fn-groups (11B+a, 2026-10-22), known ahead so it cannot hide what follows
+             "shiftfngroup": 1,   # feature/shift-fn-groups (2026-10-22), known ahead so it cannot hide what follows
              "total": 1}          # optical-theorem total cross section, AZURE2 dev d37d4e6 (2026-10-24)
 
 

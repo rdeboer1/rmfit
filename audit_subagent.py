@@ -10,7 +10,7 @@ decision); ``rmfit <campaign> audit --findings`` lists what is still unverified.
 Phase 2) emits these prompts from its AUDIT state and waits for the reports.
 
 Why (DESIGN.md, finding 2.5): input-data errors were found by hand audits, never by the
-fit; the audits work (42 ``*_audit`` directories, 16-minute turnaround on 13C+a) but each prompt was written by hand
+fit; the audits work (42 ``*_audit`` directories, 16-minute turnaround on a large model) but each prompt was written by hand
 and each report verified by hand.  Worked example and format source: an archived campaign.
 """
 import os
@@ -28,7 +28,7 @@ PYTHONPATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + ":" +
 
 
 def _reaction_name(azr_path):
-    """``13C+a`` from the archive path convention (``<A><El>+<proj>/...``), else the model's file stem."""
+    """``<A><El>+<proj>`` from the archive path convention (``<A><El>+<proj>/...``), else the model's file stem."""
     for part in os.path.abspath(azr_path).split(os.sep):
         if re.match(r"^\d+[A-Z][a-z]?\+[A-Za-z0-9]+$", part):
             return part

@@ -1,10 +1,10 @@
-"""Cheap regression tests for the two gaps that let the 13C+a gate fail twice.
+"""Cheap regression tests for the two gaps that let a level-search gate fail twice.
 
 1. template_variant writing into a SUBDIRECTORY must link the base model's
    data/ beside the variant -- the existing 13N test writes its variant beside
    the base model, where the link already exists, so it never covered this.
 2. grid_coverage must say, as pure geometry, whether the template grid can
-   represent a given level at all.  The first 13C+a gate run spent 77 minutes
+   represent a given level at all.  The first gate run spent 77 minutes
    discovering something this answers in milliseconds.
 
 No fitting, no engine session: runs in a second.

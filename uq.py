@@ -16,7 +16,7 @@ Stages (resumable; state in ``<dir>/uq/uq_state.json``, every product under ``<d
               Levels with J in (j_saturated, 0.9) and two particle channels are listed: Park would decorrelate them, which
               matters for emcee and not for NUTS with a dense metric (11-06-26_nuts).  Norms are sampled unless
               ``sample_norms`` is false.  Then the Laplace covariance C of the sampled block (J^T J + penalty Hessian + priors)^-1.
-              BOUNDS (2026-11-12, d+t): every sampled particle amplitude is bounded at |gamma| <= sqrt(cap) gamma_W with cap =
+              BOUNDS (2026-11-12): every sampled particle amplitude is bounded at |gamma| <= sqrt(cap) gamma_W with cap =
               the campaign policy's theta^2 cap for its level (``BoundsPolicy.cap_for``: physical / background / window), the
               box the polish ran in; ``bounds: "none"`` lifts it, ``theta2_cap`` (a number) sets one cap for every level (a
               bare .azr + .sav has no policy: without it, no bounds).  Inside the box the posterior is the objective's own
@@ -31,7 +31,7 @@ Stages (resumable; state in ``<dir>/uq/uq_state.json``, every product under ``<d
               the stage reports FAIL (the drive queues a wait decision ``uq-gates``).  No automatic re-run (2026-11-13) when
               split R-hat > ``rerun_rhat_max`` (1.5: chains in different regions do not merge with longer runs) or when the
               re-run would take more than ``rerun_max_hours`` (12; estimated as extend_factor x the attempt's own wall time):
-              the stage reports FAIL at once with the reason.  Why: 7Be pert4 2026-11-13, R-hat 2 after 300 draws, one chain at
+              the stage reports FAIL at once with the reason.  Why: in one run R-hat was 2 after 300 draws, one chain at
               the depth cap -- attempt 1 needed 15 h more and the automatic attempt 2 ~4 x that.  Each chain also prints its
               draw-phase rate and the hours left in its attempt after its first 100 draws.
   BANDS       on the spec's ``uq.bands`` grids (or the model's own energy-scan <segmentsTest> entries, one per
@@ -49,7 +49,7 @@ Spec section ``uq`` (all optional; ``enabled`` makes the drive run the stage aft
            "sample_norms": true, "priors": {"<engine parameter name>": [mean, sigma]}, "temper": 1.0,
            "bounds": "policy" | "none", "theta2_cap": null | <one cap for every level>,
            "bands": [{"entrance": 2, "exit": -1, "e_min": 0.01, "e_max": 3.0, "e_step": 0.01, "observable": "total-capture",
-                      "quantity": "sfactor", "label": "3He(a,g)7Be"}],
+                      "quantity": "sfactor", "label": "12C(p,g)13N"}],
            "rhat_max": 1.01, "ess_min": 400, "divergent_max_frac": 0.01, "bfmi_min": 0.3, "max_attempts": 2}
 
 What is NOT done here: a change of parametrization (the chains run in the campaign's basis; ``parametrization: park`` in the

@@ -197,8 +197,8 @@ def parse_seg_list(text: str) -> List[int]:
 
     2026-11-07 (the evaluator approved): rmfit used to read only plain comma lists.  A range made ``int("47-50")``
     raise, ``target_effects`` swallowed the error and ``_TINT_RE`` did not match, so every entry with a range
-    was left out of every shard and its segments were evaluated UNINTEGRATED in sharded runs (11B+a: 37
-    such entries; an archived campaign, 10-31 13:40)."""
+    was left out of every shard and its segments were evaluated UNINTEGRATED in sharded runs (37
+    such entries in one model)."""
     out: List[int] = []
     for item in text.strip().strip('"').replace(" ", "").replace("\t", "").split(","):
         if not item:
@@ -302,7 +302,7 @@ class ConvSpec:
     sigma and for an expression alike; see build_conv_spec), and forms the
     real residuals against the segment's data.  Exact up to quadrature (AZURE2
     itself uses an adaptive grid + 2-point Gauss-Legendre with linear
-    interpolation); on the 13C+alpha model the difference is ~1e-5 of the
+    interpolation); on a large model the difference is ~1e-5 of the
     total objective, and every verified number comes from a single session
     anyway.
     """
@@ -447,7 +447,7 @@ def segment_class(seg: Segment) -> str:
     return f"{seg.entrance_key}->{seg.exit_key}:{seg.observable}"
 
 
-#: Relative cost per data point by segment class, calibrated on the 13C+alpha
+#: Relative cost per data point by segment class, calibrated on a large
 #: model (rmfit.model.calibrate_weights): fixed-angle differential segments
 #: cost more per point than angle-integrated ones.
 DEFAULT_WEIGHTS = {"2->2:differential": 8.5, "2->1:differential": 2.3}
@@ -626,7 +626,7 @@ def data_dirs(azr_path: str) -> List[str]:
     the first path component of each such name that is an existing directory beside the model is returned, with
     ``data`` always first.  Before 2026-11-07 every rmfit working directory (shards, single-session variants,
     windows, level-scan and mixture members) linked ``data/`` only, so a model reading ``akdata/`` or ``thermal/``
-    lost those segments there (11B+a paper fit: 4 of 75; pyazr then refused the segment count)."""
+    lost those segments there (4 of 75 in one fit; pyazr then refused the segment count)."""
     base_dir = os.path.dirname(os.path.abspath(azr_path))
     text = open(azr_path, encoding="latin-1").read()
     out = ["data"]
@@ -794,7 +794,7 @@ def build_shards(base_azr: str, nshards: int, workdir: str,
     ``shift_solo`` (default on; RMFIT_SHIFT_SOLO=0 turns it off): every
     segment with a free energy shift gets a shard of its own, the rest is
     packed into the others.  A shift is finite-differenced in the Jacobian
-    and each step re-evaluates its whole shard (2026-10-10, 13C+a merged
+    and each step re-evaluates its whole shard (2026-10-10, a large merged
     model, 16 shards: shards holding the 6 shifted segments took 28-92 s of
     a 90 s Jacobian, the others 10-17 s; solo, the Jacobian is ~30 s).
     Used only while the shifted segments are fewer than half the shards."""

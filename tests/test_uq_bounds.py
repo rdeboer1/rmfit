@@ -66,7 +66,7 @@ def main():
     Hu = A * np.outer(d, d)
     t = np.tanh(u[B.b]); Hu[np.flatnonzero(B.b), np.flatnonzero(B.b)] += 2 * (1 - t * t)
     check("metric_u = inv(D A D + Jacobian curvature)", np.allclose(Cu, np.linalg.inv(Hu)), str(Cu))
-    # the d+t pathology (a queue job): a mode held at the box edge along a direction the unbounded Laplace leaves wide.
+    # the background-pole pathology: a mode held at the box edge along a direction the unbounded Laplace leaves wide.
     # log p = -0.5 ((x1 - 3 x2)/0.2)^2 - 0.5 (x2/100)^2 + 5 x2 with x2 in [-0.8, 0.8]: mode x2 = 0.8 (pushed by the linear
     # term), Laplace sd(x2) = 100, sd(x1) = 300 for a box of half-width 0.8 (the ridge is curved in u, so the chains are
     # longer than the truncated-normal check's; the old metric's chains are short: they do not move).  Exact: p(x2) on the box ~ exp(5 x2).

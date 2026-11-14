@@ -9,9 +9,8 @@ What the evaluator catches by looking at the AZURE2 GUI, as detectors on the per
   inside one experiment (a shape problem dressed as a scale);
 - residual runs: consecutive points on one side of the fit (bumpiness, a missing level, a wrong width);
 - average-versus-structure: residuals that vanish when blurred over 50 keV while the raw ones are large (the fit
-  follows the mean of structure the data resolve), and MeV-wide levels spanning several visible unfitted peaks
-  (13C+a high-Ex);
-- levels narrower than the data spacing that covers them (17O+a an2: eV-wide levels living on the
+  follows the mean of structure the data resolve), and MeV-wide levels spanning several visible unfitted peaks;
+- levels narrower than the data spacing that covers them (eV-wide levels living on the
   target-integration grid), levels supported by one data set or by none;
 - optionally, on a campaign, the objective at a converged target-integration grid (``--grid-check``).
 
@@ -887,7 +886,7 @@ class Review:
             self.add("MEDIUM", "fit-zigzag",
                      f"{d['name']} (seg {d['key']}{'' if d['ang'] < 0 else f', {d['ang']:.0f} deg'}): the calculated curve alternates up and down "
                      f"over {d['steps']} consecutive steps at Ex {d['lo']:.4f}-{d['hi']:.4f} MeV (steps up to {100*d['amp']:.1f} %); {hint}",
-                     "the GUI shows it as bumpiness on the fit curve (11B+a 8-27-26 segments 89/91/103)")
+                     "the GUI shows it as bumpiness on the fit curve")
 
     # ---- 7. level support ---------------------------------------------------------------------------------------
     def level_support(self):

@@ -137,7 +137,7 @@ def main(nshards=4):
     from rmfit.engine import bake
     # the rwa -> physical -> rwa round trip through <levels> is not exact
     # (AZURE2's TransformIn is numerical); on this jittered 13N point it is
-    # ~4e-5 in chi2, on the converged 13C+a fit ~1e-8
+    # ~4e-5 in chi2, on a converged large fit ~1e-8
     azr, sav, sc = bake(base, fr.x, sh.keys, os.path.join(tmp, "baked.azr"), flags,
                         workdir=os.path.join(tmp, "variants"), verify_rtol=1e-3)
     print(f"      round-trip noise: {sc.roundtrip}")

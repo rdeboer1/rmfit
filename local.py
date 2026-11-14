@@ -75,7 +75,7 @@ class BoundsPolicy:
                                           # (a 1e5 pull -> 0.05 %); at 5e-3 the same pull sagged it by a third (unit test)
     photon_width_max_ev: float = 1.0e4    # |Gamma_gamma| <= this (eV) for every free photon channel of a physical level, and
     bg_photon_width_max_ev: float = 1.0e5  # ... of a background pole (0 = unbounded).  Photon amplitudes have no Wigner limit, so
-                                          # the theta^2 cap never touched them: the 12C+p from-scratch demo (2026-11-10) polished a
+                                          # the theta^2 cap never touched them: a from-scratch demo (2026-11-10) polished a
                                           # 5/2- background pole to Gamma_gamma 1e12 eV.  Generous stops against a runaway, not
                                           # Weisskopf limits (Gamma_W(E1) at 20 MeV in A=13 is ~3 keV, E2 ~5 eV); the bound is
                                           # |x| <= sqrt(Gamma_max / c) with Gamma_gamma = c x^2 at x_ref (the transform's local

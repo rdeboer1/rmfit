@@ -3,7 +3,7 @@
 Layout of a campaign directory (created by ``rmfit init``):
 
     campaign.json     base model, engine flags, shard count, bounds policy, search config
-    13C+a.azr/.sav    the base model and its parameter companion (GUI-reviewable)
+    <name>.azr/.sav   the base model and its parameter companion (GUI-reviewable)
     data/             data files (the .azr references them relatively)
     variants/         every derived .azr (shards, single-session copies, bakes)
     ledger.sqlite, candidates/, LOG.jsonl, STATUS.md
@@ -163,7 +163,7 @@ class Campaign:
             self.log(f"  (sign distance to the target unavailable: {err})")
 
     def reaction_name(self) -> str:
-        """The archive's reaction directory name (``13C+a``) when the campaign
+        """The archive's reaction directory name (``<A><El>+<proj>``) when the campaign
         sits in one, else the base model's stem."""
         parent = os.path.basename(os.path.dirname(self.dir))
         if "+" in parent:
@@ -508,7 +508,7 @@ class Campaign:
         xs = take(x, keys, ev.keys, ev.x0)
         # None = leave the campaign policy alone.  A hard-coded False here silently
         # overrode a campaign whose policy said shifts_free=True, so a "free the
-        # BandH shift" test polished with the shift excluded (13C+a, 2026-09-13, twice).
+        # BandH shift" test polished with the shift excluded (twice).
         policy = self.policy if shifts_free is None else dataclasses.replace(self.policy, shifts_free=shifts_free)
         self.log(f"polish policy: shifts_free={policy.shifts_free}")
         if getattr(ev, "cov", None) is not None and ev.cov.relative:
@@ -635,7 +635,7 @@ class Campaign:
 
     def run_population(self, restarts=4, n_flips=(6, 8, 10, 12), per_group=3, top_moves=40, jitter=0.2,
                        nfev=600, rounds_max=8, gain_tol=5e-4, passes=2, seed=None, note="") -> dict:
-        """Restarts + crossover: the basin-crossing stage (2026-11-08, 7Be benchmark post-mortem).
+        """Restarts + crossover: the basin-crossing stage (2026-11-08, from a benchmark post-mortem).
 
         The sign rounds judge single and paired flips on short screens; a benchmark post-mortem
         showed that the way from a basin 13 % above the reference to it was a coordinated 17-flip pattern whose unpolished
@@ -1107,7 +1107,7 @@ class Campaign:
         rid = self.ledger.start_round(self.structure_id, "relocate", f"{level} -> {ex_new} MeV {note}")
         # CONTROL first: polish the UNMOVED incumbent with the same budget, and judge the
         # relocation against that.  Without it a relocation scores whatever a warm-start
-        # polish would have found anyway -- on 13C+a a level that walked straight back to
+        # polish would have found anyway -- a level that walked straight back to
         # its starting energy still showed a "gain" of 309 (100 evaluations of drift).
         frC = polish(ev, xs, bounds=default_bounds(ev, xs, self.policy), policy=self.policy,
                      max_nfev=max_nfev, log=self.log)
@@ -1696,7 +1696,7 @@ class Campaign:
         """Switch every segment whose data file matches ``file_substr`` off,
         polish, verify, and report the *extra* recovery: how much the rest of
         the data improve beyond simply dropping that dataset's own chi2 (the
-        Botek diagnostic from the 12C+a campaign: a dataset that distorts the
+        Botek diagnostic from an earlier campaign: a dataset that distorts the
         fit shows a large extra recovery; a merely noisy one shows none)."""
         from .structure import dataset_off_variant
         cid, x, obj, keys = self.incumbent()

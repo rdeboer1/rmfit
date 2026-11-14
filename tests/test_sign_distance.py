@@ -1,7 +1,7 @@
 """sign_distance (2026-11-12 rewrite): exact path vs an independent brute force
 over every gauge component, the multistart path vs the exact one, flip-set
 validity, agreement with the pre-2026-11-12 enumeration, and speed at
-19F+alpha size (27 pairs).  Pure python, no AZURE2.  Run:
+large-model size (27 pairs).  Pure python, no AZURE2.  Run:
 python3 rmfit/tests/test_sign_distance.py [path/to/old_keys.py]
 """
 import itertools, os, sys, time, importlib.util

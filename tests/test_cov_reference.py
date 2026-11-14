@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """A data covariance's model-scaled (relvector) terms fixed at ONE reference model (2026-10-25, the evaluator: "revert the
-default and use a fixed reference model"), after the refreeze iteration oscillated on 13C+a.
+default and use a fixed reference model"), after the refreeze iteration oscillated on a large model.
 
 Fixture fixtures/relvector_p12c (p+12C): ngrel.azr = normgroups + a covariance with 2 % relvector terms; ngcov.azr =
 the same with absolute terms only.  Checks:

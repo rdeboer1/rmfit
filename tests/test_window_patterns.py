@@ -1,5 +1,5 @@
 """structure.scan_jpi_on_window builds only the 16 sign patterns it screens (2026-11-13: building all 2^(n-1) first ran out of
-memory for n ~ 40 on 19F+alpha).  Pure python: the patched expression equals the first 16 of the old full list, and n = 60 is
+memory for n ~ 40 in one model).  Pure python: the patched expression equals the first 16 of the old full list, and n = 60 is
 instant.  Run: python3 rmfit/tests/test_window_patterns.py"""
 import time
 def old(n):

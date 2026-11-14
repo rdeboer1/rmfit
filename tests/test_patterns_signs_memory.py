@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""levelscan._patterns equal-split signs without materialising all 2^n sign vectors (2026-11-06, 10B+a (an archived campaign)).
+"""levelscan._patterns equal-split signs without materialising all 2^n sign vectors (2026-11-06).
 
 Before: list(itertools.product((1, -1), repeat=n)) then a sample of --max-signs: ~75 GB at n=28, 300-650 GB at n=30-31,
 so every levelscan with a >=30-channel J^pi was OOM-killed.

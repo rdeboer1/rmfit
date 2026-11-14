@@ -31,8 +31,8 @@ from .model import single_variant
 from .windows import window_variant
 from pyazr import AzrModel
 
-# The 13C+alpha (17O, half-integer J) list.  Until 2026-11-04 it was the DEFAULT J^pi list of levelscan,
-# structure add and scan_jpi_on_window; on 10B+alpha (14N, integer J) that silently built unphysical dummy levels
+# The half-integer-J list (e.g. a 17O compound nucleus).  Until 2026-11-04 it was the DEFAULT J^pi list of levelscan,
+# structure add and scan_jpi_on_window; on an integer-J compound nucleus (e.g. 14N) that silently built unphysical dummy levels
 # (J = 1/2 with alpha0 l = 3, s = 3).  The default is now the model's own groups (default_jpis), and every
 # requested J^pi is checked against the model's particle pairs (resolve_jpis).  Kept for explicit use only.
 JPI_GROUPS = ["1/2+", "1/2-", "3/2+", "3/2-", "5/2+", "5/2-", "7/2+", "7/2-", "9/2+", "9/2-", "11/2+", "11/2-"]
@@ -112,8 +112,8 @@ def default_jpis(model) -> List[str]:
     levelscan / structure add / scan_jpi_on_window since 2026-11-04: a dummy of an
     existing group reuses that group's channels, so the template variant adds no
     partial wave the model does not already have (a new group adds channels whose
-    hard-sphere terms change the elastic channels even at zero width: +1,205 on
-    10B+a, 11-4-26_s4_levelscan)."""
+    hard-sphere terms change the elastic channels even at zero width: a clear change
+    in one model)."""
     mdl = _as_model(model)
     seen = {}
     for lv in mdl.levels:
@@ -228,7 +228,7 @@ def add_level_variant(base_azr: str, path: str, cand: LevelCandidate, jpi: str,
     Without it a level found by a sparse scan pattern ("channel 7 only") has that one
     channel free for ever -- pyazr add_level writes the rest gamma = 0, FIXED -- so it can
     never carry inelastic strength and its accept/reject verdict is reached with those
-    channels frozen (13C+a high-Ex: 5 of 7 added levels had (a,a1) fixed at zero).  The
+    channels frozen (in one window, 5 of 7 added levels had an inelastic channel fixed at zero).  The
     extra channels count in k_new, i.e. they raise tau: the conservative reading.
     """
     if seed_omitted is None:

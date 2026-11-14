@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""rmfit level labels in a model with several compound nuclei (2026-10-30, report from the 17O+a session).
+"""rmfit level labels in a model with several compound nuclei (2026-10-30).
 
 The engine has one J-group per (J^pi, compound nucleus), each numbered from 1, so in a natural-target project with two
-odd-A nuclei "1/2+#1" names two levels (17O+a an6pre: 21Ne and 23Ne).  Before this fix rmfit's labels carried no
+odd-A nuclei "1/2+#1" names two levels (21Ne and 23Ne in a natural-neon target).  Before this fix rmfit's labels carried no
 nucleus: SingleSession.level_energy kept ONE energy per label (default_bounds then capped widths, fixed background
 poles and set width floors from the other nucleus's level) and two free energies shared the key E[1/2+#1].
 Now a multi-nucleus model labels every level "<J^pi>#<n>@<nucleus>"; a single-nucleus model is unchanged.

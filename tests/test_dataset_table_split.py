@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """diagnose.dataset_table on an evaluator whose segments are split into pieces (as Sharded
 does): chi2 must be counted once per base segment, points once per piece.  Regression for
-the 2026-09-18 bug (Heil on 13C+a, 28 segments x 2 pieces, reported at exactly twice its
+the 2026-09-18 bug (28 segments x 2 pieces, reported at exactly twice its
 chi2 -- and therefore at twice its weight in compare()'s redistribution ratio)."""
 import os, sys
 HERE = os.path.dirname(os.path.abspath(__file__))

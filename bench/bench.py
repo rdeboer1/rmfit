@@ -16,8 +16,8 @@ and applies the recovery yardstick adopted 2026-11-09:  PASS = data chi2 <= refe
 decisions, no new HIGH/MEDIUM review flag; EXACT (secondary) = objective within 1e-4.  Rows go to ``results.tsv``.
 
 ``run`` writes the SGE job for one run from the case's ``reference`` and the run's ``start`` and ``spec`` entries (reference
-init if missing, ``rmfit perturb``, spec copied, ``rmfit drive`` to DONE / WAITING / STOP), modelled on the 7Be benchmark's
-run_crc_bench4; ``--submit`` queues it (needs a Kerberos ticket: see the crc-cluster-jobs skill)."""
+init if missing, ``rmfit perturb``, spec copied, ``rmfit drive`` to DONE / WAITING / STOP), modelled on the development
+benchmarks' job scripts; ``--submit`` queues it (needs a Kerberos ticket: see the crc-cluster-jobs skill)."""
 import argparse, json, os, re, subprocess, sys, time
 from typing import Dict, List, Optional
 
@@ -70,8 +70,8 @@ def incumbent_split(c) -> dict:
 def decisions_summary(run_dir: str, pre_answered=(), inherited_review=False) -> dict:
     """Wait decisions and human answers of a run.  ``pre_answered`` (case file, per run): decision slugs that are part of the
     case definition rather than of the fit -- e.g. `audit-high` on a reference whose archived inputs carry known findings
-    (12C+p tier 1: 56 normError-as-fraction segments shared by reference and start); the supervisor answers them once and
-    the yardstick does not count them.  They are listed in the row's note.  ``inherited_review`` (2026-11-10, 10B+p tier 2):
+    (e.g. normError-as-fraction segments shared by reference and start); the supervisor answers them once and
+    the yardstick does not count them.  They are listed in the row's note.  ``inherited_review`` (2026-11-10):
     every HIGH flag of the run's REVIEW.md is in the reference's own REVIEW.md, so a `review-high` decision asks about the
     reference's structure, not the run's (the evaluator's "no new review flag" criterion); it is excluded like a pre-answered one."""
     from rmfit.decisions import DecisionQueue as Decisions

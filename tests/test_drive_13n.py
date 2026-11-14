@@ -31,7 +31,7 @@ def main():
     mdl = AzrModel.from_file(os.path.join(src, "13N.azr"))
     mdl.set_segment_norm("meyer_84", vary=True, sys_error=5.0)
     # 2026-11-10: one background channel free at exactly zero -- SEED_CHANNELS must give it a placeholder and seed it (a zero
-    # width is never an engine parameter; the 12C+p L3 demo 2 ran with no background amplitudes because of that)
+    # width is never an engine parameter; a from-scratch demo ran with no background amplitudes because of that)
     bg = [lv for lv in mdl.active_levels if float(lv.energy) >= 15.0]
     ch0 = bg[0].channels[0]; ch0.gamma = 0.0; ch0.channel_fixed = False
     print("   zeroed free channel:", bg[0].jpi, float(bg[0].energy), "pair", ch0.pair, "L", ch0.L)

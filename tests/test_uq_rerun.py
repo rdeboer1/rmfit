@@ -20,11 +20,11 @@ def main():
     check("defaults: rerun_rhat_max 1.5, rerun_max_hours 12", cfg["rerun_rhat_max"] == 1.5 and cfg["rerun_max_hours"] == 12.0)
     # R-hat 1.013 after 1.39 h -> re-run (~2.8 h)
     ok, why = _rerun_plan({"rhat_max": 1.013}, cfg, 0, 1.39 * 3600)
-    check("d+t attempt 1 re-runs", ok and "attempt 2 of 2" in why, why)
+    check("a near-miss re-runs", ok and "attempt 2 of 2" in why, why)
     # attempts used up
     ok, why = _rerun_plan({"rhat_max": 1.013}, cfg, 1, 100.0)
     check("no re-run when the attempts are used", not ok and "2 of 2" in why, why)
-    # 7Be pert4: R-hat 2.0 -> no re-run, whatever the time
+    # R-hat 2.0 -> no re-run, whatever the time
     ok, why = _rerun_plan({"rhat_max": 2.0}, cfg, 0, 600.0)
     check("R-hat 2.0 > 1.5: no automatic re-run", not ok and "rerun_rhat_max" in why, why)
     # a 7 h attempt would re-run for ~14 h > 12 h

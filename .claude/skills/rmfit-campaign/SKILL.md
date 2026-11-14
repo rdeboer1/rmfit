@@ -78,7 +78,7 @@ item, with the state that enforces it:
    `hypothesis`) and, inside the loop, `LEVELSCAN` / `STRUCTURE_ADD` (section 3a).
 6. **Only then a global fit** -> `INIT` (`Campaign.init --spec`, baseline verified, engine pinned).
 
-Re-evaluation the evaluator asked for (2026-10-25, "RE-EVALUATE LATER"): items 1, 2, 5 and 6 ran end to end on the 12C+p L3 demos
+Re-evaluation the evaluator asked for (2026-10-25, "RE-EVALUATE LATER"): items 1, 2, 5 and 6 ran end to end on the from-scratch demos
 (section 7); 3 and 4 only report.  A campaign initialised before the drive (`init` first, as the bench does) skips 1-2:
 roles and seeds belong before `init`.
 
@@ -124,10 +124,10 @@ writes `STATUS.md` and the job script `run_crc_rmfit` (24-core `long` node, mail
 are given. Policy meanings: `theta2_cap` is the Wigner-limit box for physical levels,
 `bg_theta2_cap` for background poles (levels with Ex >= `bg_energy`, whose energies stay
 fixed) -- 3.0 is a starting guess, not a physics default: check where the baseline's
-background amplitudes already sit (`init`'s cap audit) before trusting it; 12C+alpha
-elastic needed ~100; photon channels have no Wigner limit, so the theta2 caps never touch
+background amplitudes already sit (`init`'s cap audit) before trusting it; one alpha
+elastic fit needed ~100; photon channels have no Wigner limit, so the theta2 caps never touch
 them: `photon_width_max_ev` (1e4) and `bg_photon_width_max_ev` (1e5) cap |Gamma_gamma| of physical levels and background
-poles instead (2026-11-10: a from-scratch 12C+p background pole had polished to 1e12 eV; generous stops, not Weisskopf
+poles instead (2026-11-10: a from-scratch background pole had polished to 1e12 eV; generous stops, not Weisskopf
 limits -- set them per reaction, 0 = unbounded); `e_window` is the energy freedom of a level per polish (MeV); `norm_range`
 multiplies the nominal normalization. `narrow_window` (optional, e.g.
 `{"gamma_kev": 5, "factor": 3, "min_kev": 1}`) keeps a level whose free partial widths sum
@@ -138,7 +138,7 @@ drifted 180 keV in one tightening polish). Shard count = cores; sharding is exac
 
 Cost check on a new model (`campaign.log` after `init`): one sharded objective should
 be a few seconds and a Jacobian tens of seconds. If a segment with target-effect
-convolution dominates (as Cierjacks did on 13C+a), rmfit folds it itself (`model.ConvSpec`);
+convolution dominates, rmfit folds it itself (`model.ConvSpec`);
 composite "sum" segments are allowed as convolution pieces.
 
 ### 2b. Spec, audit, decisions (2026-11-07; Phase 1 of DESIGN.md)
@@ -203,10 +203,10 @@ small fraction of the Wigner limit.
 
 **Default J^pi of `levelscan` / `structure add` (fixed 2026-11-04).** With no `--jpi` (or `"jpi": null`)
 these now use the model's OWN active J^pi groups (`structure.default_jpis`), and any requested J^pi that no
-particle pair can couple to raises (`structure.resolve_jpis`; e.g. 1/2+ on 10B+alpha). The log names the
+particle pair can couple to raises (`structure.resolve_jpis`; e.g. 1/2+ on an integer-J compound nucleus). The log names the
 list and warns about any NEW group: its channels are partial waves the model lacks, and their hard-sphere
 terms change the elastic channels even at zero width. BEFORE the fix the default was the half-integer
-13C+alpha list (1/2+ ... 11/2-), unphysical for integer-J compound nuclei (14N, 16O, 20Ne, ...) without
+half-integer list (1/2+ ... 11/2-), unphysical for integer-J compound nuclei (14N, 16O, 20Ne, ...) without
 any warning. **A campaign's `run_snapshot/` copied before 2026-11-04 still has the old default: pass
 `--jpi` explicitly there** (e.g. `--jpi 0+ 0- 1+ 1- 2+ 2- 3+ 3- 4+ 4- 5+ 5- 6+ 6-`). In every case, check
 the template screen's log line `template screen at Ex ...: incumbent <obj>`: it must equal the
@@ -271,9 +271,9 @@ below `recall_min_pass` every add of the run is queued as a decision instead of 
 SHIFTS_FREE LEVELSCAN STRUCTURE_ADD SIGN_POST DATASET_OFF REVIEW EXPORT CYCLE` (section 3 steps 1-7 with section 4's stopping rules: polish rounds
 until the gain is below `polish_gain_rel_min` -- size `budget.polish_nfev` to the model, 150 is far too few for 200 free
 parameters; sign rounds only once the polish converged (`sign_after_converged_polish`, else they are deferred to the next
-cycle: 7Be 2026-11-08, 18 rounds accepted nothing on a moving incumbent -- deferred at most once and never in the last cycle,
-after which they run on the unconverged incumbent and the readme says the polish budget is too small: 12C+p L3 demo 3,
-2026-11-10, 162 free parameters never converged in 6 x 300 evaluations) and until `sign_rounds_without_accept`; then
+cycle: in one benchmark 18 rounds accepted nothing on a moving incumbent -- deferred at most once and never in the last cycle,
+after which they run on the unconverged incumbent and the readme says the polish budget is too small: in a from-scratch
+demo 162 free parameters never converged in 6 x 300 evaluations) and until `sign_rounds_without_accept`; then
 POPULATION, the basin-crossing stage (`Campaign.run_population`, CLI `population`): `budget.restarts_per_cycle` sign-perturbed
 restarts of the incumbent (random 6-12 high-exposure flips, <= 3 per J^pi, 20 % jitter), each polished sign-locked then
 released to convergence in rounds of `restart_nfev` (0 = `polish_nfev`), plus the control, then `crossover_passes` passes of
@@ -299,7 +299,7 @@ to the evaluator with the evidence files; `decide`; resubmit.  It does not pick 
 answer a data-treatment decision itself (section 5).  Limits (2026-11-10): no channel lines or pairs are added automatically (PAIR_COMPLETENESS and SEED_CHANNELS report what is
 missing), LADDER needs `model.ladder_Ex`, multi-compound-nucleus models are outside the sign rounds / levelscan, and no live
 evaluation has run under it yet -- what has: the 13N fixture (`tests/test_drive_13n.py`, every queue change is rerun there,
-~70 min on 3 slots), the bench cases of section 7 and the 12C+p L3 demos (an archived campaign, `_demo5/`).
+~70 min on 3 slots), the bench cases of section 7 and the from-scratch demos.
 
 ## 3b. While jobs run: audit and read (idle time is work time)
 
@@ -311,7 +311,7 @@ of activity to the skill files so you start doing this type of things for all of
 
 A polish or a sign round takes hours and needs no attention between milestones.  Whenever a job
 is running and nothing is actionable, do NOT just wait for the next log line: run the three
-reviews below.  They are read-only, they cost no node, and on 13C+alpha every large gain of the
+reviews below.  They are read-only, they cost no node, and on a large evaluation every large gain of the
 merged fit came from this kind of work rather than from more minimization (a free unpenalized
 normalization on the n-total data, a 2019 data file with statistical-only errors, a width window
 that swallowed a neighbouring level, a wrong elastic / inelastic partition that only independent
@@ -348,7 +348,7 @@ an archived campaign.
   record which are composite SUM / RATIO segments and which are UPOS (secondary-gamma)
   segments. A UPOS segment's observable is the secondary gamma, not the primary cross section,
   and no extrapolation reproduces it, so curves, scans and post-hoc tests on it must run in data
-  mode on a pseudo-data grid (12C+alpha 2026-10-05: 39 UPOS and 138 RATIO segments in one model);
+  mode on a pseudo-data grid (once 39 UPOS and 138 RATIO segments in one model);
 - normalizations: every `varyNorm 1` with `normError 0` is a FREE UNPENALIZED norm -- list them
   with their fitted values and ask whether each is intended; list fitted norms outside 0.7-1.4;
   check every norm / shift setting against the evaluator's recorded decisions;
@@ -370,8 +370,8 @@ an archived campaign.
 - energy scale: for a set with narrow structure, run a post-hoc shift scan on the frozen model
   curve BEFORE any refit (none / constant / a+b*sqrt(E) / a+c*E, norm re-optimized; azure2-eval
   SKILL, "Fitting a data set's energy scale"); a shift freed afterwards must be SEEDED at the scan
-  optimum -- MIGRAD from zero stalls in a local minimum next to zero (12C+alpha 2026-10-07: -193
-  from zero vs -795 seeded);
+  optimum -- MIGRAD from zero stalls in a local minimum next to zero (-193
+  from zero vs -795 seeded in one case);
 - against the source: re-fetch the EXFOR entry (`pyazr.nds`, skill `nds-explorer`; fallback in
   an archived campaign) and compare values, units and error columns row by row.
 
@@ -454,7 +454,7 @@ pole: in one validation with no box an amplitude left its Wigner limit in two th
 box is the campaign's (the polish ran in it); a different prior on an amplitude is the evaluator's.  RE-RUN GUARDS (2026-11-14): no automatic re-run when split R-hat > `rerun_rhat_max` (1.5) or when the re-run would exceed `rerun_max_hours` (12, estimated as extend_factor x the attempt's wall time) -- the stage reports FAIL with the reason and the drive asks `uq-gates`; each chain prints its rate and hours left after 100 draws (a run with R-hat 2 whose second attempt would have taken ~60 h).  Read it as: half-width / linear sigma near 1 and a small median offset = the linear band
 is adequate there; a ratio well above 1 or an offset of a sigma = the posterior is skewed along a direction the Jacobian
 misses (a saturating width, a sign-ambiguous amplitude).  Everything is conditional on the model and the spec's data
-decisions.  Cost: a gradient is ~2 objective evaluations; 7Be (195 free) ~25-50 gradients per draw.  Pitfalls: a script
+decisions.  Cost: a gradient is ~2 objective evaluations; a model with 195 free parameters ~25-50 gradients per draw.  Pitfalls: a script
 that spawns the chains must guard `if __name__ == "__main__"` (spawn re-imports it; without the guard it recurses);
 `pyazr.bands.extrapolation_bands` opens its session with pyazr's DEFAULT flags, so `uq` trims the model and opens the
 extrapolation session with the campaign's flags itself.  Validation: section 7.
@@ -541,8 +541,8 @@ The GUI review: `printf '1\n<reaction>.sav\n\n7\n' | AZURE2 <flags> --no-gui --n
 - **Bench suite (2026-11-09, DESIGN.md Phase 3.1)**: `python3 -m rmfit.bench list|score|run` on `rmfit/bench/cases/<name>.json`.
   `score` applies the evaluator's recovery yardstick from the ledgers alone (data chi2 <= reference, objective within 0.5 %, zero wait
   decisions, no HIGH/MEDIUM review flag the reference lacks; 'exact' 1e-4 as a secondary column) and appends to `bench/results.tsv`;
-  `run` writes the SGE job (reference init, `perturb`, spec, `drive`).  Supersedes "success = within 1e-4" above for drive runs: the
-  7Be post-mortem showed 1e-4 selects one of two near-degenerate background configurations.
+  `run` writes the SGE job (reference init, `perturb`, spec, `drive`).  Supersedes "success = within 1e-4" above for drive runs: a
+  benchmark post-mortem showed 1e-4 selects one of two near-degenerate background configurations.
 
 ## 7. What the benchmarks show, and the known limits
 
@@ -583,7 +583,7 @@ Still true (limits):
   bake's keyword guard; builds before d37d4e6 ignore it silently and compute elastic only.
 - Delete `output/intEC.*` whenever segments change (stale-cache rule of the AZURE2 skill).
 - Since 2026-11-04 `levelscan` / `structure add` default to the model's own J^pi groups and raise on a J^pi no
-  pair can couple to; run_snapshots copied before that still default to the half-integer 13C+alpha list, so pass
+  pair can couple to; run_snapshots copied before that still default to the half-integer list, so pass
   `--jpi` with them (section 3, and the 2026-11-04 entry at the end).
 - New levels are appended at the end of the file and levels are removed by
   deactivation, so every existing parameter key stays valid across structures.

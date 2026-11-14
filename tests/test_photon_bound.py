@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """BoundsPolicy.photon_width_max_ev / bg_photon_width_max_ev (2026-11-10): photon amplitudes have no Wigner limit and were
-unbounded (12C+p from-scratch demo: a background pole's Gamma_gamma polished to 1e12 eV).  Now |x| <= sqrt(Gamma_max / c) with
+unbounded (a from-scratch demo: a background pole's Gamma_gamma polished to 1e12 eV).  Now |x| <= sqrt(Gamma_max / c) with
 Gamma_gamma = c x^2 from the transform at x_ref (a probe at 1e-4 for a channel sitting at exactly zero).  Part 1 on a stub,
 part 2 on the 13N fixture with the engine (seconds).  Run:  python3 rmfit/tests/test_photon_bound.py"""
 import os, shutil, sys, tempfile

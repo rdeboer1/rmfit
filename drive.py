@@ -450,7 +450,7 @@ class Driver:
         from .audit import audit_model, write_audit
         cfg = self.campaign.cfg if self.campaign is not None else None
         fs = audit_model(self.model, campaign_dir=self.dir, campaign_cfg=cfg, run_target_energies=True)
-        # 2026-11-09 (12C+p L3 demo): a data set the spec EXCLUDES is not fitted, so its data findings cannot block the build;
+        # 2026-11-09 (from-scratch demo): a data set the spec EXCLUDES is not fitted, so its data findings cannot block the build;
         # they are kept in AUDIT.md at INFO with the reason (SCALE_ANCHOR switches the set off after this state)
         excluded = [ds["file"] for ds in self.spec.data_sets if ds.get("file") and ds.get("role") in ("excluded", "excluded_in_window")]
         if excluded and self.campaign is None:
@@ -480,8 +480,8 @@ class Driver:
         return "next", ", ".join(f"{k} {v}" for k, v in counts.items())
 
     def _subagent_audit_gate(self, machine_findings):
-        """The three idle-time reviews (skill section 3b: input, data, literature) BEFORE the first engine state.  12C+p L3
-        demo 1 (2026-11-09): the lab-frame error the data audit found had been fitted for an hour, because the audits ran
+        """The three idle-time reviews (skill section 3b: input, data, literature) BEFORE the first engine state.  In a from-scratch
+        demo (2026-11-09) the lab-frame error the data audit found had been fitted for an hour, because the audits ran
         in the session's idle time after the job was submitted.  The drive cannot start a subagent: it writes the prompts
         (audits/<kind>/PROMPT.md, rmfit.audit_subagent) and waits for the supervising session to run them, verify every
         FINDINGS.md row (`rmfit <dir> audit --status KIND N confirmed|rejected|decision`) and answer 'done'; 'skip' builds
@@ -662,7 +662,7 @@ class Driver:
         flags = self.spec.flags()
         vdir = os.path.join(self.dir, "variants")
         os.makedirs(vdir, exist_ok=True)
-        # 2026-11-10 (12C+p L3 demo 2): a width of exactly 0 is FIXED whatever its flag (Golden rule 3), so the engine never
+        # 2026-11-10 (from-scratch demo): a width of exactly 0 is FIXED whatever its flag (Golden rule 3), so the engine never
         # lists it and the search over ev.keys found "nothing to seed" on a from-scratch model whose 20 background channels were
         # all free zeros.  Every active channel flagged free with gamma == 0 first gets a placeholder (a tiny physical width, so
         # that the key exists), then the seed in units of gamma_W as before; photon channels, which have no Wigner limit, keep
@@ -1078,7 +1078,7 @@ class Driver:
 
     def _s_levelscan(self):
         """Residual-driven candidates when the bank's broad queue is exhausted (the evaluator 2026-09-14/10-12: one level of every
-        J^pi at the width the residual shows, compared inside the model; 13C+a (an archived campaign) found the campaign's
+        J^pi at the width the residual shows, compared inside the model; a broad-level scan found the campaign's
         largest gain).  Campaign.run_levelscan; the best (J^pi, pattern) per residual cluster is appended to candidates.json
         with its screen as hypothesis and the next two J^pi as alternatives; STRUCTURE_ADD tests it like any candidate."""
         per = int(self.structure.get("levelscan_per_cycle") or 0)
@@ -1268,8 +1268,8 @@ class Driver:
             if old:
                 note += f"; {len(old)} HIGH inherited from the base model (the evaluator's, not waited on): " + "; ".join(
                     f"{f.code}: {key(f)[1]}" for f in old[:3])
-            # a flag the evaluator already answered 'continue' is not asked again in a later cycle (10B+p tier-2 bench
-            # 2026-11-10: the same 5/2+ pole flag was queued in cycles 1 and 2)
+            # a flag the evaluator already answered 'continue' is not asked again in a later cycle (a benchmark,
+            # 2026-11-10: the same broad-pole flag was queued in cycles 1 and 2)
             cont = {tuple(k) for k in self.state.get("review_continued", [])}
             seen = [f for f in highs if f not in old and key(f) in cont]
             if seen:

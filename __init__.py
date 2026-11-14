@@ -9,7 +9,7 @@ AZURE2_ROOT = os.environ.get("AZURE2_ROOT", os.path.expanduser("~/AZURE2"))
 if AZURE2_ROOT not in sys.path:
     sys.path.insert(0, AZURE2_ROOT)
 
-#: Runtime options every CLI fit of the 13C+alpha archive uses
+#: Runtime options the CLI fits of the development archive used
 #: (``--no-long-wavelength --ignore-externals --use-brune``).  pyazr's own
 #: defaults differ (``use_long_wavelength=True``), so pass these explicitly.
 ARCHIVE_FLAGS = dict(use_long_wavelength=False, ignore_externals=True, use_brune=True)

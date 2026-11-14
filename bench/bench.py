@@ -232,7 +232,8 @@ echo "`date` all done"
 """
 
 
-# the same job for a Slurm site (site.scheduler() == "slurm"; rmfit/site.py): bash, header and setup from the site file
+# the same job for a Slurm site (site.scheduler() == "slurm"; rmfit/site.py): bash, header and setup from the site file;
+# also the plain-shell job ("shell"), whose header is a lock, a log redirection and the job marker instead of #SBATCH lines
 JOB_SLURM = """#!/bin/bash
 {slurm_header}
 # rmfit bench: case {case} run {run} -- {label}
@@ -291,8 +292,9 @@ def write_job(case: dict, run_name: str) -> str:
         dst = os.path.join(output_dir_of(os.path.join(base, azr)), "chiSquared.out")
         return f"mkdir -p {os.path.dirname(dst)}\ncp -p {os.path.join(base, src)} {dst}\n"
     chisq = chisq_copy(ref, ref["azr"]) + (chisq_copy(start, start["azr"]) if start.get("azr") else "")
-    slurm = site.scheduler() == "slurm"
-    # shell syntax of the generated snippets: csh for the SGE job, bash for the Slurm one
+    sched = site.scheduler()
+    slurm = sched != "sge"          # bash syntax (Slurm and plain shell); the name predates the shell kind
+    # shell syntax of the generated snippets: csh for the SGE job, bash for the Slurm and plain-shell ones
     DATE = "$(date)" if slurm else "`date`"
     IF_MISSING = (lambda f: f"if [ ! -e {f} ]; then") if slurm else (lambda f: f"if (! -e {f}) then")
     END_IF = "fi" if slurm else "endif"
@@ -332,9 +334,18 @@ def write_job(case: dict, run_name: str) -> str:
     rmatrix = os.path.dirname(os.path.dirname(HERE))
     slots = int(run.get("slots") or ref.get("nshards") or 8)
     jobname = f"bench_{case['name']}_{run_name}"[:40]
-    extra = (dict(slurm_header=site.slurm_header(jobname, slots, f"bench_{run_name}.log", "a"), setup_lines=site.setup_lines())
-             if slurm else dict(mail_line=site.mail_line(), setup_lines=site.setup_lines(), queue_line=site.queue_line(),
-                               pe_line=site.pe_line(slots)))
+    if sched == "shell":
+        header = (f"# plain shell (no scheduler; rmfit/site.py \"scheduler\": \"shell\"): start it where {slots} cores are free with\n"
+                  f"#   nohup bash {os.path.join(base, 'run_crc_bench_' + run_name)} >/dev/null 2>&1 &   (or: bench run --submit)\n"
+                  + site.shell_lock_lines(os.path.join(base, f".rmfit_shell_bench_{run_name}.lock")) + "\n"
+                  f"exec >> {os.path.join(base, 'bench_' + run_name + '.log')} 2>&1\n"
+                  "export RMFIT_SHELL_JOB=$$                # this script is the job here (the drive refuses engine states outside one)")
+        extra = dict(slurm_header=header, setup_lines=site.setup_lines())
+    elif slurm:
+        extra = dict(slurm_header=site.slurm_header(jobname, slots, f"bench_{run_name}.log", "a"), setup_lines=site.setup_lines())
+    else:
+        extra = dict(mail_line=site.mail_line(), setup_lines=site.setup_lines(), queue_line=site.queue_line(),
+                     pe_line=site.pe_line(slots))
     text = (JOB_SLURM if slurm else JOB).format(**extra, slots=slots, jobname=jobname,
                       log=f"bench_{run_name}.log", case=case["name"], run=run_name, label=run.get("label", ""), refdir=ref["campaign"],
                       refazr=ref["azr"], flips=start["flips"], seed=start["seed"], jitter=start["jitter"], ekick=start["ekick"],
@@ -378,8 +389,13 @@ def main(argv=None):
         print("job script:", path)
         if a.submit:
             from rmfit import site
-            out = subprocess.run([site.submit_cmd(), os.path.basename(path)], cwd=case["_base"], capture_output=True, text=True)
-            print(out.stdout.strip(), out.stderr.strip())
+            if site.scheduler() == "shell":       # no scheduler: start it detached here; it logs to bench_<run>.log itself
+                pr = subprocess.Popen(["nohup", "bash", path], cwd=case["_base"], stdin=subprocess.DEVNULL,
+                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+                print(f"started in the background, pid {pr.pid}")
+            else:
+                out = subprocess.run([site.submit_cmd(), os.path.basename(path)], cwd=case["_base"], capture_output=True, text=True)
+                print(out.stdout.strip(), out.stderr.strip())
         return
     runs = a.runs or [k for k, v in case["runs"].items() if os.path.exists(os.path.join(case["_base"], v["dir"], "ledger.sqlite"))]
     rows = [score_run(case, r, review_missing=a.review) for r in runs]

@@ -171,21 +171,25 @@ class Campaign:
         return os.path.splitext(os.path.basename(self.cfg.get("base_azr", "fit.azr")))[0]
 
     def write_job_script(self, name="run_crc_rmfit", overwrite=False) -> str:
-        """The SGE job script for this campaign from ``rmfit/templates``."""
+        """The job script for this campaign from ``rmfit/templates`` (SGE, Slurm or plain shell: site.scheduler())."""
         from . import site
         path = os.path.join(self.dir, name)
         if os.path.exists(path) and not overwrite:
             return path
-        slurm = site.scheduler() == "slurm"
+        sched = site.scheduler()
+        slurm = sched == "slurm"
         tpl = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates",
-                           "run_slurm_rmfit.sh" if slurm else "run_crc_rmfit.csh")
+                           {"sge": "run_crc_rmfit.csh", "slurm": "run_slurm_rmfit.sh", "shell": "run_shell_rmfit.sh"}[sched])
         with open(tpl) as f:
             text = f.read()
         jobname = "rmfit_" + self.reaction_name().replace("+", "")
         if slurm:
             text = text.replace("{slurm_header}", site.slurm_header(jobname, int(self.cfg.get("nshards") or 24), "rmfit_slurm.log", "abe"))
+        if sched == "shell":
+            text = (text.replace("{lock_lines}", site.shell_lock_lines(os.path.join(self.dir, site.SHELL_LOCK)))
+                        .replace("{nshards}", str(int(self.cfg.get("nshards") or 24))))
         text = text.replace("{setup_lines}", site.setup_lines())
-        guard = enginepin.guard_lines_sh if slurm else enginepin.guard_lines_csh
+        guard = enginepin.guard_lines_csh if sched == "sge" else enginepin.guard_lines_sh
         text = (text.replace("{mail_line}", site.mail_line())
                     .replace("{queue_line}", site.queue_line())
                     .replace("{pe_line}", site.pe_line(24))         # the SGE template's 24 slots (2026-11-07 on)

@@ -8,9 +8,12 @@ for example::
 Keys:
   mail             job mail address (env ``RMFIT_MAIL``).  SGE: the ``-M`` line; Slurm: ``--mail-user``.  Unset: no address
                    line, so the scheduler mails the submitting user (its own default).
-  scheduler        "sge" (default) or "slurm" (env ``RMFIT_SCHEDULER``): which job templates rmfit writes and which
-                   submit command its messages name.  SGE templates: ``templates/run_crc_*.csh`` (written for one SGE
-                   site); Slurm templates: ``templates/run_slurm_*.sh`` (bash).
+  scheduler        "sge" (default), "slurm" or "shell" (env ``RMFIT_SCHEDULER``): which job templates rmfit writes and
+                   how its messages say to start them.  SGE templates: ``templates/run_crc_*.csh`` (csh); Slurm templates:
+                   ``templates/run_slurm_*.sh`` (bash); "shell": ``templates/run_shell_*.sh``, bash scripts with no
+                   scheduler that run where they are started (a workstation, or a node already allocated), log to a file
+                   in the campaign directory, hold a lock directory so that two runs cannot share a campaign, and run the
+                   drive's legs in a loop instead of resubmitting.  No mail on "shell".
   sge_queue        SGE queue for the ``-q`` line (env ``RMFIT_SGE_QUEUE``), e.g. "long".  Unset: no ``-q`` line, so SGE
                    picks the queue from its defaults and the job's requests.
   sge_pe           SGE parallel environment for the ``-pe <pe> <slots>`` line (env ``RMFIT_SGE_PE``; default "smp", a
@@ -23,12 +26,16 @@ Keys:
                    shortened to fit.
   slurm_extra      list of further ``#SBATCH`` options, e.g. ["--mem=0", "--qos=long"]
   setup            list of shell lines run before Python in every job script rmfit writes (modules, a Python with numpy
-                   and scipy on PATH, ...), in that script's shell: csh for the SGE templates, bash for the Slurm
-                   ones.  Unset: a comment, and the job uses the environment it starts with.
+                   and scipy on PATH, ...), in that script's shell: csh for the SGE templates, bash for the Slurm and
+                   shell ones.  Unset: a comment, and the job uses the environment it starts with.
 
 Example for an SGE site::
 
     {"mail": "you@example.org", "sge_queue": "long", "sge_pe": "smp", "setup": ["module load python/3.12 gsl"]}
+
+Example for a workstation::
+
+    {"scheduler": "shell", "setup": ["source ~/venvs/rmfit/bin/activate"]}
 
 Example for a Slurm site::
 
@@ -99,7 +106,7 @@ def pe_line(slots: int) -> str:
     return f"#$ -pe {sge_pe()} {int(slots)}"
 
 
-SCHEDULERS = ("sge", "slurm")
+SCHEDULERS = ("sge", "slurm", "shell")
 
 
 def scheduler() -> str:
@@ -111,13 +118,24 @@ def scheduler() -> str:
 
 
 def submit_cmd() -> str:
-    """The submit command for messages and ``bench run --submit``."""
-    return {"sge": "qsub", "slurm": "sbatch"}[scheduler()]
+    """The command that starts a job script (``bench run --submit``): qsub, sbatch, or bash for "shell"."""
+    return {"sge": "qsub", "slurm": "sbatch", "shell": "bash"}[scheduler()]
+
+
+def submit_hint(script: str, cmd: str = "") -> str:
+    """How to start ``script`` (with ``RMFIT_CMD`` = cmd if given), for messages."""
+    s = scheduler()
+    if s == "sge":
+        return f'qsub -v RMFIT_CMD="{cmd}" {script}' if cmd else f"qsub {script}"
+    if s == "slurm":
+        return f'sbatch --export=ALL,RMFIT_CMD="{cmd}" {script}' if cmd else f"sbatch {script}"
+    return (f'RMFIT_CMD="{cmd}" ' if cmd else "") + f"nohup ./{script} >/dev/null 2>&1 &"
 
 
 def in_batch_job() -> bool:
-    """True inside a scheduler job (SGE ``JOB_ID`` or Slurm ``SLURM_JOB_ID``), whatever the site setting."""
-    return bool(os.environ.get("JOB_ID") or os.environ.get("SLURM_JOB_ID"))
+    """True inside a job: SGE ``JOB_ID``, Slurm ``SLURM_JOB_ID``, or ``RMFIT_SHELL_JOB`` (set by the "shell" scripts,
+    which are the job on a site without a scheduler), whatever the site setting."""
+    return bool(os.environ.get("JOB_ID") or os.environ.get("SLURM_JOB_ID") or os.environ.get("RMFIT_SHELL_JOB"))
 
 
 def slurm_minutes(spec: str):
@@ -186,10 +204,26 @@ def drive_leg_minutes(max_minutes: int):
     return leg, (leg + 30 if cap is None else min(leg + 30, cap))
 
 
+SHELL_LOCK = ".rmfit_shell.lock"
+
+
+def shell_lock_lines(lockdir: str) -> str:
+    """bash lines for a "shell" script: take the lock directory (mkdir is atomic) or stop, remove it on exit."""
+    return (f'LOCK="{lockdir}"\n'
+            'if ! mkdir "$LOCK" 2>/dev/null; then\n'
+            '  echo "$(date) another rmfit shell run holds $LOCK (pid $(cat "$LOCK/pid" 2>/dev/null || echo ?)); '
+            'remove the directory if that process is gone" >&2\n'
+            '  exit 1\n'
+            'fi\n'
+            'echo $$ > "$LOCK/pid"\n'
+            'trap \'rm -rf "$LOCK"\' EXIT\n'
+            "trap 'exit 143' TERM INT HUP")
+
+
 def setup_lines() -> str:
-    """The site's setup lines for a job script (or a comment saying where to put them); csh for SGE, bash for Slurm."""
+    """The site's setup lines for a job script (or a comment saying where to put them); csh for SGE, bash otherwise."""
     lines = load().get("setup") or []
     if not lines:
         return ("# site setup (modules, a Python with numpy/scipy on PATH): \"setup\" in ~/.rmfit/site.json (rmfit/site.py),\n"
-                "# in this script's shell (csh for SGE, bash for Slurm)")
+                "# in this script's shell (csh for SGE, bash for Slurm and shell)")
     return "\n".join(str(x) for x in lines)

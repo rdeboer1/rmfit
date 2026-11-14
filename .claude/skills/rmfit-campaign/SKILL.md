@@ -120,14 +120,22 @@ whatever the objective. Test: `tests/test_objective_13n.py`.
 `init` verifies the baseline (one full-model evaluation), registers the structure, and writes `STATUS.md` and the job
 script `run_crc_rmfit`.  The scheduler is a site setting (`rmfit/site.py`, `~/.rmfit/site.json` or `$RMFIT_SITE`):
 `"scheduler": "sge"` (the default; a csh script for 24 slots, with the queue from `sge_queue` -- no `-q` line
-if unset -- and the parallel environment from `sge_pe`, default `smp`) or `"slurm"` (a bash script with
+if unset -- and the parallel environment from `sge_pe`, default `smp`), `"slurm"` (a bash script with
 `#SBATCH` lines from `slurm_partition`, `slurm_account`, `slurm_time`, `slurm_extra` and the campaign's shard count as
-`--cpus-per-task`).  Both run the site's `setup` lines before Python -- modules, a Python with numpy and scipy on PATH --
-written in the script's shell: csh for SGE, bash for Slurm.  Without them the job uses the environment it starts with.  Job mail goes to `RMFIT_MAIL`
+`--cpus-per-task`) or `"shell"` (a bash script with no scheduler, for a workstation or a node you already hold: start it
+with `nohup ./run_crc_rmfit >/dev/null 2>&1 &`, `RMFIT_CMD="..."` in front for a command; it runs the campaign's shard
+count of processes where it is started, writes `rmfit_shell.log`, refuses a second run on the same campaign through a
+lock directory, and the drive script runs its legs one after another instead of resubmitting).  All of them run the
+site's `setup` lines before Python -- modules, a Python with numpy and scipy on PATH -- written in the script's shell:
+csh for SGE, bash for Slurm and shell.  Without them the job uses the environment it starts with.  Job mail goes to `RMFIT_MAIL`
 or `"mail"`; with neither, the scheduler mails the submitting user.  The environment variables `RMFIT_SGE_QUEUE` and
 `RMFIT_SGE_PE` override the file.  Example for an SGE site:
 
     {"mail": "you@example.org", "sge_queue": "long", "sge_pe": "smp", "setup": ["module load python/3.12 gsl"]}
+
+for a workstation:
+
+    {"scheduler": "shell", "setup": ["source ~/venvs/rmfit/bin/activate"]}
 
 and for a Slurm site:
 

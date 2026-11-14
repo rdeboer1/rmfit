@@ -86,8 +86,9 @@ def _now():
 
 
 def _submit():
+    """How to start the drive's job script on this site (qsub / sbatch / nohup ./run_crc_drive &)."""
     from . import site
-    return site.submit_cmd()
+    return site.submit_hint("run_crc_drive")
 
 
 def in_sge_job():
@@ -287,7 +288,7 @@ class Driver:
                     break
                 st = self.state["state"]
                 if st in ENGINE_STATES and not in_sge_job() and not self.local:
-                    raise DriveStop("STOP", f"state {st} needs the engine: refusing the login node ({_submit()} run_crc_drive, or --local "
+                    raise DriveStop("STOP", f"state {st} needs the engine: refusing the login node ({_submit()}, or --local "
                                             "for a fixture test)")
                 self.step(st)
         except DriveStop as e:
@@ -1453,9 +1454,10 @@ def write_job_script(directory, spec: FitSpec, cfg: Optional[dict], name="run_cr
     path = os.path.join(directory, name)
     if os.path.exists(path) and not overwrite:
         return path
-    slurm = site.scheduler() == "slurm"
+    sched = site.scheduler()
+    slurm = sched == "slurm"
     tpl = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates",
-                       "run_slurm_drive.sh" if slurm else "run_crc_drive.csh")
+                       {"sge": "run_crc_drive.csh", "slurm": "run_slurm_drive.sh", "shell": "run_shell_drive.sh"}[sched])
     rec = (cfg or {}).get("engine")
     if not rec:
         eng = spec.get("engine") or {}
@@ -1472,7 +1474,9 @@ def write_job_script(directory, spec: FitSpec, cfg: Optional[dict], name="run_cr
                                                                "a", time_minutes=tmin))
                     .replace("{leg_note}", note))
         max_minutes = leg
-    guard = enginepin.guard_lines_sh if slurm else enginepin.guard_lines_csh
+    if sched == "shell":
+        text = text.replace("{lock_lines}", site.shell_lock_lines(os.path.join(os.path.abspath(directory), site.SHELL_LOCK)))
+    guard = enginepin.guard_lines_csh if sched == "sge" else enginepin.guard_lines_sh
     text = text.replace("{setup_lines}", site.setup_lines())
     text = (text
             .replace("{mail_line}", site.mail_line())

@@ -37,6 +37,7 @@ Layout (design rationale and roadmap: `DESIGN.md` in this directory; the plan fi
 | `levelscan.py` | residual-driven level search: candidate energies from residual runs, template screen of every J^pi x width partition x sign pattern at each (`rmfit levelscan`); relocation of an existing level with a narrow energy window (`rmfit relocate`) |
 | `diagnose.py` | per-dataset tables, residual scans, runaway detection, figures |
 | `cli.py` | `rmfit ...` subcommands |
+| `site.py` | site settings, separate from any campaign: environment variable > `$RMFIT_SITE` or `~/.rmfit/site.json` > default; `mail` (env `RMFIT_MAIL`) is the job scripts' SGE `-M` address, none if unset (2026-11-14) |
 | `enginepin.py` | the engine a campaign was started on (AZURE2_ROOT, `_azure2` .so md5, commit); refusal to run on another (2026-11-07) |
 | `spec.py` | the fit specification `spec.json` / `SPEC.md`: data-set roles and norms, window, frozen block, bounds, pre-authorized actions, standing decisions; `rmfit spec check\|render\|derive`, `init --spec` (2026-11-07) |
 | `decisions.py` | `DECISIONS.md`, the queue of questions outside the spec (`rmfit decisions`, `rmfit decide`); a level add the spec does not pre-authorize ends `accept-pending` with an entry here |

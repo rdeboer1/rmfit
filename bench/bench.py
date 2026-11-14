@@ -191,7 +191,7 @@ def print_rows(rows: List[dict]):
 
 
 JOB = """#!/bin/csh
-#$ -M {email}
+{mail_line}
 #$ -m a
 #$ -q long
 #$ -pe smp {slots}
@@ -237,7 +237,8 @@ echo "`date` all done"
 
 
 def write_job(case: dict, run_name: str) -> str:
-    import getpass
+    sys.path.insert(0, os.path.dirname(os.path.dirname(HERE)))
+    from rmfit import site
     ref, run = case["reference"], case["runs"][run_name]
     base = case["_base"]
     start = dict(dict(flips=8, seed=0, jitter=0.0, ekick=0.0, polish_nfev=300), **(run.get("start") or {}))
@@ -288,9 +289,8 @@ def write_job(case: dict, run_name: str) -> str:
     if run.get("search"):
         searchpatch = (f"python3 -c \"import json; c=json.load(open('{run['dir']}/campaign.json')); c['search']=json.load(open('{run['search']}')); "
                        f"json.dump(c, open('{run['dir']}/campaign.json','w'), indent=2); print('search ->', c['search'])\"")
-    email = f"{getpass.getuser()}@nd.edu"
     rmatrix = os.path.dirname(os.path.dirname(HERE))
-    text = JOB.format(email=email, slots=int(run.get("slots") or ref.get("nshards") or 8), jobname=f"bench_{case['name']}_{run_name}"[:40],
+    text = JOB.format(mail_line=site.mail_line(), slots=int(run.get("slots") or ref.get("nshards") or 8), jobname=f"bench_{case['name']}_{run_name}"[:40],
                       log=f"bench_{run_name}.log", case=case["name"], run=run_name, label=run.get("label", ""), refdir=ref["campaign"],
                       refazr=ref["azr"], flips=start["flips"], seed=start["seed"], jitter=start["jitter"], ekick=start["ekick"],
                       pnfev=start["polish_nfev"], spec=spec, casefile=case["_path"], azure2_root=ref.get("azure2_root") or os.path.expanduser("~/AZURE2"),

@@ -97,7 +97,8 @@ benchmark yardstick, the decisions queued, the cost, and what the evaluator chan
 ## Open items
 
 - A scheduler layer: job templates per scheduler (SGE, Slurm, plain shell) chosen by a site configuration; the shipped
-  templates are for one SGE site.
+  templates are for one SGE site.  The site file exists (`site.py`: `~/.rmfit/site.json` or `$RMFIT_SITE`) and holds the
+  job mail address so far.
 - Multi-compound-nucleus models in sign rounds and the level search; density, Doppler, thickness and screening kinds in
   shards.
 - Channel lines and particle pairs are not added automatically; the energy ladder is unexercised.

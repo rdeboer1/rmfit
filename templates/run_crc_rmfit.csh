@@ -9,7 +9,7 @@
 # Engine pin (2026-11-07): AZURE2_ROOT and the _azure2 .so md5 below come from campaign.json["engine"];
 # the job stops before Python if the pinned build is not the one on disk.
 
-#$ -M {email}
+{mail_line}
 #$ -m abe
 #$ -pe smp 24
 #$ -q long

@@ -118,8 +118,9 @@ previous export). `REPORT.md` and `segment_scores` keep the plain per-dataset ch
 whatever the objective. Test: `tests/test_objective_13n.py`.
 
 `init` verifies the baseline (one full-model evaluation), registers the structure, and writes `STATUS.md` and the job
-script `run_crc_rmfit` (an SGE script for a 24-core node that mails the submitting user at start, end and abort; adapt it
-to your site).  Re-running `init` keeps an existing configuration unless new values are given.
+script `run_crc_rmfit` (an SGE script for a 24-core node; adapt it to your site).  Job mail goes to the address in
+`RMFIT_MAIL` or `"mail"` in `~/.rmfit/site.json` (`rmfit/site.py`); with neither, the script has no `-M` line and SGE
+mails the submitting user.  Re-running `init` keeps an existing configuration unless new values are given.
 
 Policy meanings:
 

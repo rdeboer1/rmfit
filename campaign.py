@@ -172,14 +172,14 @@ class Campaign:
 
     def write_job_script(self, name="run_crc_rmfit", overwrite=False) -> str:
         """The SGE job script for this campaign from ``rmfit/templates``."""
-        import getpass
+        from . import site
         path = os.path.join(self.dir, name)
         if os.path.exists(path) and not overwrite:
             return path
         tpl = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates", "run_crc_rmfit.csh")
         with open(tpl) as f:
             text = f.read()
-        text = (text.replace("{email}", f"{getpass.getuser()}@nd.edu")
+        text = (text.replace("{mail_line}", site.mail_line())
                     .replace("{jobname}", "rmfit_" + self.reaction_name().replace("+", ""))
                     .replace("{campaign_dir}", self.dir)
                     .replace("{engine_guard}", enginepin.guard_lines_csh(self.cfg.get("engine")))

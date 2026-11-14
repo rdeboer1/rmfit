@@ -1442,8 +1442,7 @@ def _vary_shifts_with_error(mdl) -> int:
 def write_job_script(directory, spec: FitSpec, cfg: Optional[dict], name="run_crc_drive", overwrite=False, max_minutes=600) -> str:
     """``<dir>/run_crc_drive`` from ``templates/run_crc_drive.csh``: engine guard from campaign.json (or spec.engine before init),
     one leg per job, self-resubmission on CONTINUE."""
-    import getpass
-    from . import enginepin
+    from . import enginepin, site
     path = os.path.join(directory, name)
     if os.path.exists(path) and not overwrite:
         return path
@@ -1456,7 +1455,7 @@ def write_job_script(directory, spec: FitSpec, cfg: Optional[dict], name="run_cr
     reaction = parent if "+" in parent else os.path.basename(os.path.abspath(directory))
     slots = int(spec.get("nshards") or (cfg or {}).get("nshards") or 8)
     text = (open(tpl).read()
-            .replace("{email}", f"{getpass.getuser()}@nd.edu")
+            .replace("{mail_line}", site.mail_line())
             .replace("{jobname}", "drive_" + reaction.replace("+", ""))
             .replace("{campaign_dir}", os.path.abspath(directory))
             .replace("{slots}", str(slots))

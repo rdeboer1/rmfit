@@ -469,8 +469,11 @@ def scan_jpi_on_window(base_azr: str, workdir: str, cand: LevelCandidate, flags:
                     results.append(ScanResult(jpi, "", np.inf, np.inf, None, "crashed", "no free amplitude"))
                     continue
                 n = len(own)
+                # only the first 16 patterns are screened (below): generate those, not all 2^(n-1).  Building the full list
+                # first ran out of memory on 19F+alpha (n ~ 40 seeded amplitudes for a level at 14.45 MeV, where nearly every
+                # channel is open): three drive legs SIGKILLed in this screen, 2026-11-13.  Same patterns, same order.
                 patterns = [[1] * n] if n == 1 else [[1] + [1 if (m >> i) & 1 else -1 for i in range(n - 1)]
-                                                    for m in range(2 ** (n - 1))]
+                                                    for m in range(min(2 ** (n - 1), 16))]
                 cols = np.where(free_mask(ev, levels=[lvl], with_norms=True))[0]
                 screened = []
                 for pat in patterns[:16]:

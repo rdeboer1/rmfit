@@ -28,7 +28,12 @@ Stages (resumable; state in ``<dir>/uq/uq_state.json``, every product under ``<d
               ``target_accept`` 0.9 (the 11-06 run had 2.4 % divergences at 0.8), checkpoints every 50 iterations per chain.
   GATES       split R-hat <= rhat_max, min bulk ESS >= ess_min, divergent fraction <= divergent_max_frac, E-BFMI >= bfmi_min.
               A failed gate re-runs SAMPLE with ``extend_factor`` x the draws and warm-up, ``max_attempts`` times; after that
-              the stage reports FAIL (the drive queues a wait decision ``uq-gates``).
+              the stage reports FAIL (the drive queues a wait decision ``uq-gates``).  No automatic re-run (2026-11-13) when
+              split R-hat > ``rerun_rhat_max`` (1.5: chains in different regions do not merge with longer runs) or when the
+              re-run would take more than ``rerun_max_hours`` (12; estimated as extend_factor x the attempt's own wall time):
+              the stage reports FAIL at once with the reason.  Why: 7Be pert4 2026-11-13, R-hat 2 after 300 draws, one chain at
+              the depth cap -- attempt 1 needed 15 h more and the automatic attempt 2 ~4 x that.  Each chain also prints its
+              draw-phase rate and the hours left in its attempt after its first 100 draws.
   BANDS       on the spec's ``uq.bands`` grids (or the model's own energy-scan <segmentsTest> entries, one per
               entrance/exit/observable, at most ``bands_max``): the LINEAR band from C restricted to the free R-matrix block
               (``pyazr.bands.uncertainty_bands`` in an extrapolation session with the campaign's flags -- NOT
@@ -63,7 +68,7 @@ import numpy as np
 
 DEFAULTS = dict(enabled=False, j_saturated=0.01, sample_norms=True, chains=4, warmup=1000, draws=2000, target_accept=0.9,
                 max_tree_depth=10, start_jitter_sd=0.1, seed=11, temper=1.0, priors=None, bounds="policy", theta2_cap=None,
-                rhat_max=1.01, ess_min=400, divergent_max_frac=0.01, bfmi_min=0.3, max_attempts=2, extend_factor=2.0,
+                rhat_max=1.01, ess_min=400, divergent_max_frac=0.01, bfmi_min=0.3, max_attempts=2, extend_factor=2.0, rerun_rhat_max=1.5, rerun_max_hours=12.0,
                 band_draws=400, bands=None, bands_max=6, grid_min_points=10, figures=True)
 RMATRIX_KINDS = ("energy", "width")
 STAGES = ["EXPORT", "SETUP", "SAMPLE", "GATES", "BANDS", "REPORT"]
@@ -295,12 +300,28 @@ def _laplace(azr, flags, idx, x_full, priors, temper, workdir):
 # ---------------------------------------------------------------------------------------------------------------------
 # SAMPLE
 
+def _rerun_plan(g: dict, cfg: dict, attempt: int, sample_seconds: float):
+    """(re-run?, reason) after a failed gate: the attempt budget, then the R-hat and wall-time guards (2026-11-13)."""
+    if attempt + 1 >= int(cfg["max_attempts"]):
+        return False, f"{attempt + 1} of {cfg['max_attempts']} attempt(s) used"
+    rmax = float(cfg.get("rerun_rhat_max") or 0)
+    if rmax > 0 and float(g.get("rhat_max", 0)) > rmax:
+        return False, (f"no automatic re-run: split R-hat {g['rhat_max']:.2f} > rerun_rhat_max {rmax:g} (chains in different regions; "
+                       f"longer chains rarely merge them)")
+    hmax = float(cfg.get("rerun_max_hours") or 0)
+    est = float(cfg["extend_factor"]) * float(sample_seconds or 0) / 3600
+    if hmax > 0 and est > hmax:
+        return False, f"no automatic re-run: it would take ~{est:.1f} h (extend_factor x this attempt) > rerun_max_hours {hmax:g}"
+    return True, f"attempt {attempt + 2} of {cfg['max_attempts']} with {cfg['extend_factor']} x the draws and warm-up (~{est:.1f} h)"
+
+
 class Checkpoint:
     """nuts() callback: progress every 100 iterations, every position and stat to ``<dir>/ckpt_<pid>.npz`` every 50."""
 
-    def __init__(self, outdir, n_warmup, tag):
+    def __init__(self, outdir, n_warmup, tag, n_draws=None):
         self.dir, self.nw, self.tag = outdir, int(n_warmup), tag
-        self.t0, self.q, self.st, self.buf = None, [], [], []
+        self.nd = None if n_draws is None else int(n_draws)
+        self.t0, self.tw, self.q, self.st, self.buf = None, None, [], [], []
 
     def __call__(self, it, q, st):
         if self.t0 is None:
@@ -310,6 +331,14 @@ class Checkpoint:
         self.st.append([st["accept"], st["n_leapfrog"], st["depth"], st["divergent"], st["energy"]])
         if (it + 1) % 50 == 0:
             np.savez(os.path.join(self.dir, f"ckpt_{self.tag}_{os.getpid()}.npz"), q=np.array(self.q), st=np.array(self.st), nw=self.nw)
+        if it + 1 == self.nw:
+            self.tw = time.time()
+        if self.nd and self.tw is not None and it + 1 == self.nw + min(100, self.nd):
+            k = min(100, self.nd)
+            rate = (time.time() - self.tw) / k
+            left = (self.nw + self.nd - it - 1) * rate
+            print(f"[chain pid {os.getpid()}] estimate after {k} draws: {rate:.1f} s per iteration, {left/3600:.2f} h left in attempt {self.tag}",
+                  flush=True)
         if (it + 1) % 100 == 0:
             b, self.buf = self.buf, []
             print(f"[chain pid {os.getpid()}] it {it+1} {'warm' if it < self.nw else 'draw'}: depth {np.mean([s['depth'] for s in b]):.1f} "
@@ -350,7 +379,7 @@ def _run_chains(azr, flags, idx, x_full, priors, temper, C, theta0, cfg, outdir,
     t0 = time.time()
     r = sample(target, starts, n_chains=nch, nprocs=int(nprocs), seed=int(cfg["seed"]) + 100, n_warmup=int(cfg["warmup"]), n_draws=int(cfg["draws"]),
                inv_metric=metric, target_accept=float(cfg["target_accept"]), max_tree_depth=int(cfg["max_tree_depth"]),
-               callback=Checkpoint(outdir, cfg["warmup"], tag))
+               callback=Checkpoint(outdir, cfg["warmup"], tag, n_draws=cfg["draws"]))
     samples = B.to_x(r.samples) if B is not None else r.samples          # draws stored in x (the engine's parameters)
     np.savez(os.path.join(outdir, f"chains_{tag}.npz"), samples=samples, logp=r.logp, step_size=r.step_size, lo=lo, hi=hi,
              **{f"stat_{k}": v for k, v in r.stats.items()}, **{f"warm_{k}": v for k, v in r.warmup.items()}, seconds=r.seconds)
@@ -698,16 +727,21 @@ class UQ:
         json.dump(dict(g, names=names), open(os.path.join(self.out, f"gates_{tag}.json"), "w"), indent=1)
         slim = {k: v for k, v in g.items() if not isinstance(v, list)}
         slim["fails"] = list(g["fails"])          # the reasons: UQ.md and the drive's uq-gates question read them (dropped with the
-        self.mark("GATES", tag=tag, **slim)       # per-parameter lists before 2026-11-13: "failed their gates after 1 attempt(s): .")
+        # per-parameter lists before 2026-11-13: "failed their gates after 1 attempt(s): .")
         if not g["passed"]:
             att = int(self.state.get("attempt", 0))
-            if att + 1 < int(self.cfg["max_attempts"]):
+            again, why = _rerun_plan(g, self.cfg, att, float(self.state["stages"].get("SAMPLE", {}).get("seconds", 0)))
+            if again:
+                self.mark("GATES", tag=tag, **slim)
                 self.state["attempt"] = att + 1
                 self.state["stages"].pop("SAMPLE", None)
                 self.state["stages"].pop("GATES", None)
                 self.save()
-                self.log(f"uq GATES: attempt {att + 2} of {self.cfg['max_attempts']} with {self.cfg['extend_factor']} x the draws and warm-up")
+                self.log(f"uq GATES: {why}")
                 return None
+            slim["no_rerun"] = why
+            self.log(f"uq GATES: {why}")
+        self.mark("GATES", tag=tag, **slim)
         return g["passed"]
 
     def s_bands(self):
@@ -778,7 +812,8 @@ class UQ:
              f"({ga.get('ess_argmin_name')}) [>= {cfg['ess_min']}], median ESS {ga.get('ess_median', float('nan')):.0f}, divergent {ga.get('divergent')} "
              f"({100*ga.get('divergent_frac', 0):.2f} % [<= {100*float(cfg['divergent_max_frac']):.1f} %]), E-BFMI min {ga.get('bfmi_min', float('nan')):.2f} [>= {cfg['bfmi_min']}], "
              f"{ga.get('grad_per_draw', float('nan')):.1f} gradients per draw: **{'PASS' if ga.get('passed') else 'FAIL'}**"
-             + ("" if ga.get("passed") else " (" + "; ".join(ga.get("fails", [])) + ")") + ".",
+             + ("" if ga.get("passed") else " (" + "; ".join(ga.get("fails", [])) + ")") + "."
+             + (f"  Stopped without a further attempt: {ga['no_rerun']}." if ga.get("no_rerun") else ""),
              f"- sd(sampled) / sd(Laplace): min {ga.get('sd_ratio_min', float('nan')):.2f}, median {ga.get('sd_ratio_median', float('nan')):.2f}, max {ga.get('sd_ratio_max', float('nan')):.2f} "
              f"(1 = Gaussian posterior; the 7Be calibration run of 2026-11-06 gave 0.67-1.60, median 0.89).",
              "", "## Bands (linear = Laplace covariance on the free R-matrix block; sampled = posterior draws)", ""]

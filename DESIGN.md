@@ -172,11 +172,48 @@ Phase 4 open items: a wall estimate per UQ leg after warm-up (the slowest chain 
 R-hat is far off (> ~1.5), where doubling the draws cannot pass; the d+t lesson that ESS grows only linearly on a rarely
 visited tail (8 chains is the cheaper route to the ESS gate).
 
+## After Phase 4: pause and measure (DeBoer 2026-11-14)
+DeBoer agreed (2026-11-14, "Yes, I agree") to pause new framework building until the wide-range fits -- 10B+a, 11B+a and
+13C+a, each with many hundreds of parameters -- reach their merges, and to use those merges to test the method instead of
+building ahead of them.  The framework stays in the loop: each merge is run as a drive stage with a spec, so every one is a
+data point.
+
+Hypothesis H-W (windows + drive-run merge), for models above ~200 free parameters with large interference groups:
+1. structure search in OVERLAPPING energy windows (a level or two of overlap, so each window sees its neighbour's nearest
+   levels as levels, not background poles); levels below a window fixed, the broad ones free (DeBoer's s5 scope);
+2. the quantities the windows share are declared in the spec BEFORE either runs: the norm of a data set that crosses the
+   boundary is fixed or tied to one anchor window; the J^pi of a level in the overlap is fixed;
+3. frozen snapshots, never synchronisation: nothing is reconciled before the merge (DeBoer, 13C+a / 10B+a 11-06);
+4. the merge is a drive run of its own: concatenated levels, sign rounds and the population stage across the junction; the
+   choices the data cannot make (two window solutions in conflict) are queued as decisions;
+5. the merged full-range fit is the stopping test -- a window result is a candidate until it passes there -- and UQ runs on
+   the merged model, and on the equal-quality alternatives the population stage finds, not only the incumbent (7Be pert4,
+   2026-11-13: two fits of equal quality 3 % apart in S34 at 4.6 keV, the difference in one background pole).
+Below ~200 free parameters a full-range fit is the default (7Be 195 free, 12C+p, d+t: the drive recovered the reference).
+
+Measurement at each merge (10B+a c9 + s5; 13C+a region D into the merged fit; 11B+a high- and low-energy fits): the merge
+drive's objective and data chi2 against the interactive result (the recovery yardstick: data chi2 <= reference, objective
+within 0.5 %), the decisions it queued (number, kind, and whether DeBoer would have made them), node-hours and calendar days,
+and what DeBoer changed afterwards.  Where affordable, a full-range control from the same start (13C+a tier-3 target
+<= 706,809 on the 9-5-26 data).  Results go into SKILL.md section 7 and this file; H-W is adopted, amended or dropped on
+them.
+
+Not waiting on the big fits: the two UQ guards (done 2026-11-14: no automatic re-run when R-hat > 1.5 or the re-run would
+exceed 12 h; a per-chain wall estimate after 100 draws), the 7Be basin question (which of the two equal-quality fits the
+evaluation's S34 rests on: DeBoer's), and DeBoer's pending decisions (12C+p demo spec items; error inflation on 7Be and d+t).
+
 ## Open items not on the roadmap
 Competing-resolution test for near-duplicate levels; differential-convolution shards; single-session-only kinds
 (density, Doppler, thickness, screening) in shards; `structure add` exit status on a failed scan.
 
 ## Progress log
+
+- 2026-11-14  Pause and measure (section above, DeBoer "Yes, I agree"): framework building pauses until the 10B+a, 11B+a and
+  13C+a merges; hypothesis H-W (overlapping windows, shared quantities declared in the spec, snapshots, the merge as a drive
+  run, the merged fit as the stopping test, UQ across equal-quality fits) is written down with its measurement.  UQ guards:
+  `_rerun_plan` (no automatic re-run when split R-hat > rerun_rhat_max 1.5, or when extend_factor x the attempt's wall time
+  > rerun_max_hours 12; the reason in the GATES record, UQ.md and the drive's uq-gates question) and a per-chain estimate of
+  the hours left after its first 100 draws (Checkpoint).  tests/test_uq_rerun.py; 13N fixture job 1749406.
 
 - 2026-11-13 11:20  Phase 4 done: the drive's UQ state end to end on 7Be pert4 (short leg job 1739904, 4 x (300 + 500), 8 slots,
   frozen e3d67399 clone).  Gates FAIL (split R-hat 1.297, ESS 6 on width_16_2) -> D-002 `uq-gates` queued, drive WAITING; answered

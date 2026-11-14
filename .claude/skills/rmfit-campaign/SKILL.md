@@ -457,7 +457,7 @@ NUTS on x = c + h tanh(u) with the Jacobian, draws stored in x, the metric in u 
 mode -- not the Laplace / (dx/du)^2, which froze the d+t chains, job 1731435), because the data alone need not bound a background
 pole: on d+t with no box width_2_2 left its Wigner limit in 67 % of the draws and emcee's acceptance fell to 0.11
 (3H+d/11-12-26_uq).  `bounds: "none"` lifts it; `theta2_cap` gives one cap to a bare .azr + .sav that has no policy.  The
-box is the campaign's (the polish ran in it); a different prior on an amplitude is the evaluator's.  Read it as: half-width / linear sigma near 1 and a small median offset = the linear band
+box is the campaign's (the polish ran in it); a different prior on an amplitude is the evaluator's.  RE-RUN GUARDS (2026-11-14): no automatic re-run when split R-hat > `rerun_rhat_max` (1.5) or when the re-run would exceed `rerun_max_hours` (12, estimated as extend_factor x the attempt's wall time) -- the stage reports FAIL with the reason and the drive asks `uq-gates`; each chain prints its rate and hours left after 100 draws (7Be pert4 leg, 2026-11-13: R-hat 2, attempt 2 would have taken ~60 h).  Read it as: half-width / linear sigma near 1 and a small median offset = the linear band
 is adequate there; a ratio well above 1 or an offset of a sigma = the posterior is skewed along a direction the Jacobian
 misses (a saturating width, a sign-ambiguous amplitude).  Everything is conditional on the model and the spec's data
 decisions.  Cost: a gradient is ~2 objective evaluations; 7Be (195 free) ~25-50 gradients per draw.  Pitfalls: a script

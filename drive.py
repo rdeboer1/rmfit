@@ -1350,7 +1350,8 @@ class Driver:
             return "DONE", summary
         self.state["uq_asked"] = True
         self.save()
-        a2 = self.ask("uq-gates", f"the UQ chains failed their gates after {st.get('attempt', 0) + 1} attempt(s): {'; '.join(g.get('fails', []))}. "
+        a2 = self.ask("uq-gates", f"the UQ chains failed their gates after {st.get('attempt', 0) + 1} attempt(s): {'; '.join(g.get('fails', []))}"
+                                  + (f" ({g['no_rerun']})" if g.get("no_rerun") else "") + ". "
                                   f"accept the result as is (UQ.md says FAIL), rerun with longer chains, or stop the stage?",
                       ["accept", "rerun", "stop"], default="wait", evidence=summary)
         if a2 is None:

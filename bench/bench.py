@@ -203,11 +203,7 @@ JOB = """#!/bin/csh
 # reference campaign {refdir} from {refazr}; start = `rmfit perturb` ({flips} flips, seed {seed}, jitter {jitter}, ekick {ekick},
 # polished {pnfev}); spec {spec}; then `rmfit drive` to DONE / WAITING / STOP.  Score afterwards with
 #   python3 -m rmfit.bench score {casefile} {run}
-source ${{HOME}}/.login
-module load gsl/gcc/2.8
-module unload python
-setenv PATH /software/p/python/3.12.15/gcc/11.5.0/bin:${{PATH}}
-setenv LD_LIBRARY_PATH /software/s/sqlite-libs/3.34.1-11.el9_8/usr/lib64:/software/p/python/3.12.15/gcc/11.5.0/lib:${{LD_LIBRARY_PATH}}
+{setup_lines}
 setenv AZURE2_ROOT {azure2_root}
 setenv PYTHONPATH {rmatrix}:${{AZURE2_ROOT}}
 setenv OMP_NUM_THREADS 1
@@ -337,7 +333,7 @@ def write_job(case: dict, run_name: str) -> str:
     slots = int(run.get("slots") or ref.get("nshards") or 8)
     jobname = f"bench_{case['name']}_{run_name}"[:40]
     extra = (dict(slurm_header=site.slurm_header(jobname, slots, f"bench_{run_name}.log", "a"), setup_lines=site.setup_lines())
-             if slurm else dict(mail_line=site.mail_line()))
+             if slurm else dict(mail_line=site.mail_line(), setup_lines=site.setup_lines()))
     text = (JOB_SLURM if slurm else JOB).format(**extra, slots=slots, jobname=jobname,
                       log=f"bench_{run_name}.log", case=case["name"], run=run_name, label=run.get("label", ""), refdir=ref["campaign"],
                       refazr=ref["azr"], flips=start["flips"], seed=start["seed"], jitter=start["jitter"], ekick=start["ekick"],

@@ -4,7 +4,8 @@
   (a) RMFIT_MAIL wins over the site file; the site file ($RMFIT_SITE) is used without it; with neither there is no
       -M line, only a comment; a malformed site file raises with its path;
   (b) the three job-script writers -- Campaign.write_job_script (init), drive.write_job_script (drive --dry-run) and
-      bench.write_job -- write that line and leave no template field behind.
+      bench.write_job -- write that line and leave no template field behind;
+  (c) the SGE scripts carry the site file's "setup" lines (csh), or only a comment without them.
 Engine-free, seconds.  Run:  python3 rmfit/tests/test_site_mail.py"""
 import json, os, shutil, sys, tempfile
 
@@ -64,9 +65,16 @@ def main():
             mlines = [l for l in text.splitlines() if l.startswith("#$ -M")]
             check(f"(b) {name}: the only -M line is the site file's", mlines == ["#$ -M file@example.org"])
             check(f"(b) {name}: no template field left", "{mail_line}" not in text and "{email}" not in text)
+        json.dump({"mail": "file@example.org", "setup": ["source ${HOME}/.login", "module load python/3.12"]}, open(sf, "w"))
+        for name, text in writers(tmp).items():
+            L = text.splitlines()
+            check(f"(c) {name}: the site's setup lines, in order, and no other site's paths",
+                  L.index("module load python/3.12") == L.index("source ${HOME}/.login") + 1 and "/software/" not in text)
         os.environ["RMFIT_SITE"] = os.path.join(tmp, "absent.json")
         for name, text in writers(tmp).items():
             check(f"(b) {name}: no -M line without a setting", not any(l.startswith("#$ -M") for l in text.splitlines()))
+            check(f"(c) {name}: without setup, a comment and no module lines",
+                  "# site setup" in text and not any(l.startswith(("module ", "source ")) for l in text.splitlines()))
     finally:
         for k, v in saved.items():
             os.environ.pop(k, None)

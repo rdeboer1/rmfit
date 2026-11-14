@@ -183,8 +183,8 @@ class Campaign:
             text = f.read()
         jobname = "rmfit_" + self.reaction_name().replace("+", "")
         if slurm:
-            text = (text.replace("{slurm_header}", site.slurm_header(jobname, int(self.cfg.get("nshards") or 24), "rmfit_slurm.log", "abe"))
-                        .replace("{setup_lines}", site.setup_lines()))
+            text = text.replace("{slurm_header}", site.slurm_header(jobname, int(self.cfg.get("nshards") or 24), "rmfit_slurm.log", "abe"))
+        text = text.replace("{setup_lines}", site.setup_lines())
         guard = enginepin.guard_lines_sh if slurm else enginepin.guard_lines_csh
         text = (text.replace("{mail_line}", site.mail_line())
                     .replace("{jobname}", jobname)

@@ -18,13 +18,7 @@
 #$ -j y
 #$ -o rmfit_sge.log
 
-echo "Sourcing ${HOME}/.login"
-source ${HOME}/.login
-module load gsl/gcc/2.8
-# CRC python 3.12.15 (3.12.13 removed 2026-10-30); its sqlite3 needs sqlite-libs ahead of /lib64 on compute nodes
-module unload python
-setenv PATH /software/p/python/3.12.15/gcc/11.5.0/bin:${PATH}
-setenv LD_LIBRARY_PATH /software/s/sqlite-libs/3.34.1-11.el9_8/usr/lib64:/software/p/python/3.12.15/gcc/11.5.0/lib:${LD_LIBRARY_PATH}
+{setup_lines}
 setenv OMP_NUM_THREADS 1
 setenv PYTHONUNBUFFERED 1
 if (! $?RMFIT_CMD) setenv RMFIT_CMD "status"

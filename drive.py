@@ -1470,9 +1470,10 @@ def write_job_script(directory, spec: FitSpec, cfg: Optional[dict], name="run_cr
                                                     f"({tmin} min incl. 30 for the last state and the resubmission)")
         text = (text.replace("{slurm_header}", site.slurm_header("drive_" + reaction.replace("+", ""), slots, "drive_slurm.log",
                                                                "a", time_minutes=tmin))
-                    .replace("{setup_lines}", site.setup_lines()).replace("{leg_note}", note))
+                    .replace("{leg_note}", note))
         max_minutes = leg
     guard = enginepin.guard_lines_sh if slurm else enginepin.guard_lines_csh
+    text = text.replace("{setup_lines}", site.setup_lines())
     text = (text
             .replace("{mail_line}", site.mail_line())
             .replace("{jobname}", "drive_" + reaction.replace("+", ""))

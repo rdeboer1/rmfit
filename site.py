@@ -17,7 +17,9 @@ Keys:
                    unset).  A drive leg asks for DRIVE_MAX_MIN + 30 minutes, capped by slurm_time with DRIVE_MAX_MIN
                    shortened to fit.
   slurm_extra      list of further ``#SBATCH`` options, e.g. ["--mem=0", "--qos=long"]
-  setup            list of shell lines run before Python in the Slurm templates (modules, a Python on PATH, ...)
+  setup            list of shell lines run before Python in every job script rmfit writes (modules, a Python with numpy
+                   and scipy on PATH, ...), in that script's shell: csh for the SGE templates, bash for the Slurm
+                   ones.  Unset: a comment, and the job uses the environment it starts with.
 
 Example for a Slurm site::
 
@@ -150,8 +152,9 @@ def drive_leg_minutes(max_minutes: int):
 
 
 def setup_lines() -> str:
-    """The site's setup lines for the Slurm templates (or a comment saying where to put them)."""
+    """The site's setup lines for a job script (or a comment saying where to put them); csh for SGE, bash for Slurm."""
     lines = load().get("setup") or []
     if not lines:
-        return "# site setup (modules, a Python with numpy/scipy on PATH): \"setup\" in ~/.rmfit/site.json (rmfit/site.py)"
+        return ("# site setup (modules, a Python with numpy/scipy on PATH): \"setup\" in ~/.rmfit/site.json (rmfit/site.py),\n"
+                "# in this script's shell (csh for SGE, bash for Slurm)")
     return "\n".join(str(x) for x in lines)

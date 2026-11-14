@@ -119,9 +119,10 @@ whatever the objective. Test: `tests/test_objective_13n.py`.
 
 `init` verifies the baseline (one full-model evaluation), registers the structure, and writes `STATUS.md` and the job
 script `run_crc_rmfit`.  The scheduler is a site setting (`rmfit/site.py`, `~/.rmfit/site.json` or `$RMFIT_SITE`):
-`"scheduler": "sge"` (the default; a csh script for a 24-core node, written for one SGE site -- adapt it to yours) or
-`"slurm"` (a bash script with `#SBATCH` lines from `slurm_partition`, `slurm_account`, `slurm_time`, `slurm_extra`, the
-campaign's shard count as `--cpus-per-task`, and the site's `setup` lines before Python).  Job mail goes to `RMFIT_MAIL`
+`"scheduler": "sge"` (the default; a csh script for a 24-core node in queue `long`) or `"slurm"` (a bash script with
+`#SBATCH` lines from `slurm_partition`, `slurm_account`, `slurm_time`, `slurm_extra` and the campaign's shard count as
+`--cpus-per-task`).  Both run the site's `setup` lines before Python -- modules, a Python with numpy and scipy on PATH --
+written in the script's shell: csh for SGE, bash for Slurm.  Without them the job uses the environment it starts with.  Job mail goes to `RMFIT_MAIL`
 or `"mail"`; with neither, the scheduler mails the submitting user.  Example for a Slurm site:
 
     {"scheduler": "slurm", "mail": "you@example.org", "slurm_partition": "compute", "slurm_time": "2-00:00:00",

@@ -2,7 +2,7 @@
 """levelscan._patterns equal-split signs without materialising all 2^n sign vectors (2026-11-06, 10B+a (an archived campaign)).
 
 Before: list(itertools.product((1, -1), repeat=n)) then a sample of --max-signs: ~75 GB at n=28, 300-650 GB at n=30-31,
-so every levelscan with a >=30-channel J^pi was OOM-killed (10B+a step 4 3- at 14.63 MeV, step 5 2+/3- at 15.27 MeV).
+so every levelscan with a >=30-channel J^pi was OOM-killed.
 Checks: (1) the templates are IDENTICAL to the old enumerate-then-sample code for small n (same rng indices, same order);
 (2) n = 31 and n = 40 finish at once in bounded memory, with --max-signs distinct sign vectors."""
 import itertools, os, resource, sys, time

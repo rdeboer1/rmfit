@@ -12,8 +12,8 @@ One round on an incumbent vector:
    archive kept seeing); stage 2 releases everything;
 3. **greedy union** -- accepted flips are added one at a time in order of gain
    to the incumbent, each followed by a global polish, keeping only the ones
-   that still help (a naive union of individually good flips made the 13C+a
-   fit worse by 889k);
+   that still help (a naive union of individually good flips made a large
+   fit much worse);
 4. **verify** the result on a fresh single session and record everything.
 
 The round's *improving-flip count* is the convergence signal: the archive's
@@ -308,7 +308,7 @@ def finish_round(ev: Evaluator, x_inc, obj_inc: float, moves: Sequence[Move], bo
     # active data segment -- an unobserved channel's sign only reaches the observables
     # through second-order multiple-scattering terms.  Rather than bookkeeping which
     # pairs are observed, use the number the screen already has: require |frozen - obj|
-    # to clear `flip_floor` (default 1% of tau, ~8 on 13C+a) before a candidate can take
+    # to clear `flip_floor` (default 1% of tau) before a candidate can take
     # a polish slot.  The GN step can only exploit what the flip itself changed.
     tau = tau_flip(obj_inc, ev.npts, cfg)
     noise = [s for s in scr if abs(s.obj_flip - obj_inc) < cfg.flip_floor * tau]
@@ -357,7 +357,7 @@ def finish_round(ev: Evaluator, x_inc, obj_inc: float, moves: Sequence[Move], bo
             stat.n_reverted += 1
             tr.gain = obj_ref - tr.objective
             # the sign walked back, but the released polish that did so may
-            # have found a genuinely better vector on the way (13C+a: +1,579
+            # have found a genuinely better vector on the way (once a clear gain
             # from a reverted 4-level pattern): keep it as a "drift" result
             if tr.gain >= tau:
                 rep = sanity(ev, tr.x, policy, default_bounds(ev, x_inc, policy), transform=False, x_ref=x_inc)
@@ -406,8 +406,8 @@ def crossover_round(ev: Evaluator, x_inc, obj_inc: float, x_donor, cfg: SearchCo
     """Basin crossover: where the donor vector's interference-sign pattern differs
     from the incumbent's (modulo the gauge symmetries), apply the donor's pattern
     per channel, per J^pi group and all at once, and polish every proposal.  The
-    oracle experiment on 13C+a showed that a channel pattern taken from another
-    good basin can gain more than 10,000 from an incumbent that the ordinary
+    oracle experiment on a large model showed that a channel pattern taken from another
+    good basin can gain a great deal from an incumbent that the ordinary
     proposals (whose screens never rank such patterns) leave alone."""
     t_round = time.time()
     x_inc = np.asarray(x_inc, float)

@@ -127,7 +127,7 @@ def main(argv=None):
     p.add_argument("--ex-offsets", default="-0.04,0,0.04", help="comma-separated energy offsets (MeV) tried around each candidate")
     p.add_argument("--stage-scales", default="1.2,5",
                    help="two-stage screen: every shape at these --gamma multipliers and offset 0 first; "
-                        "'none' evaluates every shape at every scale and offset (16,668 patterns / 4 h on 13C+a)")
+                        "'none' evaluates every shape at every scale and offset (tens of thousands of patterns, hours on a large model)")
     p.add_argument("--refine-top", type=int, default=3, help="shapes per J^pi carried into the all-scales x all-offsets stage")
     p.add_argument("--merge-kev", type=float, default=60.0,
                    help="residual candidates closer than this to a stronger one are not screened separately (0 = screen all)")

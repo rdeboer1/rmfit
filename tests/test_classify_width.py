@@ -12,7 +12,7 @@ def check(name, got, want):
     good = got == want; print(f"  {'ok  ' if good else 'FAIL'}  {name}" + ("" if good else f"  -- got {got!r}, want {want!r}")); ok &= good
 
 def main():
-    tiny = {"n2 L1": 5.6e-5, "a0 L3": 4.8e-6}            # the 13C+a 7/2+ at 10.4386: ~35 eV, Gamma_W 0.3-1 MeV
+    tiny = {"n2 L1": 5.6e-5, "a0 L3": 4.8e-6}            # a narrow level: ~35 eV, Gamma_W 0.3-1 MeV
     base = dict(cap=1.0, tau=610.0, rho=0.21)
     check("no width given -> the old theta^2-only gate (backward compatible)", classify(305048, 304370, tiny, -0.0014, **base), "collapse")
     check("35 eV wide with tiny theta^2 is NOT a collapse", classify(305048, 304370, tiny, -0.0014, level_gamma_ev=35.0, **base), "accept")

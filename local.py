@@ -325,8 +325,8 @@ def default_bounds(ev: Evaluator, x_ref, policy: BoundsPolicy = BoundsPolicy(),
 
     ``cap_scale`` > 1 relaxes every theta^2 cap by that factor -- but never
     below the amplitude's current theta^2 if that already exceeds the policy
-    cap -- so a fit that starts outside the physical box (the 479,721 13C+a
-    fit has 48 amplitudes with theta^2 > 1, up to 4e6) can be walked into it
+    cap -- so a fit that starts outside the physical box (one archived
+    fit had dozens of amplitudes with theta^2 > 1) can be walked into it
     in stages instead of being clipped in one step (see
     :meth:`rmfit.campaign.Campaign.run_polish` with ``tighten``).
     """
@@ -505,8 +505,8 @@ def default_bounds(ev: Evaluator, x_ref, policy: BoundsPolicy = BoundsPolicy(),
 # 2026-10-10 (the evaluator: "If the levels are broad, then we could probably just get away with doing a check where we give the
 # energy of the broader level a little adjustment in energy when this issue is going to cause a problem").  AZURE2 merges
 # same-J^pi levels < 1 keV apart when it READS a model, so a fit can hold such a pair in memory but not write it.  For a
-# broad level a few keV is nothing: measured on the 13C+a merged incumbent, moving a ~6 MeV-wide 1/2+ by 1 / 2 / 5 keV
-# cost +1.2 / +3.9 / +21 in chi2 (frozen, of 420,772).  So before a write the broader member of a pair closer than
+# broad level a few keV is nothing: measured on a large merged model, moving a ~6 MeV-wide level by 1 / 2 / 5 keV
+# cost +1.2 / +3.9 / +21 in chi2 (frozen, on an objective of several hundred thousand).  So before a write the broader member of a pair closer than
 # SEPARATE_MIN_GAP_KEV is moved away to SEPARATE_GAP_KEV, if that shift is < SEPARATE_MAX_REL_SHIFT of its width;
 # narrow pairs (the 9/2+ doublet of 2026-09-19) are not touched and still fail.
 SEPARATE_MIN_GAP_KEV = 1.5
@@ -820,7 +820,7 @@ def polish_refreeze(ev: Evaluator, x0, bounds: Optional[Bounds] = None, policy: 
 
     A ``relvector`` term is frozen at the model of the evaluator's first evaluation.  One long polish from a poor
     seed therefore minimises chi2 with the systematics scaled by the SEED's model, and a fresh session at the result
-    disagrees (13C+a 2026-10-24: 759,688 in the polish vs 789,402 verified; the evaluator: "Let's do 2").  Here each pass is
+    disagrees (by 4 % in one case).  Here each pass is
     an ordinary least-squares run on a FIXED objective (frozen at the pass's start point) of at most ``every``
     evaluations; then the covariance is re-frozen at the pass's end point and that point is re-scored.  This is the
     usual fixed-point treatment of model-scaled systematics: the covariance never follows the model inside a
@@ -832,8 +832,8 @@ def polish_refreeze(ev: Evaluator, x0, bounds: Optional[Bounds] = None, policy: 
     Without a ``relvector`` covariance, with a fixed covariance reference (``cov.has_reference``) or with
     ``every <= 0``, this IS :func:`polish` (same call, same result).
 
-    2026-10-25: the iteration need not contract -- on 13C+a it oscillated (re-freeze jumps +3k, +44k, -25k, +140k;
-    10-24-26_merged_antot_n1cut) and the last pass ended 73k above the seed.  The returned point is therefore the
+    2026-10-25: the iteration need not contract -- on a large model it oscillated (re-freeze jumps from +3k to +140k)
+    and the last pass ended well above the seed.  The returned point is therefore the
     BEST self-consistent one over the passes (its pass number in ``message``), not the last.  rmfit campaigns no
     longer use this by default; they fix the relvector model at a reference (ObjectiveSpec.cov_reference)."""
     cov = getattr(ev, "cov", None)

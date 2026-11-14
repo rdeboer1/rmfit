@@ -21,8 +21,8 @@ Stages (resumable; state in ``<dir>/uq/uq_state.json``, every product under ``<d
               box the polish ran in; ``bounds: "none"`` lifts it, ``theta2_cap`` (a number) sets one cap for every level (a
               bare .azr + .sav has no policy: without it, no bounds).  Inside the box the posterior is the objective's own
               (a uniform prior truncated at the box); NUTS runs on x = c + h tanh(u) with the Jacobian, draws are stored in x.
-              Why: the d+t data alone leave the 3/2+ background pole's amplitudes unbounded (width_2_2 beyond its Wigner limit
-              in 67 % of unbounded draws, an archived campaign); the archive's d+t MCMCs are uniform within the Wigner limits.
+              Why: data alone can leave a background pole's amplitudes unbounded (in one validation an amplitude was beyond its Wigner limit
+              in two thirds of unbounded draws); earlier MCMC studies used priors uniform within the Wigner limits.
   SAMPLE      ``chains`` NUTS chains from mode + ``start_jitter_sd`` x Laplace sd, inverse metric C (adapted in warm-up);
               bounded: in u, the metric from the Hessian of -log p(u) at the mode (BoundedTarget.metric_u, sd <= 1 in u),
               ``target_accept`` 0.9 (the 11-06 run had 2.4 % divergences at 0.8), checkpoints every 50 iterations per chain.
@@ -225,8 +225,8 @@ class BoundedTarget:
         at u0, H_u = D C^-1 D + diag(2 sech^2 u0 + max(0, 2 g h tanh(u0) sech^2 u0)) on the bounded entries (D = dx/du;
         the Jacobian's own curvature and, with ``g0`` = grad log p(x) at the mode, the gradient term of a mode held at the
         box edge), with every bounded entry's sd in u clamped at ``sd_max`` (a density flat across its box has sd 0.9 in u).
-        C / outer(dx/du, dx/du) alone is wrong where C is wide along a bounded direction (the d+t background pole: sd 11
-        for a box of +-0.8 gave an sd of 7000 in u, a step size of 5e-8 and frozen chains, a queue job)."""
+        C / outer(dx/du, dx/du) alone is wrong where C is wide along a bounded direction (a background pole: sd 11
+        for a box of +-0.8 gave an sd of 7000 in u, a step size of 5e-8 and frozen chains)."""
         u0 = np.asarray(u0, float)
         C = np.asarray(C, float)
         C = 0.5 * (C + C.T)
@@ -815,7 +815,7 @@ class UQ:
              + ("" if ga.get("passed") else " (" + "; ".join(ga.get("fails", [])) + ")") + "."
              + (f"  Stopped without a further attempt: {ga['no_rerun']}." if ga.get("no_rerun") else ""),
              f"- sd(sampled) / sd(Laplace): min {ga.get('sd_ratio_min', float('nan')):.2f}, median {ga.get('sd_ratio_median', float('nan')):.2f}, max {ga.get('sd_ratio_max', float('nan')):.2f} "
-             f"(1 = Gaussian posterior; the 7Be calibration run of 2026-11-06 gave 0.67-1.60, median 0.89).",
+             f"(1 = Gaussian posterior; a calibration run gave 0.67-1.60, median 0.89).",
              "", "## Bands (linear = Laplace covariance on the free R-matrix block; sampled = posterior draws)", ""]
         if ba.get("grids"):
             L += ["| grid | quantity | E_cm (MeV) | best | linear 1 sigma | sampled median [p16, p84] | half-width / linear sigma (at E, median, max) | median offset (sigma) | table |",

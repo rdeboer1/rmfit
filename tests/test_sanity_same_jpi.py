@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """local.sanity must flag same-J^pi levels that AZURE2 would merge on read (< 1 keV apart) and
-warn about pairs within 1.5 keV.  Regression for 2026-09-19: a 13C+a fit carried two 9/2+ levels
+warn about pairs within 1.5 keV.  Regression for 2026-09-19: a fit carried two same-J^pi levels
 0.67 keV apart; when the engine was rebuilt with the stock 1 keV merge tolerance the incumbent
 read back as a different model (301,445 -> 327,514) and an export failed.  Stub evaluator."""
 import os, sys

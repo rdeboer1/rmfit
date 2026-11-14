@@ -18,7 +18,7 @@ def check(name, ok, info=""):
 def main():
     cfg = config({})
     check("defaults: rerun_rhat_max 1.5, rerun_max_hours 12", cfg["rerun_rhat_max"] == 1.5 and cfg["rerun_max_hours"] == 12.0)
-    # d+t run 1, attempt 1: R-hat 1.013 after 1.39 h -> re-run (~2.8 h), as happened
+    # R-hat 1.013 after 1.39 h -> re-run (~2.8 h)
     ok, why = _rerun_plan({"rhat_max": 1.013}, cfg, 0, 1.39 * 3600)
     check("d+t attempt 1 re-runs", ok and "attempt 2 of 2" in why, why)
     # attempts used up

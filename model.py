@@ -331,7 +331,7 @@ def build_conv_spec(seg: Segment, te: TargetEffectSpec, rows: np.ndarray, cm_con
     # `sigmalab` is evaluated at the point's LAB energy and converted once; a legacy expression (no keyword) is
     # evaluated at the point's c.m. energy as a c.m. width.  Every kernel is normalised by its own integral over
     # +-3 sigma.  (Before 2026-10-12 rmfit reproduced the pre-dad58dc engine: constant-sigma kernels unnormalised,
-    # i.e. 0.27 % low, and expressions evaluated per sub-point -- the sharded/single offset of +52 on 13C+a.)
+    # i.e. 0.27 % low, and expressions evaluated per sub-point -- a sharded/single offset on large models.)
     if te.conv_coeffs is not None and te.sigma_lab:
         s_pt = te.sigma_eq(e_lab) * cm_conv
     elif te.conv_coeffs is not None:
@@ -505,8 +505,8 @@ def plan_pieces(base_azr: str, weights: Optional[Dict[str, float]] = None,
     target-effect entry, or is a ratio composite -- or if its key is in
     ``no_split``.  A composite "sum" segment is split like a plain one
     (``split_composite``, default on; RMFIT_SPLIT_SUM=0 turns it off) and
-    costs one calculation per component (2026-10-10: the 13C+a merged model's
-    Cierjacks n-total, a sum over 8 exits with 13,129 points, sat whole in one
+    costs one calculation per component (2026-10-10: a merged model's
+    neutron total cross section, a sum over 8 exits with ~13k points, sat whole in one
     shard and set the sharded objective at 25 s; split by component cost into
     15 pieces it is 3 s, the objective bit-identical).  A segment whose target effect is a pure
     convolution becomes a ``conv`` piece (see :class:`ConvSpec`) unless

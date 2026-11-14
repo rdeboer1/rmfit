@@ -2,7 +2,7 @@
 """cluster_width / auto_gamma_kev (2026-09-24, the evaluator).
 
 The level search never estimated a width from the data: the template screen
-sampled Gamma x [0.3..10] around a guessed Gamma (5 keV on the 13C+a narrow
+sampled Gamma x [0.3..10] around a guessed Gamma (5 keV in one narrow-level
 campaign, so 1.5-50 keV) and sat at the top of that grid 95 times out of 120,
 while the released fits in the same window came out at 0.6-2 MeV.  The
 residual runs already carry the extent of the structure; it is now reported

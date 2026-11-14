@@ -366,10 +366,10 @@ class ObjectiveSpec:
     (``dataset_key="file"``) or a segment (``"segment"``).  Normalization and
     shift penalty rows are never weighted.  ``weight_power`` tempers the
     weighting: ``w_i = ((N/K)/N_i)^p`` renormalized to a total of ``N``; ``p = 1``
-    is the paper's method, ``p = 0.5`` a compromise (on 13C+a the literal method
-    spans per-point weights 0.15-238 across 21 files and trades the three
-    10,000-point excitation functions for the small sets: plain chi2 701k ->
-    1,873k in one polish).
+    is the paper's method, ``p = 0.5`` a compromise (on a large model the literal method
+    spans per-point weights over three decades across many files and trades the three
+    10,000-point excitation functions for the small sets: plain chi2 up
+    2.7x in one polish).
 
     ``loss``: ``"chi2"`` or ``"sivia"`` -- the broader probability density of
     Sivia (2006) used in deBoer et al. (2017): instead of chi-squared,
@@ -384,8 +384,8 @@ class ObjectiveSpec:
     counts as an outlier only relative to the *typical* residual of its own
     data set.  Without this (``"none"``), on a model with chi2/N ~ 20-300 every
     point sits in the logarithmic tail, the data lose almost all weight
-    against the quadratic norm penalties and the fit drifts (13C+a: chi2
-    701k -> 1,190k, MANA abandoned).  ``"global"`` uses one scale, the
+    against the quadratic norm penalties and the fit drifts (chi2
+    up by 70 % in one polish, a data set abandoned).  ``"global"`` uses one scale, the
     overall chi2/N.  ``scales`` holds the reference values (``Campaign.init``
     computes them from the baseline's plain per-dataset chi-squared).
     """
@@ -411,7 +411,7 @@ class ObjectiveSpec:
     cov_free_norm_ok: list = field(default_factory=list)   # covariance file basenames whose relvector rows may carry
                                     # a FREE data normalization.  Campaign.init refuses any other (2026-10-26, the evaluator:
                                     # "build the t0 version"): a free norm on relvector rows is biased whichever way
-                                    # the reference follows it (13C+a ND2021r 0.63 -> 3.08 data-unit, -> 0.20
+                                    # the reference follows it (a norm ran up fivefold data-unit, down threefold
                                     # norm-following); the t0 method fixes the norm and puts its prior in C as a
                                     # relvector term (NNPDF, JHEP 05 (2010) 075; an archived campaign).
 
@@ -1616,7 +1616,7 @@ def bake(base_azr, x, keys, path, flags, workdir=None, output_dir=None,
         # 2026-10-24: every parameter's physical value, fixed ones included.  A fixed parameter is fixed in rwa
         # space and its observed value moves with the other amplitudes of its level (Brune's 1 + sum gamma^2 dS/dE,
         # closed channels included), so keeping the seed file's observed value for it is another model on re-read:
-        # 13C+a (an archived campaign) candidate 3 failed this check (14 fixed widths of frozen levels with
+        # one archived candidate failed this check (14 fixed widths of frozen levels with
         # free ANCs, up to +13 %).  A pyazr without transform_all_rwa_full (before 2026-10-12) writes the free
         # parameters only, as before.
         try:
@@ -1664,8 +1664,8 @@ def bake(base_azr, x, keys, path, flags, workdir=None, output_dir=None,
         x2 = take(xs, ev.keys, ev2.keys, ev2.x0)
         if set(ev2.keys) != set(ev.keys):
             # 2026-09-16: this fires when the written model is not the same model.  The
-            # case seen on 13C+a: the polish had drifted two 9/2+ levels to within 0.66 keV
-            # (9.86200 and 9.86266), and the engine reading the written file treats them as
+            # case seen: the polish had drifted two same-J^pi levels to within 0.66 keV
+            # (under a keV apart), and the engine reading the written file treats them as
             # ONE level, so the group's labels shift (9/2+#6 -> #5) and 8 keys disappear.
             # Delete the files as the rtol branch does -- leaving them on disk left a
             # directory holding a `13C+a.azr` that looks like an export and is not.

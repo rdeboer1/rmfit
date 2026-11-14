@@ -91,7 +91,7 @@ def main():
     x_map = incumbent_on_variant(ev2, x0, keys0, var); ref0 = ev2.objective(x_map); xe = x_map.copy()
     # the particle amplitude goes through the SAME conversion template_screen uses since
     # 2026-09-14 -- gamma = gamma_W sqrt(Gamma / Gamma_W) from the engine's Wigner quantities --
-    # not the file-derived x0, which on 13C+a came out ~100x too small (a failed Brune
+    # not the file-derived x0, which on a dense model came out ~100x too small (a failed Brune
     # transform of the 1 eV dummy) and made every template inert while this test passed
     gW_amp = ev2.wigner_amplitudes(); gW_wid = ev2.wigner_widths(x_map)
     for j, k in enumerate(ev2.keys):

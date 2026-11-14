@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The template screen must only build levels the bounded refit could reach (2026-09-20).
 
-On 13C+a a residual screen reported a 7/2+ worth +1,693: its winning template was an "equal
+A residual screen once reported a level worth a clear gain: its winning template was an "equal
 split" of 10 keV over 15 open channels -- 667 eV each -- five of which have Wigner limits of 0.4 eV
 .. 1e-15 eV (theta^2 1e3 .. 1e17).  Templates are evaluated frozen, so nothing stopped it; the
 honest add gained 28.  Pure tests of the three helpers that now guard this."""
@@ -17,7 +17,7 @@ def check(name, cond, detail=""):
     print(f"  {'ok  ' if cond else 'FAIL'}  {name}" + ("" if cond else f"  -- {detail}")); ok &= bool(cond)
 
 def main():
-    # the 7/2+ at 10.42 MeV on 13C+a: Gamma_W (eV) of n0 L4, a0 L3, n1 L4, a1 L4, n2 L1, n2 L3, n2 L5, a3 L6, closed n3
+    # a level with nine channels: Gamma_W (eV) of n0 L4, a0 L3, n1 L4, a1 L4, n2 L1, n2 L3, n2 L5, a3 L6, closed n3
     gw = [5.62e5, 1.054e6, 0.43, 2.87, 2.82e5, 23.2, 9.9e-5, 6.3e-15, 0.0]
     ga = [1.85, 0.84, 1.85, 0.84, 1.85, 1.85, 1.85, 0.84, 0.0]
     o, d, c = carrying_channels(gw, ga, dead_channel_ev=1.0)

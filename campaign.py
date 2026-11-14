@@ -212,7 +212,7 @@ class Campaign:
             snap = ev.worker.call("snapshot", None)
             # A .sav names level parameters POSITIONALLY (energy_N, width_N_c).  After any
             # level add/remove those names point at the wrong levels, and seeding from them
-            # produces a garbage vector (13C+a 2026-09-13: 7,199,392 instead of ~378,020).
+            # produces a garbage vector (an objective about twenty times too large).
             # The exported <levels> block already carries the fitted R-matrix values, so if
             # the .sav's level count disagrees with the model's, seed norms/shifts only.
             sav_levels = {int(k.split("_")[1]) for k in vals if k.startswith("energy_")}
@@ -242,9 +242,9 @@ class Campaign:
         (``AZUREParams::ReadUserParameters``; pyazr ``azure2.load_sav``), but ``_seed_vector`` takes only the FREE
         values from the file and the sharded evaluator takes the fixed ones from the ``.azr``.  When the two disagree
         there are two models, and the archive uses BOTH conventions: a CLI fit's ``param.sav`` holds the fixed values
-        the fit ran with (10B+p round 8: var_B.azr + fit_B/output/param.sav differ in 23 fixed background widths by up
-        to 10x -- the tier-2 bench initialised at 14,082 for the archived 5,716 and ran on the wrong model), while a
-        campaign built by a script (10B+a s4/s5: the ``.azr`` carries the frozen block and the added level, the
+        the fit ran with (in one archived fit the two differed in two dozen fixed background widths by up
+        to 10x, and a benchmark initialised at more than twice the archived objective on the wrong model), while a
+        campaign built by a script (the ``.azr`` carries the frozen block and the added level, the
         ``.sav`` is the previous export, 125-237 fixed values apart) means the ``.azr`` and uses the file as a seed of
         the free values only.  So the disagreement is never silent, and which file wins is the caller's:
         ``mode="ignore"`` (default, the behaviour since the first campaign) keeps the ``.azr``'s fixed values and logs a
@@ -411,8 +411,8 @@ class Campaign:
                 raise ValueError(
                     "free data normalization on relvector-covariance rows: " + "; ".join(
                         f"{f}: segment(s) {', '.join(map(str, s))}" for f, s in sorted(bad.items())) +
-                    ".  A free norm there is biased whichever way the relvector reference follows it (13C+a ND2021r: "
-                    "0.63 -> 3.08 with a data-unit reference, -> 0.20 norm-following).  t0 method (NNPDF, JHEP 05 (2010) "
+                    ".  A free norm there is biased whichever way the relvector reference follows it (in one large model: "
+                    "a norm ran up fivefold with a data-unit reference and down threefold norm-following).  t0 method (NNPDF, JHEP 05 (2010) "
                     "075; an archived campaign): fix the norm (varyNorm 0) and put its prior in the covariance file as a "
                     "relvector term (all ones x the prior over the rows it normalizes).  To keep the norm free anyway, "
                     "name the file in the objective's cov_free_norm_ok list.")
@@ -444,8 +444,8 @@ class Campaign:
             rep = sanity(ev, x, c.policy, default_bounds(ev, x, c.policy))
         # the archived chiSquared.out in the base model's output directory (skill section 2 item 2: reproduce the last
         # finished fit before building on it).  A seed that does not reproduce it is on the wrong flags, the wrong or a
-        # positional .sav, or a stale output/ (7Be benchmark 2026-11-08: ignore_externals False gave chi2 6879 for the
-        # archived 5089; the campaign and its perturbation benchmark were built on the wrong objective).  Plain chi2 is
+        # positional .sav, or a stale output/ (a benchmark in which ignore_externals False gave a chi2 a third above the
+        # archived one; the campaign and its perturbation benchmark were built on the wrong objective).  Plain chi2 is
         # compared (the per-segment scores stay plain whatever the objective); a warning, not a refusal.
         try:
             from .review import output_dir_of, read_chisq_out
@@ -493,8 +493,8 @@ class Campaign:
 
         ``refreeze_every`` (2026-10-24; default 0 since 2026-10-25): with a data covariance that has model-scaled
         (``relvector``) terms and NO fixed reference, each stage runs as passes of at most this many evaluations with
-        the covariance re-frozen between them (local.polish_refreeze).  On 13C+a (10-24-26_merged_antot_n1cut) that
-        iteration oscillated (re-freeze jumps +3k, +44k, -25k, +140k), so it is off by default; campaigns now fix the
+        the covariance re-frozen between them (local.polish_refreeze).  On a large model that
+        iteration oscillated, so it is off by default; campaigns now fix the
         relvector model at a reference (Campaign.init, ObjectiveSpec.cov_reference) and this option is ignored then.
         """
         if cid is None:
@@ -637,9 +637,9 @@ class Campaign:
                        nfev=600, rounds_max=8, gain_tol=5e-4, passes=2, seed=None, note="") -> dict:
         """Restarts + crossover: the basin-crossing stage (2026-11-08, 7Be benchmark post-mortem).
 
-        The sign rounds judge single and paired flips on short screens; the 7Be post-mortem (6Li+p/3He+a/.../11-8-26_drive_bench,
-        diag3) showed that the way from a 6002 basin to the 5290 reference was a coordinated 17-flip pattern whose unpolished
-        objective was three times the incumbent's -- no single, pair, channel or group flip gained more than 2.6 even with a
+        The sign rounds judge single and paired flips on short screens; a benchmark post-mortem
+        showed that the way from a basin 13 % above the reference to it was a coordinated 17-flip pattern whose unpolished
+        objective was three times the incumbent's -- no single, pair, channel or group flip gained more than a few units even with a
         600-evaluation polish, while a population of six sign-perturbed restarts of the incumbent, each polished to convergence,
         plus crossover between them reached 5326 in one pass (pop3).  So: ``restarts`` sign-perturbed copies of the incumbent
         (a random set of ``n_flips`` flips among the ``top_moves`` highest-exposure amplitudes, at most ``per_group`` per J^pi,
@@ -1076,7 +1076,7 @@ class Campaign:
     def set_grid_setting(azr_path: str, mult: float, ppw: float) -> int:
         """Rewrite the two trailing numbers of every active <targetInt> line --
         resonanceWidthMultiplier and pointsPerWidth (TargetEffect.cpp:92-102) --
-        for a SCREENING variant.  Measured on 13C+a segment 92 (2026-09-12):
+        for a SCREENING variant.  Measured on a large target-integrated segment:
         5/20 is 6.7x cheaper than the converged 20/50 for a 0.03% objective
         shift; 2/x is NOT safe (-0.2..-0.7%, comparable to the width error).
         Never use on a model whose numbers will be reported.  Returns the
@@ -1301,7 +1301,7 @@ class Campaign:
         # by default, and True from levelscan) went into the file as levelFix = 1, so the
         # "released" polish never released the new level's energy and the adopted structure
         # kept it fixed for every later campaign (all levels added 09-14 .. 09-19 sat at round
-        # numbers; freeing four of them by hand was worth 2,453 on 13C+a).  Pinning is now done
+        # numbers; freeing four of them by hand gained clearly).  Pinning is now done
         # by the free mask (stage A) and a narrow window (stage B), not by the file.
         import dataclasses
         release_energy = bool(getattr(cand, "release_energy", True))
@@ -1328,8 +1328,8 @@ class Campaign:
                     if k in pos_2:
                         x2[pos_2[k]] = wx[pos_w[k]]
             # 2026-10-12: channels that exist only because of RMFIT_SEED_OMITTED go back to the file's tiny seed.
-            # The window model's data do not constrain them; on 13C+a the 3/2- @10.3 window polish put theta^2
-            # ~1 into n1/alpha1/n2 and the full model started at 2,542,505 vs 422,175 (the test never recovered).
+            # The window model's data do not constrain them; in one window polish theta^2
+            # ~1 went into three unconstrained channels and the full model started six times above its optimum (the test never recovered).
             _omit = {(q["pair"], q["L"], q["S"]) for q in (info.get("seeded_omitted") or [])}
             if _omit:
                 _reset = [j for j, k in enumerate(ev2.keys)
@@ -1635,8 +1635,8 @@ class Campaign:
                          + (" -- one lineshape described by two levels: recorded, NOT adopted; the evaluator decides"
                             if outcome == "splits" else ""))
             # 2026-09-14: a candidate that lands on top of an existing level of the same J^pi
-            # is a LINESHAPE hypothesis, not a level -- on 13C+a a 330 eV 9/2+ was accepted
-            # 1.2 keV from a 3.8 keV 9/2+ (delta +3,898) because BandH carries no resolution
+            # is a LINESHAPE hypothesis, not a level -- a level a few hundred eV wide was once accepted
+            # about a keV from a few-keV level of the same J^pi because BandH carries no resolution
             # convolution.  The criteria test whether a level HELPS; they cannot tell it from
             # a resolution or single-point effect, so the verdict is marked provisional and
             # the competing test (resolution on the driving segments, level removed) is named.
@@ -1757,8 +1757,8 @@ class Campaign:
 
         The frozen ranking is only an upper bound on a level's importance --
         the whole point of the honest refit is that the rest of the model
-        compensates, and on 13C+a that turned a level's apparent cost of
-        1,220,524 into about 2,100.  Never removes the last level of a J^pi
+        compensates, and that can turn a level's apparent cost of
+        millions into a few thousand.  Never removes the last level of a J^pi
         group: that one carries the group's hard-sphere term."""
         from .structure import frozen_removal_screen, deactivate_level_variant
         cid, x, obj, keys = self.incumbent()

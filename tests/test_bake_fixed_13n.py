@@ -2,7 +2,7 @@
 """bake writes the FIXED parameters' current physical values too (2026-10-24), with the real engine on 13N.
 A fixed parameter is fixed in reduced-width space; its observed value moves with the other amplitudes of its level (Brune's
 1 + sum gamma^2 dS/dE).  Until 2026-10-24 bake wrote only the free parameters, so a fixed width kept the seed file's observed
-value and the written file was another model (13C+a (an archived campaign) candidate 3: 14 fixed widths of frozen
+value and the written file was another model (one archived candidate: 14 fixed widths of frozen
 levels whose free ANCs had moved, up to +13 %, export refused).
 Model: 13N with the E1 photon width of the 3/2- 3.5032 MeV level FIXED (-0.49 eV), its proton width free; the vector scales the
 proton amplitude by 1.5.

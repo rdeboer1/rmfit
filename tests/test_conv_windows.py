@@ -45,7 +45,7 @@ def main():
     if real:
         lines = [l for l in real.split("\n") if "sigmalab" in l and '"11,12,' in l]
         r = parse_target_effect(lines[0])
-        check("13C+a w_new.azr ND 2021 line: 10 windows, blend 2 keV, 6 coefficients", len(r.ranges) == 10 and r.blend_width == 0.002
+        check("archive targetInt line: 10 windows, blend 2 keV, 6 coefficients", len(r.ranges) == 10 and r.blend_width == 0.002
               and len(r.conv_coeffs) == 6, (len(r.ranges), r.blend_width))
     # -- blend weight = TargetEffect::BlendWeight ---------------------------------------------------------------
     xs = np.array([1.95, 1.999, 2.0, 2.001, 2.05, 2.1, 2.2, 3.1, 3.25, 3.2505])

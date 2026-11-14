@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """t0 guard (2026-10-26, the evaluator: "build the t0 version"): Campaign.init refuses a FREE data normalization on rows of a
-relvector covariance unless the covariance file is named in ObjectiveSpec.cov_free_norm_ok.  Reason: 13C+a ND2021r ran
-0.63 -> 3.08 with a data-unit reference and 0.63 -> 0.20 with a norm-following one; the t0 method (NNPDF, JHEP 05 (2010)
+relvector covariance unless the covariance file is named in ObjectiveSpec.cov_free_norm_ok.  Reason: a norm once ran
+up fivefold with a data-unit reference and down threefold with a norm-following one; the t0 method (NNPDF, JHEP 05 (2010)
 075) fixes the norm, puts its prior in C as a relvector term and holds C at a fixed model t0.
 
 Fixture fixtures/relvector_p12c (ngrel.azr: normgroups A, B with free leader norms on cov_rel.txt rows; ngcov.azr: the

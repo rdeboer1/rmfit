@@ -266,8 +266,8 @@ def canonical_signs(x, keys: Sequence[ParamKey],
 
     ``fixed`` lists the *fixed, nonzero* amplitudes of the model (they are not
     in ``x``).  A gauge transformation may not change them, which ties the
-    level sign to the pair sign for every such amplitude: on the 13C+alpha
-    model flipping every free pair-1 amplitude is *not* a symmetry (0.128
+    level sign to the pair sign for every such amplitude: on one model
+    flipping every free pair-1 amplitude is *not* a symmetry (13 %
     relative), because some levels carry fixed pair-1 amplitudes, while
     flipping every free pair-1 *and* pair-2 amplitude is one to 1e-16.
     Levels and pairs joined by fixed amplitudes therefore share one gauge

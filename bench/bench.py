@@ -250,8 +250,8 @@ def write_job(case: dict, run_name: str) -> str:
         raise SystemExit(f"run {run_name} has no 'spec' (path of the drive spec, relative to the case's base_dir)")
     def chisq_copy(side, azr):
         # the archived chiSquared.out of the fit the .azr + .sav came from, copied into the .azr's output directory so
-        # that init's reproduce check runs (2026-11-10: the 10B+p tier-2 reference initialised at 14,082 for the
-        # archived 5,716 -- the .sav's fixed widths had been ignored -- and nothing warned because the file was not there)
+        # that init's reproduce check runs (2026-11-10: a reference initialised at more than twice
+        # its archived objective -- the .sav's fixed widths had been ignored -- and nothing warned because the file was not there)
         src = side.get("chisq_out")
         if not src:
             return ""

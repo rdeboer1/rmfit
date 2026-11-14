@@ -50,7 +50,7 @@ def main():
         check("the seed's misfit shows as systematic-misfit + residual-run", {"systematic-misfit", "residual-run"} <= codes, str(codes))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
-    # 5. synthetic norm-opposite case (10B+a ND5U25: norm 1.32 while the fit is 0.64 x the data)
+    # 5. synthetic norm-opposite case (norm 1.32 while the fit is 0.64 x the data)
     n = 40
     ex = np.linspace(8.0, 9.0, n); d = np.full(n, 10.0); e = np.full(n, 0.3); c = 0.64 * d
     tab2 = rv.PointTable(key=np.full(n, 1), name=np.array(["ND5U25"] * n, dtype=object), ecm=ex, ex=ex, ang=np.full(n, np.nan),
@@ -66,7 +66,7 @@ def main():
     rev = rv.Review(tab2, [], Segs([Seg()])).run(None)
     opp = [f for f in rev.findings if f.code == "norm-opposite"]
     check("norm-opposite fires at norm 1.32 vs n* 0.64", len(opp) == 1 and "0.640" in opp[0].message, [f.line() for f in rev.findings][:3])
-    # 5b. width-tied close pair (13C+a 7/2+ at 10.42: gap 1 keV, widths ~220 keV): flagged at the default 10 % scale, not when
+    # 5b. width-tied close pair (gap 1 keV, widths ~220 keV): flagged at the default 10 % scale, not when
     #     the gap exceeds it, not for another J^pi, not outside the data range, and never with the check switched off
     exc = np.linspace(10.0, 11.0, 30)
     tabc = rv.PointTable(key=np.full(30, 1), name=np.array(["X"] * 30, dtype=object), ecm=exc, ex=exc, ang=np.full(30, np.nan),

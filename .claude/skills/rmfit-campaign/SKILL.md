@@ -68,8 +68,8 @@ item, with the state that enforces it:
    the nominal, `free` with `prior_sigma`; `drive.Driver._s_scale_anchor`).  Why: with every norm free, 10B+α stage 1 traded
    missing strength for norms of 0.38-0.68 (an archived campaign).
 2. **Seed the lowest-L channel of every pair on every level** at `model.seed_frac` (0.01) γ_W, placeholders for free widths
-   at exactly zero, photon channels at `model.photon_seed_ev` -> `SEED_CHANNELS` (`_s_seed_channels`).  Ran: 12C+p L3 demo 3,
-   2026-11-10, 20 background channels seeded, 7.59 M -> 64,615.
+   at exactly zero, photon channels at `model.photon_seed_ev` -> `SEED_CHANNELS` (`_s_seed_channels`).  Exercised on a from-scratch demo
+   (20 background channels seeded).
 3. **Every channel that opens inside the fit range is in the model** -> `PAIR_COMPLETENESS` lists the ENSDF states of the
    residual nuclei below the window top that have no pair (`_s_pair_completeness`) -- it REPORTS; the pair is still added by
    hand (builder an archived campaign).  Never cap a data window at a threshold instead.
@@ -110,7 +110,7 @@ is applied to residuals *standardized by each data set's reference chi2/N* (`los
 dataset`, scales computed by `init` from the plain baseline and stored in campaign.json):
 without that, on a model with chi2/N ~ 20-300 every point sits in the logarithmic tail,
 the data lose ~10x their weight against the quadratic norm penalties and the fit drifts
-(13C+a, 2026-09-08: plain chi2 701k -> 1,190k in one polish, MANA abandoned, norms snapped
+(a polish raised the plain chi2 by 70 %, a data set was abandoned and the norms snapped
 to nominal). Both methods are "statistically incorrect but useful when error bars are
 underestimated". The objective
 is a property of a campaign: candidates verified under different objectives are not
@@ -132,7 +132,7 @@ limits -- set them per reaction, 0 = unbounded); `e_window` is the energy freedo
 multiplies the nominal normalization. `narrow_window` (optional, e.g.
 `{"gamma_kev": 5, "factor": 3, "min_kev": 1}`) keeps a level whose free partial widths sum
 to less than `gamma_kev` within ±max(`min_kev`, `factor`·Γ) of its current energy instead of
-±`e_window`, so a polish cannot carry a narrow level away from its peak (the 13C+a 9/2+
+±`e_window`, so a polish cannot carry a narrow level away from its peak (a narrow level
 drifted 180 keV in one tightening polish). Shard count = cores; sharding is exact
 (chi-squared is additive over segments), so more shards only buy speed.
 
@@ -262,7 +262,7 @@ States: build phase `PIN_CHECK AUDIT REPRODUCE SPEC_CHECK SCALE_ANCHOR SEED_CHAN
 INIT RECALL` (section 2 prerequisites and "First fits": AUDIT runs the machine checks and then, on a new campaign, writes the
 three subagent audit prompts (section 3b) and WAITS for their verified FINDINGS.md -- decision `audit-subagents`, 'done' or
 'skip', `pre_authorized.skip_subagent_audits` for fixtures; rows left 'decision' become one wait decision each (2026-11-10:
-12C+p demo 1 had fitted a lab-frame error for an hour before the idle-time data audit found it); the archived
+a from-scratch demo had fitted a lab-frame error for an hour before the idle-time data audit found it); the archived
 chiSquared.out must reproduce, the spec's data-set roles are applied to a working copy `<stem>_drive.azr`, free widths at exactly zero are seeded at `model.seed_frac` (0.01) gamma_W,
 ENSDF states of the residual nuclei that open below the window top without a pair are listed, `candidates.json` is built
 from ENSDF broad-first when absent -- every candidate needs a `hypothesis`; RECALL (2026-11-09, `structure.recall_levels`)
@@ -280,7 +280,7 @@ released to convergence in rounds of `restart_nfev` (0 = `polish_nfev`), plus th
 `crossover` moves from the best member with every other as donor, each pattern polished, the winner polished to convergence
 -- judged on polished objectives only; an improvement is a new basin and SIGN_POST finishes its last signs; a round gaining
 less than `population_gain_rel_min` switches the stage off until a structure change (`population_rounds_max` caps it).  Why
-(7Be benchmark 2026-11-08, bench readme): the sign rounds left a basin 13.5 % above the reference, sign distance 17; the
+(a development benchmark): the sign rounds left a basin 13.5 % above the reference, sign distance 17; the
 reference's 17-flip pattern starts at three times the incumbent's objective and polishes down to it, while no single, pair,
 channel or group flip gained more than 2.6 even with a 600-evaluation polish -- local proposals do not cross basins, a
 population of polished basins and crossover between them does (six restarts + one pass: 6002.6 -> 5325.7); the structure
@@ -448,10 +448,10 @@ and the SAMPLED band from `band_draws` posterior draws, percentiles 2.5/16/50/84
 the objective's own penalties.  BOUNDS (2026-11-12): the chains run inside the campaign's theta^2 box -- every sampled
 particle amplitude at |gamma| <= sqrt(cap) gamma_W with the policy's cap for its level (`bounds: "policy"`, the default;
 NUTS on x = c + h tanh(u) with the Jacobian, draws stored in x, the metric in u from the Hessian of -log p(u) at the
-mode -- not the Laplace / (dx/du)^2, which froze the d+t chains, a queue job), because the data alone need not bound a background
-pole: on d+t with no box width_2_2 left its Wigner limit in 67 % of the draws and emcee's acceptance fell to 0.11
+mode -- not the Laplace / (dx/du)^2, which froze the chains of a validation run), because the data alone need not bound a background
+pole: in one validation with no box an amplitude left its Wigner limit in two thirds of the draws and emcee's acceptance fell to 0.11
 (an archived campaign).  `bounds: "none"` lifts it; `theta2_cap` gives one cap to a bare .azr + .sav that has no policy.  The
-box is the campaign's (the polish ran in it); a different prior on an amplitude is the evaluator's.  RE-RUN GUARDS (2026-11-14): no automatic re-run when split R-hat > `rerun_rhat_max` (1.5) or when the re-run would exceed `rerun_max_hours` (12, estimated as extend_factor x the attempt's wall time) -- the stage reports FAIL with the reason and the drive asks `uq-gates`; each chain prints its rate and hours left after 100 draws (7Be pert4 leg, 2026-11-13: R-hat 2, attempt 2 would have taken ~60 h).  Read it as: half-width / linear sigma near 1 and a small median offset = the linear band
+box is the campaign's (the polish ran in it); a different prior on an amplitude is the evaluator's.  RE-RUN GUARDS (2026-11-14): no automatic re-run when split R-hat > `rerun_rhat_max` (1.5) or when the re-run would exceed `rerun_max_hours` (12, estimated as extend_factor x the attempt's wall time) -- the stage reports FAIL with the reason and the drive asks `uq-gates`; each chain prints its rate and hours left after 100 draws (a run with R-hat 2 whose second attempt would have taken ~60 h).  Read it as: half-width / linear sigma near 1 and a small median offset = the linear band
 is adequate there; a ratio well above 1 or an offset of a sigma = the posterior is skewed along a direction the Jacobian
 misses (a saturating width, a sign-ambiguous amplitude).  Everything is conditional on the model and the spec's data
 decisions.  Cost: a gradient is ~2 objective evaluations; 7Be (195 free) ~25-50 gradients per draw.  Pitfalls: a script
@@ -462,7 +462,7 @@ extrapolation session with the campaign's flags itself.  Validation: section 7.
 ## 4. Judging results
 
 - Acceptance thresholds scale with s^2 = objective / N because errors are
-  underestimated (s^2 ~ 15-20 on 13C+a). A flip needs a verified gain
+  underestimated (s^2 ~ 15-20 on a large model). A flip needs a verified gain
   >= max(0.1% obj, 5 s^2 ln N) *beyond the control polish of the incumbent* (the
   incumbent keeps improving on its own by hundreds per polish; flips are credited only
   with what they gain beyond that). A level needs >= max(s^2 k ln N, 0.2% obj), theta^2
@@ -598,8 +598,8 @@ Still true (limits):
   (`ps -eo pid,cmd | grep -F "11B+a_udr.azr"`), kill BY PID, confirm with `kill -0 <pid>` failing, only then remove the log;
   launch background programs with `< /dev/null` and a size cap.  **When a batch of jobs dies at once, `df -h <group filesystem>`
 - **`init --sav` and FIXED parameters (2026-11-10)**: AZURE2's parameter-file reader sets every parameter it names, fixed level energies and widths included; rmfit seeds only the free ones and evaluates the .azr's fixed values.  The archive uses both readings: a CLI fit's `param.sav` holds the fixed values the fit ran with, a script-built base means the .azr and seeds from a stale .sav.  So init now logs every disagreement with the objective both ways and keeps the .azr's values by default; `--sav-fixed apply` (a CLI fit) writes `<stem>_sav.azr` (+ .sav) with the file applied and makes it the base (`Campaign.apply_sav_fixed`, test `tests/test_init_sav_fixed_13n.py`).  Keep the archived `chiSquared.out` in the base's output directory so init's reproduce check runs (bench: `chisq_out`).
-- **REVIEW's HIGH flags and the drive (2026-11-10)**: the init baseline is reviewed once (`REVIEW_baseline.md`); a HIGH flag the base model already carried is reported, not waited on; a flag answered 'continue' is not asked again (`drive_state` `review_continued`).  A flag the evaluator's own model carries (the 10B+p 1 MeV 5/2+ pole, the evaluator's 'no extra levels') still queues `review-high` when the start did not have it: the spec cannot tell the drive that a standing decision answers it, so answer with the evidence.
-- **Close same-J^pi pairs: a report, not a constraint (2026-11-12)**: `review` flags two levels of one J^pi whose gap is below a fraction of the NARROWER total width (MEDIUM `level-close-width`, section "Close same-J^pi pairs"; default 10 %, `review.CLOSE_GAP_FRACTION`; `rmfit <dir> review --close-fraction f`, `python -m rmfit.review <azr> --close-fraction f`, spec budget `"close_fraction"`; 0 = off).  Nothing in rmfit enforces a minimum spacing: a centroid-plus-bounded-gap reparametrization would be a model constraint and its scale is the evaluator's to choose (not chosen as of 2026-11-12), and MEDIUM does not make the drive wait.  The flag is a question, never a verdict: on 13C+a it marks the 7/2+ pair at 10.42 MeV (gap 1 keV, widths 240 and 280 keV), which the evaluator's merge tests on the main line found NOT redundant (the (a,n2g) data need both, an archived campaign).  The test of a flagged pair has two halves: a merged refit, AND a refit of the pair started from the merged solution (an archived campaign, `11-12-26_split72`); a merged model that only wins against a two-level fit stuck in a worse minimum proves nothing.
+- **REVIEW's HIGH flags and the drive (2026-11-10)**: the init baseline is reviewed once (`REVIEW_baseline.md`); a HIGH flag the base model already carried is reported, not waited on; a flag answered 'continue' is not asked again (`drive_state` `review_continued`).  A flag the evaluator's own model carries (a broad pole the evaluator kept, with 'no extra levels' a standing decision) still queues `review-high` when the start did not have it: the spec cannot tell the drive that a standing decision answers it, so answer with the evidence.
+- **Close same-J^pi pairs: a report, not a constraint (2026-11-12)**: `review` flags two levels of one J^pi whose gap is below a fraction of the NARROWER total width (MEDIUM `level-close-width`, section "Close same-J^pi pairs"; default 10 %, `review.CLOSE_GAP_FRACTION`; `rmfit <dir> review --close-fraction f`, `python -m rmfit.review <azr> --close-fraction f`, spec budget `"close_fraction"`; 0 = off).  Nothing in rmfit enforces a minimum spacing: a centroid-plus-bounded-gap reparametrization would be a model constraint and its scale is the evaluator's to choose (not chosen as of 2026-11-12), and MEDIUM does not make the drive wait.  The flag is a question, never a verdict: it has marked a same-J^pi pair 1 keV apart with widths of 240 and 280 keV that merge tests found NOT redundant (one data set needs both).  The test of a flagged pair has two halves: a merged refit, AND a refit of the pair started from the merged solution (both from the same start); a merged model that only wins against a two-level fit stuck in a worse minimum proves nothing.
 - **Park-mode campaigns (`"use_park": true`)**: (1) the J > 0 wall is carried as residual rows since 2026-10-24
   (`engine.ParkWall`, test `tests/test_park_wall_13n.py`; check `m.park_norms(x)` on any older Park result); (2) `--sav` seeds
   are applied by NAME with no basis conversion -- convert a Brune `.sav` through a CLI mode-1 run in Park mode first;

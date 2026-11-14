@@ -62,7 +62,7 @@ def _weighted_median(values, weights) -> float:
 
 def cluster_width(runs: Sequence[dict], min_energies: int = 3, max_cover: float = 0.5) -> dict:
     """The width the residual structure itself shows, before any template is
-    tried (2026-09-24, the evaluator: the 13C+a high-Ex window turned out to hold
+    tried (2026-09-24: a high-energy window turned out to hold
     600 keV - 2 MeV levels while the screen sampled 1.5-50 keV and sat at the
     top of its grid 95 times out of 120).
 
@@ -416,8 +416,8 @@ def _patterns(n: int, max_signs: int, seed: int = 0, priors: Sequence[dict] = ()
       model, which is the only real information available about how that group
       distributes strength.  This is the family that matters: a single-channel
       or equal-split guess cannot represent a level spread unevenly over four
-      or five channels, and on 13C+alpha that is exactly why the accepted
-      5/2+ 10.55 MeV level (five channels, 40:1 spread, mixed signs) scored
+      or five channels, and that is exactly why an accepted
+      level (five channels, 40:1 spread, mixed signs) scored
       nothing in the first gate run.
     * ``dominant`` -- one channel takes a fraction ``f``, the rest share the
       remainder; covers a level whose strength sits mostly in one wave.
@@ -426,7 +426,7 @@ def _patterns(n: int, max_signs: int, seed: int = 0, priors: Sequence[dict] = ()
     * ``pair`` (2026-09-21) -- TWO channels share everything (50/50, 70/30, 30/70, both relative
       signs), over the pairs among the ``pair_top`` channels with the largest ``weights`` (the
       Wigner widths of the carrying channels, i.e. the channels that can physically carry
-      width) plus any channel a prior puts >= 10% on.  13C+alpha J^pi study, 9/2+ 11.07 MeV:
+      width) plus any channel a prior puts >= 10% on.  In one J^pi study a level carried
       44% n0 g-wave + 56% n2 p-wave and nothing else -- no single-channel, dominant-plus-tail
       or prior template came close (the nearest prior put 23% into alpha0 L5, which the elastic
       data reject), the screen scored the level's own J^pi at +2,724 of a 33,979 removal while
@@ -491,8 +491,8 @@ def _patterns(n: int, max_signs: int, seed: int = 0, priors: Sequence[dict] = ()
                     sg = [0] * n; sg[a] = 1; sg[b] = sb
                     pats.append((tuple(f), tuple(sg), f"pair {a}+{b} {fa:.0%}/{fb:.0%}"))
     if n >= 2:
-        # 2026-11-06 (10B+a (an archived campaign)): never materialise all 2^n sign vectors -- at n = 30-31 channels the
-        # list is 300-650 GB and the job is OOM-killed (10B+a step 4 3- at 14.63, step 5 2+ / 3- at 15.27).  Draw the
+        # 2026-11-06: never materialise all 2^n sign vectors -- at n = 30-31 channels the
+        # list is 300-650 GB and the job is OOM-killed.  Draw the
         # same indices as before (rng.choice on the integer 2^n) and decode index i into itertools.product((1, -1),
         # repeat=n) order (bit n-1-k of i set -> sign -1 at position k): identical templates, O(max_signs) memory.
         nall = 2 ** n
@@ -535,7 +535,7 @@ def carrying_channels(gamma_w_ev: Sequence[float], gamma_w_amp: Sequence[float],
     zeroing), *dead* = open in principle but unable to hold ``dead_channel_ev`` even at the Wigner
     limit (high L, barely above threshold), *closed* = no Wigner width at all.
 
-    2026-09-20: until now every channel with Gamma_W > 0 entered the templates.  On 13C+a an
+    2026-09-20: until now every channel with Gamma_W > 0 entered the templates.  On one model an
     "equal split" of 10 keV over 15 channels put 667 eV into five channels with Gamma_W of 0.4 eV
     .. 1e-15 eV (theta^2 1e3 .. 1e17); the screen evaluates templates frozen and uncapped, and
     reported a 7/2+ worth +1,693 that the honest add could not find (+28)."""
@@ -575,7 +575,7 @@ def template_screen(ev: Evaluator, x_inc, variant: dict, gamma_total_ev: float,
     the ``gn_top`` best.  ``x_inc`` is the incumbent mapped onto ``ev.keys``
     (dummy-level amplitudes zero).  Returns rows sorted by the GN objective.
 
-    Two stages (2026-09-14, after 13C+a at 9.862 MeV cost 16,668 patterns and
+    Two stages (2026-09-14, after one candidate cost tens of thousands of patterns and
     4 h): every partition x sign pattern is first evaluated at ``stage_scales``
     only and at the candidate energy itself; the ``refine_top`` best SHAPES per
     J^pi are then evaluated at every scale in ``scales`` and every energy
@@ -627,7 +627,7 @@ def template_screen(ev: Evaluator, x_inc, variant: dict, gamma_total_ev: float,
         photon_idx = [i for i, k in enumerate(amp_keys) if is_photon_key(k)]
         # Amplitude for a physical width Gamma_c.  Until 2026-09-14 this was
         # |x0| sqrt(Gamma_c / Gamma_ref): the rwa the engine derived from the
-        # variant's 1 eV reference width.  On 13C+alpha that derivation goes
+        # variant's 1 eV reference width.  In a dense model that derivation goes
         # through a Brune transform that FAILS for a 1 eV level inside a group of
         # keV-wide neighbours ("Denominator less than zero", once per dummy) and
         # returns an rwa ~2,400x too small -- every template of every group was
@@ -763,8 +763,8 @@ def template_screen(ev: Evaluator, x_inc, variant: dict, gamma_total_ev: float,
     if score_keys:
         # The total objective barely distinguishes J^pi: angle-integrated and total
         # cross sections only care that strength sits at the right energy, so a
-        # wrong-J^pi level scores as well as the right one (13C+a Case A: a new
-        # 11/2- won by 181k on a model 1.5M from its optimum).  Re-rank the GN'd
+        # wrong-J^pi level scores as well as the right one (a new
+        # level won by a wide margin on a model far from its optimum).  Re-rank the GN'd
         # candidates on the DIFFERENTIAL segments near the candidate energy, which
         # is the shape information that actually carries J^pi.
         keys = [int(k) for k in score_keys]

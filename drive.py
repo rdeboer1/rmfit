@@ -64,7 +64,7 @@ DEFAULT_STOP = dict(polish_gain_rel_min=5e-4, sign_rounds_without_accept=2, leve
                     cycle_gain_rel_min=1e-3, population_gain_rel_min=1e-3, dataset_off_extra_pct=5.0, reproduce_rtol=1e-3,
                     # sign rounds only after the polish converged (skill section 3, step 1 "when done" before step 2): a flip
                     # is credited with what it gains beyond the control polish, and an unconverged incumbent moves by more
-                    # than any flip (7Be benchmark attempt 2, 2026-11-08: 18 sign rounds, 0 accepted, while the polishes
+                    # than any flip (in one benchmark 18 sign rounds accepted nothing while the polishes
                     # still gained 1-2 % per round).  0 disables the gate.
                     sign_after_converged_polish=1)
 
@@ -629,7 +629,7 @@ class Driver:
             except KeyError as err:
                 rows.append(f"{f}: no matching segment ({err})")
         if self.spec.pre_authorized.get("shifts_free", False) is True:
-            # 2026-11-10 (12C+p L3 demo 2): SHIFTS_FREE polished "223352 -> 223352 in 7 evaluations" because the base varied no
+            # 2026-11-10: SHIFTS_FREE once polished in 7 evaluations without any change because the base varied no
             # shift, so no shift key existed; a shift is a parameter only when its segment line varies it (BoundsPolicy fixes
             # it until SHIFTS_FREE).  Every active segment with a shift uncertainty gets varyShift on here.
             nsh = _vary_shifts_with_error(mdl)
@@ -946,7 +946,7 @@ class Driver:
         n = int(self.counters.get("polish_rounds", 0))
         if self.state.get("cycle_start_objective") is None:
             # a campaign that existed before the drive (perturb sibling, retrofit) never passed INIT: the cycle's
-            # start is its incumbent when the loop phase begins (7Be benchmark 2026-11-08: CYCLE saw 0 % and stopped)
+            # start is its incumbent when the loop phase begins (a benchmark run's CYCLE saw 0 % and stopped)
             self.state["cycle_start_objective"] = self._incumbent_obj()
             self.state.setdefault("baseline_objective", self.state["cycle_start_objective"])
             self.save()
@@ -971,7 +971,7 @@ class Driver:
         """stop_rules.sign_after_converged_polish: SIGN and POPULATION wait for a converged TIGHTEN.  Returns the deferral note,
         or None when the stage runs: the polish converged, the gate is off, this is the last cycle (budget.cycles_max -- there is
         no next cycle to defer to), or the stage was already deferred once in this campaign (a polish that did not converge in
-        polish_rounds_max rounds twice will not in a third: 12C+p L3 demo 3, 2026-11-10, 162 free parameters, 6 x 300 evaluations
+        polish_rounds_max rounds twice will not in a third: a from-scratch demo with 162 free parameters, 6 x 300 evaluations
         still gaining 10 % per round, every cycle deferred both stages and the drive would have ended with no sign round; the
         13N end-to-end test with its seeded channels and cycles_max 1 never reached POPULATION).  The stage then runs on the
         unconverged incumbent and the readme says so: the cure is a larger budget.polish_nfev / polish_rounds_max."""
@@ -1022,9 +1022,9 @@ class Driver:
         return self._sign_state("sign_post")
 
     def _s_population(self):
-        """Restarts + crossover (Campaign.run_population), the basin-crossing stage.  7Be benchmark 2026-11-08: the drive's
-        sign rounds left a 6002 basin 13.5 % above the reference (no single/pair/channel/group flip pays, even with a long
-        polish), six polished restarts + one crossover pass reached 5326.  Runs once per cycle after the sign rounds, on a
+        """Restarts + crossover (Campaign.run_population), the basin-crossing stage.  In a benchmark the drive's
+        sign rounds left a basin 13.5 % above the reference (no single/pair/channel/group flip pays, even with a long
+        polish), six polished restarts + one crossover pass came within 0.7 % of it.  Runs once per cycle after the sign rounds, on a
         converged polish only, until budget.population_rounds_max or a round that gains < stop_rules.population_gain_rel_min
         (then skipped until a structure change).  An improvement is a new basin: SIGN_POST finishes its last signs."""
         c = self.campaign
@@ -1230,8 +1230,8 @@ class Driver:
 
     def _baseline_review_flags(self):
         """HIGH flags of the init baseline (candidate 1, reviewed once into REVIEW_baseline.md): a flag the base model
-        already carried is the evaluator's (10B+p tier-2 bench 2026-11-10: the 1 MeV wide 5/2+ pole spanning five
-        unfitted peaks is the evaluator's final model, with 'no extra levels' a standing decision), so the drive reports it
+        already carried is the evaluator's (e.g. a broad pole spanning several
+        unfitted peaks in the evaluator's final model, with 'no extra levels' a standing decision), so the drive reports it
         but waits only on a NEW one.  Keyed as the bench does: (code, message up to the first colon)."""
         c = self.campaign
         if self.state.get("baseline_review") is None:

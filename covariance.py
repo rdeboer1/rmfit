@@ -30,8 +30,8 @@ or a reference-free session reports) is ``Covariance.chi2_self``.
 data-unit model times the data normalization there), and the relvector terms use ``ref / n`` with ``n``
 each row's CURRENT normalization.  With a data-unit reference, raising a free norm shrank every residual's
 shape part as 1/n while the overall miss lay along the reference relvector directions at fixed variance:
-13C+a refit_from_cut ran the ND2021r norm 0.63 -> 3.08 (stopped only by its 4.9 % prior), objective
-756,475 vs a self-consistent chi2 958,730.  Now the variances scale like the residuals; the factors are
+one large model ran a norm from 0.63 to 3.08 (stopped only by its prior), its objective
+a quarter below its self-consistent chi2.  Now the variances scale like the residuals; the factors are
 rebuilt when a norm moves, and the norm columns of the Jacobian carry ``d(W)/dn y``
 (``CovGroup.dwhiten_dnorm``, exact).  The first-evaluation freeze without a reference is unchanged (engine).
 
@@ -735,7 +735,7 @@ class Covariance:
         """Fix every relvector group's reference CROSS SECTION (model x normalization, see :meth:`frozen_models`),
         matched by covariance file name and file row.  Every fitted row must be in the reference.  A reference
         without normalizations (written before 2026-10-26, data-unit model only) is refused: with it a free
-        normalization could shrink the residuals at no cost (13C+a refit_from_cut, ND2021r norm 0.63 -> 3.08)."""
+        normalization could shrink the residuals at no cost (a norm once ran up fivefold)."""
         for g in self.groups:
             if not g.relative:
                 continue

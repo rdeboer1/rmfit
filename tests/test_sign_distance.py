@@ -105,7 +105,7 @@ if len(sys.argv) > 1:
         a = sign_distance(x1, x2, keys)[0]; b = old.sign_distance(x1, x2, keys)[0]
         if a != b: dis.append((t, a, b))
     check("== old enumeration on 200 untied instances (<= 10 pairs)", not dis, str(dis[:5]))
-# 5. speed at 19F+alpha size: 27 pairs, 60 levels, ~600 amplitudes, ties
+# 5. speed at a large model's size: 27 pairs, 60 levels, ~600 amplitudes, ties
 keys, fixed, x1, x2 = instance(rng, 60, 27, p_amp=0.37, nfix=12)
 t0 = time.time(); d, diff = sign_distance(x1, x2, keys, fixed); dt = time.time() - t0
 check(f"27 pairs / {sum(k.kind=='width' for k in keys)} amplitudes: {dt:.2f} s (distance {d})", dt < 30 and valid(x1, x2, keys, fixed, diff))

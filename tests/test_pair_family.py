@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The two-channel ('pair') template family (2026-09-21): the 13C+a 9/2+ 11.07 MeV case."""
+"""The two-channel ('pair') template family (2026-09-21): a level carried by two channels."""
 import os, sys
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, os.path.normpath(os.path.join(HERE, "..", "..")))
 import numpy as np

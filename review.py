@@ -4,7 +4,7 @@ What the evaluator catches by looking at the AZURE2 GUI, as detectors on the per
 
 - per-point summary in the archive's wording (fraction within 1 and 2 sigma, median |r|, how many points carry
   half of the chi-squared and where they sit) and the top chi-squared carriers;
-- normalizations that moved AWAY from the data/fit mismatch of their own segment (10B+a ND5U25: norm 1.32 at
+- normalizations that moved AWAY from the data/fit mismatch of their own segment (e.g. a norm of 1.32 at
   median fit/data 0.64), fixed norms the data would move, and an optimal scale that trends with angle or energy
   inside one experiment (a shape problem dressed as a scale);
 - residual runs: consecutive points on one side of the fit (bumpiness, a missing level, a wrong width);
@@ -369,7 +369,7 @@ def levels_from_evaluator(ev, x) -> List[Level]:
                 continue
             if gw is not None and gw.get(j, 0.0) <= 0:
                 continue                       # closed channel: the value is an ANC (fm^-1/2), not a width
-            if abs(phys[j]) > 1e8:             # 100 MeV: not a width whatever the engine says (10B+a s5 2- 14.708, 3 keV below d1)
+            if abs(phys[j]) > 1e8:             # 100 MeV: not a width whatever the engine says (seen for a level 3 keV below a threshold)
                 continue
             gam[k.level] = gam.get(k.level, 0.0) + abs(float(phys[j]))
     except Exception:
@@ -446,8 +446,8 @@ def _share_count(chi2_sorted_desc, share):
 # -- the review ------------------------------------------------------------------------------------------------
 
 # Width-tied closeness of two same-J^pi levels: a gap below this fraction of the NARROWER total width makes the pair a
-# merge candidate for the evaluator (report only; nothing in rmfit enforces a spacing).  Origin: 13C+a 2026-11-08, the
-# 7/2+ pair at 10.42 MeV (gap 1 keV, widths ~220 keV); the 10 % is the scale proposed then and is the evaluator's to
+# merge candidate for the evaluator (report only; nothing in rmfit enforces a spacing).  Origin (2026-11-08):
+# a same-J^pi pair 1 keV apart with widths ~220 keV; the 10 % is the scale proposed then and is the evaluator's to
 # change (rmfit review --close-fraction, spec budget "close_fraction"; 0 switches the check off).  Known-level check of
 # the criterion: it flags that pair, and the evaluator's merge tests on the main line found the pair NOT redundant (the
 # (a,n2g) data need both, an archived campaign) -- so the flag is a question, never a verdict.
@@ -835,7 +835,7 @@ class Review:
                          f"(Ex {', '.join(f'{c['ex']:.3f}' for c in inside[:8])}{'...' if len(inside) > 8 else ''}) -- a broad pole fitting "
                          f"the average of narrow resonances", "each peak seen in >= 2 detectors with the fit > 2 sigma low at its top")
 
-    # ---- 6b. zigzag in the calculated curve (11B+a 8-27-26 "bumpiness": a saw-tooth over a narrow resonance) ------
+    # ---- 6b. zigzag in the calculated curve ("bumpiness": a saw-tooth over a narrow resonance) ------
     def fit_zigzag(self, min_steps: int = 4, min_rel: float = 0.005):
         t = self.tab
         found = []
@@ -930,7 +930,7 @@ class Review:
             if g > 0 and np.isfinite(sp) and g < 0.5 * sp and sel.sum() > 0:
                 nflag += 1
                 # a level under 2 % of the point spacing is a delta function on the data grid: it acts on the objective
-                # only through the integration (17O+a an2: 13 eV and 0.8 eV against 1.5-2 keV spacing)
+                # only through the integration (levels of 13 eV and 0.8 eV against 1.5-2 keV spacing)
                 sev = "MEDIUM" if g < 0.02 * sp else "LOW"
                 self.add(sev, "level-below-resolution",
                          f"{lv.label}: {'under 2 % of' if sev == 'MEDIUM' else 'narrower than half'} the local data spacing ({1e3*sp:.1f} keV)" +
@@ -1136,7 +1136,7 @@ def review_campaign(campaign, grid_check: bool = False, figures: int = 6, top: i
                 if abs(rel) > 0.01:
                     rv.add("HIGH", "grid-exploited", f"the objective moves by {100*rel:+.1f} % on a converged target-integration grid "
                            f"({sc.objective:.1f} -> {sc2.objective:.1f}) -- narrow levels are living on the integration grid, not on the data "
-                           f"(17O+a an2 2026-10: 7,347 -> 14,698)", "re-fit at the converged grid before reporting any number")
+                           f"(seen once: the objective doubled)", "re-fit at the converged grid before reporting any number")
                 elif abs(rel) > 0.002:
                     rv.add("MEDIUM", "grid-sensitive", f"the objective moves by {100*rel:+.2f} % on a converged target-integration grid",
                            f"{sc.objective:.1f} -> {sc2.objective:.1f}; acceptable for screening, not for a reported fit")

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The 'unphysical' gate in structure.classify (2026-09-16).
 
-On the 13C+a high-Ex window a 9/2- (+222k) and a 7/2- (+320k) were accepted with
+In one high-energy window two levels were accepted with large gains, with
 channels sitting exactly ON the theta^2 cap and the rest collapsed to ~1e-35; their
 Brune transformation failed and the model could not be baked.  The blowup test
 fires only ABOVE the cap.  A level whose released polish leaves any of its width

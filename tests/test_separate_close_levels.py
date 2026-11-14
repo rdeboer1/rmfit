@@ -34,7 +34,7 @@ def main():
         nonlocal ok
         print(f"  {'ok  ' if cond else 'FAIL'}  {name}" + ("" if cond else f"  -- {detail}")); ok &= bool(cond)
 
-    # 1. the 13C+a case: a ~6 MeV level 0.5 keV BELOW a ~0.6 MeV level -> the broad one moves down to 2.5 keV
+    # 1. a ~6 MeV level 0.5 keV BELOW a ~0.6 MeV level -> the broad one moves down to 2.5 keV
     ev, x = make(11.4760, 11.4765, 6.0e6, 6.0e5)
     y, moved, refused = separate_close_levels(ev, x)
     check("one level moved, nothing refused", len(moved) == 1 and not refused, f"{moved} {refused}")

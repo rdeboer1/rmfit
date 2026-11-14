@@ -1,6 +1,6 @@
 """Unit check of the flip_floor filter (search.py, 2026-09-16): a flip whose FROZEN response
-is numerical noise must not take a staged-polish slot.  Numbers measured on the real 13C+a
-9/2+ 10.909 MeV round: the six excluded flips are amplitudes in particle pairs that no active
+is numerical noise must not take a staged-polish slot.  Numbers measured on a real
+sign round: the six excluded flips are amplitudes in particle pairs that no active
 data segment observes (pairs 4, 6 here) or high-L channels of the new level -- one of them,
 g[9/2+#6 p4 L4 S0.5], has theta^2 = 0.98 and still moves the objective by only 0.24, which is
 why an amplitude-size threshold (sign_eps) cannot catch them.  No fit, no engine: runs in ms."""

@@ -154,7 +154,7 @@ def omitted_open_channels(existing, named, energy: float, seed_ev: float = 1.0,
     ``margin * dead_channel_ev`` (computed OFFLINE with pyazr's penetrability, so nothing
     returned here is anywhere near the ``Gamma_W < dead_channel_ev`` rule by which
     ``run_level_add`` zeroes a channel through its bounds -- an exactly-zero FREE amplitude
-    does not survive bake's write/re-read; 13C+a 2026-09-18, two keys lost).  Each comes
+    does not survive bake's write/re-read; two keys were once lost).  Each comes
     back free with a tiny seed ``min(seed_ev, 1% of Gamma_W)`` (theta^2 <= 0.01): enough to
     leave the zero stationary point, not a guess at the strength."""
     from pyazr.transform import penetrability, HBARC, UCONV
@@ -195,7 +195,7 @@ def effective_k(params: Sequence[dict], seeded, frac: float = 0.01, theta2_floor
     width is >= ``frac`` of the level's summed width, or its theta^2 >= ``theta2_floor``.  (A
     theta^2 floor alone would be wrong: the seed is min(1 eV, 1% Gamma_W), so on a channel with
     Gamma_W = 6 MeV a final 5 keV is theta^2 ~ 1e-3 and still dominates a narrow level.)
-    Counting all ~22 seeded channels put tau at ~18k on 13C+a, above every level accepted in
+    Counting all ~22 seeded channels put tau above every level accepted in
     the low-energy campaign that month, although most of them end where they were seeded.
     With nothing seeded, k_effective == k_all == the old k_new."""
     seeded = {(int(a), int(b), round(float(c), 3)) for a, b, c in seeded}
@@ -334,14 +334,14 @@ def split_evidence(new_energy: float, new_gamma_ev: float, neighbours: Sequence[
     * and it is within ``max_sep_kev`` (default 1 MeV) of the new level.  2026-10-16: a 50 MeV background
       pole has a "physical width" of tens of MeV at the reference energy, so the overlap test called it
       unresolved from 40 MeV away and its 7.7 MeV of re-shuffled width passed the transfer test: the
-      13C+a recall test (10-15-26_recall) labelled the re-added 3/2+ 8.073 (82 keV, +228,660 vs control)
-      "splits" of the 3/2+ pole at 50 MeV, and the 9/2+ 10.33 add likewise named the 9/2+ 50 MeV pole.
+      recall test labelled a re-added broad level a
+      "split" of a background pole at 50 MeV, and another add likewise named its group's background pole.
       The caller also leaves out levels at or above the campaign's background energy.
 
-    Overlap alone is not enough -- broad same-J^pi levels legitimately overlap (13C+a: the 360 keV
-    5/2- at 10.886 sits 54 keV from the 5/2- 10.940 and was worth 13.9k).  13C+a 2026-09-21: a
-    1/2- added at 9.8637 (11.1 keV) 5.6 keV from the 44 keV 1/2- 9.8693, which gave up 7.6 keV; 96%
-    of the +1,230 came from one 1-keV-step dataset.  One lineshape described by two levels.
+    Overlap alone is not enough -- broad same-J^pi levels legitimately overlap (a 360 keV
+    level 54 keV from a same-J^pi neighbour was clearly real).  2026-09-21: a
+    level added 5.6 keV from a 44 keV level of the same J^pi, which gave up most of its width; 96%
+    of the gain came from one 1-keV-step dataset.  One lineshape described by two levels.
     Returns the NEAREST partner as ``{label, sep_kev, lost_ev, lost_frac}`` or ``None``."""
     if not new_gamma_ev or new_gamma_ev <= 0:
         return None
@@ -366,8 +366,8 @@ def classify(before_obj, after_obj, level_theta2: Dict[str, float], moved_energy
              narrow_width_ev: Optional[float] = None, splits: bool = False,
              broad_width_ev: Optional[float] = None) -> str:
     """Outcome of a level test.  ``at_bound``: the new level's width keys that the
-    released polish left ON a bound.  2026-09-16 (13C+a high-Ex window): a 9/2- and
-    then a 7/2- were accepted with +222k / +320k while three or four channels sat
+    released polish left ON a bound.  2026-09-16: two levels
+    were accepted with large gains while three or four channels sat
     exactly at the theta^2 cap (1.0, then 0.5) and the rest had collapsed to ~1e-35 --
     broad absorbers whose Brune transformation fails ("Denominator less than zero"),
     so the model could not even be baked.  The blowup test only fires ABOVE the cap;
@@ -377,8 +377,8 @@ def classify(before_obj, after_obj, level_theta2: Dict[str, float], moved_energy
     if not np.isfinite(after_obj):
         return "crashed"
     # 2026-09-20: theta^2 alone mistakes a NARROW level for a vanished one when the channel's
-    # Wigner limit is large (13C+a: a 7/2+ with max theta^2 5.6e-5 was ~35 eV wide, Gamma_W 0.3-1
-    # MeV, worth +678, and was called "collapse").  When the level's summed physical width is
+    # Wigner limit is large (a level with max theta^2 5.6e-5 was ~35 eV wide, Gamma_W 0.3-1
+    # MeV, and was called "collapse").  When the level's summed physical width is
     # known, "collapse" additionally requires it to be below collapse_width_ev.
     if max(level_theta2.values(), default=0.0) < 1e-4 and (level_gamma_ev is None or level_gamma_ev < collapse_width_ev):
         return "collapse"
@@ -470,7 +470,7 @@ def scan_jpi_on_window(base_azr: str, workdir: str, cand: LevelCandidate, flags:
                     continue
                 n = len(own)
                 # only the first 16 patterns are screened (below): generate those, not all 2^(n-1).  Building the full list
-                # first ran out of memory on 19F+alpha (n ~ 40 seeded amplitudes for a level at 14.45 MeV, where nearly every
+                # first ran out of memory on a model (n ~ 40 seeded amplitudes for one level, where nearly every
                 # channel is open): three drive legs SIGKILLed in this screen, 2026-11-13.  Same patterns, same order.
                 patterns = [[1] * n] if n == 1 else [[1] + [1 if (m >> i) & 1 else -1 for i in range(n - 1)]
                                                     for m in range(min(2 ** (n - 1), 16))]

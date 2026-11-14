@@ -156,8 +156,7 @@ Data covariances, normalization and shift groups (2026-10-22, `covariance.py`). 
   `screening[t<n>]` (`ParamKey.effect`), its prior as a row from `AzrModel.screenings`, bounds [0, inf) as the
   engine's. SingleSession only. Until 2026-11-05 `build_keys` stopped at this kind. Test tests/test_screening_kind.py.
 - levelscan equal-split sign templates (`_patterns`): until 2026-11-06 all 2^n sign vectors were listed before
-  `--max-signs` of them were sampled, so any J^pi with >= ~30 open channels was OOM-killed (300-650 GB at n = 30-31;
-  10B+a step 4 3- at 14.63 MeV, step 5 2+/3- at 15.27 MeV). Now the same indices are drawn from 2^n and decoded:
+  `--max-signs` of them were sampled, so any J^pi with >= ~30 open channels was OOM-killed (300-650 GB at n = 30-31). Now the same indices are drawn from 2^n and decoded:
   identical templates, bounded memory. Test tests/test_patterns_signs_memory.py.
 - Conv pieces are made only for segments without any energy shift: until 2026-10-22 a fixed nonzero shift,
   a `sqrtshift`, `shiftfn` or a shift group's shift was silently dropped on the conv grid line.

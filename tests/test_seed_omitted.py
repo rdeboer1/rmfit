@@ -71,10 +71,10 @@ def main():
         one = LevelCandidate(energy=12.0, channels=[dict(pair=1, L=2, S=0.5, gamma=1000.0)], source="test")
         g = add_level_variant(big, os.path.join(tmp, "g.azr"), one, "5/2+", seed_omitted=True)
         ex = g["seeded_omitted"]; pairs = sorted({c["pair"] for c in ex})
-        print("   13C+a 5/2+ @ 12.0: %d channels seeded, pairs %s, Gamma_W %.3g .. %.3g eV, theta2 max %.2g"
+        print("   large model 5/2+ @ 12.0: %d channels seeded, pairs %s, Gamma_W %.3g .. %.3g eV, theta2 max %.2g"
               % (len(ex), pairs, min(c["wigner_ev"] for c in ex), max(c["wigner_ev"] for c in ex), max(c["gamma"] / c["wigner_ev"] for c in ex)))
-        check("13C+a: inelastic alpha channels (pairs 4, 6, 8) are among the seeded", {4, 6, 8} <= set(pairs), str(pairs))
-        check("13C+a: every seed has theta^2 <= 0.01 and none is near the dead rule",
+        check("large model: inelastic alpha channels (pairs 4, 6, 8) are among the seeded", {4, 6, 8} <= set(pairs), str(pairs))
+        check("large model: every seed has theta^2 <= 0.01 and none is near the dead rule",
               all(c["gamma"] <= 0.01 * c["wigner_ev"] + 1e-12 and c["wigner_ev"] >= 10.0 for c in ex))
         h = add_level_variant(big, os.path.join(tmp, "h.azr"), one, "5/2+")
         check("13C+a: default still leaves one free channel", len(h["channels"]) == 1)

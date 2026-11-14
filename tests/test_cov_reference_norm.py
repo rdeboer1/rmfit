@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """A fixed covariance reference is a CROSS SECTION and its relvector terms follow the data normalization
-(2026-10-26, the evaluator: "build the fix and test it"), after 13C+a refit_from_cut ran the ND2021r norm 0.63 -> 3.08
-against a data-unit reference (objective 756,475, self-consistent chi2 958,730).
+(2026-10-26, the evaluator: "build the fix and test it"), after one large model ran a norm from 0.63 to 3.08
+against a data-unit reference (its objective a quarter below the self-consistent chi2).
 
 Fixture fixtures/relvector_p12c/ngrel.azr (normgroups A, B with free leader norms; covariance with 2 % relvector
 terms; one segment with a fixed norm).  Checks:

@@ -2,7 +2,7 @@
 """init --sav and the file's FIXED parameters (2026-11-10), with the real engine on 13N.
 AZURE2's parameter-file reader sets every parameter it names, fixed level energies and widths included; rmfit's seed took
 only the free values and the sharded evaluator took the fixed ones from the .azr, so an .azr + .sav pair whose fixed values
-disagree was evaluated as a model nobody fitted (10B+p tier-2 bench: 14,082 at init for the archived 5,716; 23 fixed
+disagree was evaluated as a model nobody fitted (a benchmark initialised at more than twice the archived objective; two dozen fixed
 background widths differed by up to 10x) -- while a script-built base means the .azr and uses the .sav as a seed.
 Campaign.apply_sav_fixed: default `ignore` keeps the .azr's fixed values and logs the disagreement with the objective both ways;
 `--sav-fixed apply` writes <stem>_sav.azr (+ .sav) with the file applied and init uses it as the base.

@@ -2,9 +2,9 @@
 nothing is changed; seconds on the login node.  Writes AUDIT.md next to campaign.json (or next to the .azr).
 
 Why (DESIGN.md, findings 2.5 and 3.2-3.5): input errors were found by hand audits or by
-the evaluator, never by the fit -- an EXFOR FLAG column read as errors (3H+d, wrong since April), normErr written as a
-fraction where AZURE2 reads percent (12C+p, penalties 100x too tight), 745 of 1,732 free channels exactly 0 and five
-nominal norms != 1 (13C+a), legacy .sav names silently ignored (6,997 files), absolute output paths writing into the
+the evaluator, never by the fit -- an EXFOR FLAG column read as errors (for months), normErr written as a
+fraction where AZURE2 reads percent (penalties 100x too tight), hundreds of free channels exactly 0 and several
+nominal norms != 1, legacy .sav names silently ignored (thousands of files), absolute output paths writing into the
 archive, <targetInt> lines folding the test segments.  Every check here is one of those, generalized.
 
 Checks (code -> severity):
@@ -242,8 +242,8 @@ def audit_model(azr_path: str, campaign_dir: Optional[str] = None, campaign_cfg:
             out.append(Finding("LOW", "data-duplicates", f"{name}: {int((cnt > 1).sum())} duplicate (E, angle) keys ({int((cnt[cnt > 1] - 1).sum())} extra rows)"))
         if used.sum() < len(d):
             out.append(Finding("INFO", "data-rows-unused", f"{name}: {int(len(d) - used.sum())} of {len(d)} rows outside every active window"))
-        # error pattern: a FLAG column read as percent errors (3H+d Conner, 2026-11-02); implausibly small errors
-        # (13C+a Cierjacks 2026-10-02: a 0.02 % error typo gave those rows the weight of ~15,600 points)
+        # error pattern: a FLAG column read as percent errors; implausibly small errors
+        # (a 0.02 % error typo once gave a few rows the weight of thousands of points)
         if not is_ay:
             with np.errstate(divide="ignore", invalid="ignore"):
                 r = np.abs(U / np.where(V == 0, np.nan, V)) * 100

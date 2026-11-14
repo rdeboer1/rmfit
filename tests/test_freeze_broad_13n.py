@@ -8,8 +8,8 @@ Original docstring: run_level_add must FIT the new level's energy (2026-09-19).
 
 Until this date the added level was written with levelFix = 1 (LevelCandidate.energy_fixed
 defaults to True and levelscan passes True), so the "released" polish never released its
-energy and every level the 13C+a searches added sat at a round number; freeing four of them
-by hand was worth 2,453.  Here: remove the 3/2- 3.5032 MeV level of 13N cleanly, offer it
+energy and every level the searches added sat at a round number; freeing four of them
+by hand gained clearly.  Here: remove the 3/2- 3.5032 MeV level of 13N cleanly, offer it
 back 30 keV too high with its true widths, and require that (a) the adopted structure has a
 FREE energy key for the new level, (b) the released stage moved it toward 3.5032, (c) the
 move is reported, and the verdict is not "relocated" for a move inside the window.

@@ -118,9 +118,16 @@ previous export). `REPORT.md` and `segment_scores` keep the plain per-dataset ch
 whatever the objective. Test: `tests/test_objective_13n.py`.
 
 `init` verifies the baseline (one full-model evaluation), registers the structure, and writes `STATUS.md` and the job
-script `run_crc_rmfit` (an SGE script for a 24-core node; adapt it to your site).  Job mail goes to the address in
-`RMFIT_MAIL` or `"mail"` in `~/.rmfit/site.json` (`rmfit/site.py`); with neither, the script has no `-M` line and SGE
-mails the submitting user.  Re-running `init` keeps an existing configuration unless new values are given.
+script `run_crc_rmfit`.  The scheduler is a site setting (`rmfit/site.py`, `~/.rmfit/site.json` or `$RMFIT_SITE`):
+`"scheduler": "sge"` (the default; a csh script for a 24-core node, written for one SGE site -- adapt it to yours) or
+`"slurm"` (a bash script with `#SBATCH` lines from `slurm_partition`, `slurm_account`, `slurm_time`, `slurm_extra`, the
+campaign's shard count as `--cpus-per-task`, and the site's `setup` lines before Python).  Job mail goes to `RMFIT_MAIL`
+or `"mail"`; with neither, the scheduler mails the submitting user.  Example for a Slurm site:
+
+    {"scheduler": "slurm", "mail": "you@example.org", "slurm_partition": "compute", "slurm_time": "2-00:00:00",
+     "slurm_extra": ["--mem=0"], "setup": ["module load python/3.12 gsl"]}
+
+Re-running `init` keeps an existing configuration unless new values are given.
 
 Policy meanings:
 
@@ -179,7 +186,9 @@ is the evaluator's.  Without a campaign: `python3 -m rmfit.audit <model>.azr --k
 ## 3. The loop
 
 Every step is a job (`qsub -v RMFIT_CMD="..." run_crc_rmfit`, or `-hold_jid <id>` to queue
-behind the previous one). Every step ends by rewriting `STATUS.md` and appending to the
+behind the previous one; on Slurm `sbatch --export=ALL,RMFIT_CMD="..." run_crc_rmfit` and
+`--dependency=afterany:<id>` -- `--export` splits on commas, so JSON options go in a file as `@file`).  The examples
+below use qsub; read sbatch on a Slurm site. Every step ends by rewriting `STATUS.md` and appending to the
 readme; read both before the next step.
 
 | step | command | purpose | when done |
@@ -253,6 +262,10 @@ spec does not answer becomes a `DECISIONS.md` entry.
     python3 -m rmfit.cli <dir> drive --dry-run   # any time: where it is, what comes next, what it waits for (also DRIVE.md)
     python3 -m rmfit.cli <dir> decide D-003 "adopt" --by evaluator; qsub <dir>/run_crc_drive     # after a WAITING leg
     touch <dir>/STOP_DRIVE                       # stop cleanly after the current state
+
+On Slurm the leg asks for `--time` = DRIVE_MAX_MIN + 30 min (the last state and the resubmission); when the site's
+`slurm_time` is shorter, DRIVE_MAX_MIN is shortened to fit and the script says so.  The resubmission runs `sbatch` on the
+compute node; where a site forbids that, resubmit from a login node.
 
 **Build phase** (section 2's prerequisites and "First fits"):
 `PIN_CHECK AUDIT REPRODUCE SPEC_CHECK SCALE_ANCHOR SEED_CHANNELS PAIR_COMPLETENESS LADDER CANDIDATES INIT RECALL`

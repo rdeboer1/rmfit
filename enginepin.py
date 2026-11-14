@@ -151,6 +151,22 @@ def check(recorded, strict=True, log=None):
     return cur, msg
 
 
+def guard_lines_sh(recorded):
+    """The same guard for a bash/sh job script (the Slurm templates)."""
+    if not recorded or not recorded.get("so_md5"):
+        return ("# no engine pin recorded in campaign.json: the shared checkout is used\n"
+                'export AZURE2_ROOT="${AZURE2_ROOT:-$HOME/AZURE2}"\n')
+    root = recorded["azure2_root"]
+    so = recorded.get("so") or "_azure2.cpython-312-x86_64-linux-gnu.so"
+    return (f'export AZURE2_ROOT="{root}"\n'
+            f'export PYAZR_ROOT="$AZURE2_ROOT"\n'
+            f'm=$(md5sum "$AZURE2_ROOT/pyazr/{so}" | cut -c1-32)\n'
+            f'if [ "$m" != "{recorded['so_md5']}" ]; then\n'
+            f'  echo "$(date) ENGINE PIN FAILED: $m != {recorded['so_md5']} ({short(recorded)})"\n'
+            f'  exit 1\n'
+            f'fi\n')
+
+
 def guard_lines_csh(recorded):
     """csh lines for a job script: export the pinned root, verify the .so md5 before Python runs."""
     if not recorded or not recorded.get("so_md5"):

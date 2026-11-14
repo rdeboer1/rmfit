@@ -236,6 +236,41 @@ echo "`date` all done"
 """
 
 
+# the same job for a Slurm site (site.scheduler() == "slurm"; rmfit/site.py): bash, header and setup from the site file
+JOB_SLURM = """#!/bin/bash
+{slurm_header}
+# rmfit bench: case {case} run {run} -- {label}
+# reference campaign {refdir} from {refazr}; start = `rmfit perturb` ({flips} flips, seed {seed}, jitter {jitter}, ekick {ekick},
+# polished {pnfev}); spec {spec}; then `rmfit drive` to DONE / WAITING / STOP.  Score afterwards with
+#   python3 -m rmfit.bench score {casefile} {run}
+{setup_lines}
+export AZURE2_ROOT={azure2_root}
+export PYTHONPATH={rmatrix}:${{AZURE2_ROOT}}
+export OMP_NUM_THREADS=1
+export PYTHONUNBUFFERED=1
+cd {base} || exit 1
+echo "host $(hostname) $(date) job ${{SLURM_JOB_ID:-none}}"
+python3 -c "import rmfit, rmfit.drive, pyazr; print('imports', pyazr.__file__, rmfit.__file__)" || exit 1
+RM="python3 -m rmfit.cli"
+{chisq}if [ ! -e {refdir}/campaign.json ]; then
+  echo "$(date) reference init"
+  $RM {refdir} init --base {refazr} {savarg}{reffixed} --nshards {nshards} {flagsarg} {policyarg} {searcharg} --note "bench {case} reference"
+  if [ $? -ne 0 ]; then
+    echo "$(date) reference init FAILED"; exit 1
+  fi
+fi
+{polish}if [ ! -e {rundir}/campaign.json ]; then
+{startblock}fi
+[ -e {rundir}/spec.json ] || cp {spec} {rundir}/spec.json
+{searchpatch}
+echo "$(date) drive"
+$RM {rundir} drive --max-minutes 0
+echo "$(date) drive exit $?"
+$RM {rundir} drive --dry-run
+echo "$(date) all done"
+"""
+
+
 def write_job(case: dict, run_name: str) -> str:
     sys.path.insert(0, os.path.dirname(os.path.dirname(HERE)))
     from rmfit import site
@@ -260,37 +295,50 @@ def write_job(case: dict, run_name: str) -> str:
         dst = os.path.join(output_dir_of(os.path.join(base, azr)), "chiSquared.out")
         return f"mkdir -p {os.path.dirname(dst)}\ncp -p {os.path.join(base, src)} {dst}\n"
     chisq = chisq_copy(ref, ref["azr"]) + (chisq_copy(start, start["azr"]) if start.get("azr") else "")
+    slurm = site.scheduler() == "slurm"
+    # shell syntax of the generated snippets: csh for the SGE job, bash for the Slurm one
+    DATE = "$(date)" if slurm else "`date`"
+    IF_MISSING = (lambda f: f"if [ ! -e {f} ]; then") if slurm else (lambda f: f"if (! -e {f}) then")
+    END_IF = "fi" if slurm else "endif"
+    LOOP = (lambda n: f"for i in $(seq 1 {n}); do") if slurm else (lambda n: f"foreach i (`seq 1 {n}`)")
+    END_LOOP = "done" if slurm else "end"
+    FAIL_CHECK = ((lambda what: f"  if [ $? -ne 0 ]; then\n    echo \"{DATE} {what} FAILED\"; exit 1\n  fi\n") if slurm else
+                  (lambda what: f"  if ($status != 0) then\n    echo \"{DATE} {what} FAILED\"; exit 1\n  endif\n"))
     polish = ""
     if int(ref.get("polish_rounds") or 0) > 0:
         # a reference that is not a converged fit (a start file, a regression fixture) is polished to convergence first;
         # the marker file keeps a resubmitted job from polishing it again
-        polish = (f"if (! -e {ref['campaign']}/.bench_polished) then\n"
-                  f"  echo \"`date` reference polish ({ref['polish_rounds']} rounds of {ref.get('polish_nfev', 300)})\"\n"
-                  f"  foreach i (`seq 1 {int(ref['polish_rounds'])}`)\n"
+        polish = (f"{IF_MISSING(ref['campaign'] + '/.bench_polished')}\n"
+                  f"  echo \"{DATE} reference polish ({ref['polish_rounds']} rounds of {ref.get('polish_nfev', 300)})\"\n"
+                  f"  {LOOP(int(ref['polish_rounds']))}\n"
                   f"    $RM {ref['campaign']} polish --nfev {int(ref.get('polish_nfev') or 300)} --tighten\n"
-                  f"  end\n"
+                  f"  {END_LOOP}\n"
                   f"  touch {ref['campaign']}/.bench_polished\n"
-                  f"endif\n")
+                  f"{END_IF}\n")
     if start.get("azr"):
         # a degraded start that is a FILE (the archived state before the human's key decision), not a random perturbation
         # of the reference: the run campaign is initialised on it with the reference's engine settings
-        startblock = (f"  echo \"`date` start from {start['azr']}\"\n"
+        startblock = (f"  echo \"{DATE} start from {start['azr']}\"\n"
                       f"  $RM {run['dir']} init --base {start['azr']} {('--sav ' + start['sav']) if start.get('sav') else ''}"
                       f"{(' --sav-fixed ' + start['sav_fixed']) if start.get('sav_fixed') else ''} "
                       f"--nshards {int(ref.get('nshards') or 8)} {jarg('--flags', 'flags')} {jarg('--policy', 'policy')} {jarg('--search', 'search')} "
                       f"--note \"bench {case['name']} start {start['azr']}\"\n"
-                      f"  if ($status != 0) then\n    echo \"`date` start init FAILED\"; exit 1\n  endif\n")
+                      f"{FAIL_CHECK('start init')}")
     else:
-        startblock = (f"  echo \"`date` perturb\"\n"
+        startblock = (f"  echo \"{DATE} perturb\"\n"
                       f"  $RM {ref['campaign']} perturb --out {run['dir']} --flips {start['flips']} --seed {start['seed']} --jitter {start['jitter']} "
                       f"--ekick {start['ekick']} --polish-nfev {start['polish_nfev']}\n"
-                      f"  if ($status != 0) then\n    echo \"`date` perturb FAILED\"; exit 1\n  endif\n")
+                      f"{FAIL_CHECK('perturb')}")
     searchpatch = ""
     if run.get("search"):
         searchpatch = (f"python3 -c \"import json; c=json.load(open('{run['dir']}/campaign.json')); c['search']=json.load(open('{run['search']}')); "
                        f"json.dump(c, open('{run['dir']}/campaign.json','w'), indent=2); print('search ->', c['search'])\"")
     rmatrix = os.path.dirname(os.path.dirname(HERE))
-    text = JOB.format(mail_line=site.mail_line(), slots=int(run.get("slots") or ref.get("nshards") or 8), jobname=f"bench_{case['name']}_{run_name}"[:40],
+    slots = int(run.get("slots") or ref.get("nshards") or 8)
+    jobname = f"bench_{case['name']}_{run_name}"[:40]
+    extra = (dict(slurm_header=site.slurm_header(jobname, slots, f"bench_{run_name}.log", "a"), setup_lines=site.setup_lines())
+             if slurm else dict(mail_line=site.mail_line()))
+    text = (JOB_SLURM if slurm else JOB).format(**extra, slots=slots, jobname=jobname,
                       log=f"bench_{run_name}.log", case=case["name"], run=run_name, label=run.get("label", ""), refdir=ref["campaign"],
                       refazr=ref["azr"], flips=start["flips"], seed=start["seed"], jitter=start["jitter"], ekick=start["ekick"],
                       pnfev=start["polish_nfev"], spec=spec, casefile=case["_path"], azure2_root=ref.get("azure2_root") or os.path.expanduser("~/AZURE2"),
@@ -332,7 +380,8 @@ def main(argv=None):
         path = write_job(case, a.run)
         print("job script:", path)
         if a.submit:
-            out = subprocess.run(["qsub", os.path.basename(path)], cwd=case["_base"], capture_output=True, text=True)
+            from rmfit import site
+            out = subprocess.run([site.submit_cmd(), os.path.basename(path)], cwd=case["_base"], capture_output=True, text=True)
             print(out.stdout.strip(), out.stderr.strip())
         return
     runs = a.runs or [k for k, v in case["runs"].items() if os.path.exists(os.path.join(case["_base"], v["dir"], "ledger.sqlite"))]

@@ -176,13 +176,20 @@ class Campaign:
         path = os.path.join(self.dir, name)
         if os.path.exists(path) and not overwrite:
             return path
-        tpl = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates", "run_crc_rmfit.csh")
+        slurm = site.scheduler() == "slurm"
+        tpl = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates",
+                           "run_slurm_rmfit.sh" if slurm else "run_crc_rmfit.csh")
         with open(tpl) as f:
             text = f.read()
+        jobname = "rmfit_" + self.reaction_name().replace("+", "")
+        if slurm:
+            text = (text.replace("{slurm_header}", site.slurm_header(jobname, int(self.cfg.get("nshards") or 24), "rmfit_slurm.log", "abe"))
+                        .replace("{setup_lines}", site.setup_lines()))
+        guard = enginepin.guard_lines_sh if slurm else enginepin.guard_lines_csh
         text = (text.replace("{mail_line}", site.mail_line())
-                    .replace("{jobname}", "rmfit_" + self.reaction_name().replace("+", ""))
+                    .replace("{jobname}", jobname)
                     .replace("{campaign_dir}", self.dir)
-                    .replace("{engine_guard}", enginepin.guard_lines_csh(self.cfg.get("engine")))
+                    .replace("{engine_guard}", guard(self.cfg.get("engine")))
                     .replace("{pythonpath}", os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
         with open(path, "w") as f:
             f.write(text)

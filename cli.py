@@ -55,6 +55,9 @@ def _json_arg(text):
 
 
 def in_sge_job_env():
+    """Inside a scheduler job: SGE (JOB_ID with a task, PE or slot variable) or Slurm (SLURM_JOB_ID).  Name historical."""
+    if os.environ.get("SLURM_JOB_ID"):
+        return True
     return bool(os.environ.get("JOB_ID")) and bool(os.environ.get("SGE_TASK_ID") or os.environ.get("PE_HOSTFILE") or os.environ.get("NSLOTS"))
 
 
@@ -395,7 +398,9 @@ def main(argv=None):
             su = dict((getattr(c, "spec", None).get("uq") if getattr(c, "spec", None) is not None else None) or {})
             su.update(json.load(open(a.uq)) if a.uq.endswith(".json") and os.path.exists(a.uq) else json.loads(a.uq))
             if not in_sge_job_env() and not os.environ.get("RMFIT_UQ_LOCAL"):
-                print("uq needs the engine for hours: qsub -v RMFIT_CMD=\"uq ...\" run_crc_rmfit (RMFIT_UQ_LOCAL=1 for a fixture test)")
+                from rmfit import site as _site
+                sub = ('sbatch --export=ALL,RMFIT_CMD="uq ..."' if _site.scheduler() == "slurm" else 'qsub -v RMFIT_CMD="uq ..."')
+                print(f"uq needs the engine for hours: {sub} run_crc_rmfit (RMFIT_UQ_LOCAL=1 for a fixture test)")
                 return 2
             st = _uq.run(campaign=c, spec_uq=su, log=c.log, nprocs=a.nprocs, threads=a.threads, stop_after=a.stop_after, reset=a.reset)
             g = st["stages"].get("GATES", {})

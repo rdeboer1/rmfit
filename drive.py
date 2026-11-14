@@ -85,8 +85,15 @@ def _now():
     return time.strftime("%Y-%m-%d %H:%M")
 
 
+def _submit():
+    from . import site
+    return site.submit_cmd()
+
+
 def in_sge_job():
-    return bool(os.environ.get("JOB_ID"))
+    """Inside a scheduler job (SGE or Slurm; the name is historical)."""
+    from . import site
+    return site.in_batch_job()
 
 
 class Driver:
@@ -280,7 +287,7 @@ class Driver:
                     break
                 st = self.state["state"]
                 if st in ENGINE_STATES and not in_sge_job() and not self.local:
-                    raise DriveStop("STOP", f"state {st} needs the engine: refusing the login node (qsub run_crc_drive, or --local "
+                    raise DriveStop("STOP", f"state {st} needs the engine: refusing the login node ({_submit()} run_crc_drive, or --local "
                                             "for a fixture test)")
                 self.step(st)
         except DriveStop as e:
@@ -1446,7 +1453,9 @@ def write_job_script(directory, spec: FitSpec, cfg: Optional[dict], name="run_cr
     path = os.path.join(directory, name)
     if os.path.exists(path) and not overwrite:
         return path
-    tpl = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates", "run_crc_drive.csh")
+    slurm = site.scheduler() == "slurm"
+    tpl = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates",
+                       "run_slurm_drive.sh" if slurm else "run_crc_drive.csh")
     rec = (cfg or {}).get("engine")
     if not rec:
         eng = spec.get("engine") or {}
@@ -1454,13 +1463,23 @@ def write_job_script(directory, spec: FitSpec, cfg: Optional[dict], name="run_cr
     parent = os.path.basename(os.path.dirname(os.path.abspath(directory)))
     reaction = parent if "+" in parent else os.path.basename(os.path.abspath(directory))
     slots = int(spec.get("nshards") or (cfg or {}).get("nshards") or 8)
-    text = (open(tpl).read()
+    text = open(tpl).read()
+    if slurm:
+        leg, tmin = site.drive_leg_minutes(max_minutes)
+        note = "" if leg == int(max_minutes) else (f"# DRIVE_MAX_MIN {int(max_minutes)} shortened to {leg} to fit the site's slurm_time "
+                                                    f"({tmin} min incl. 30 for the last state and the resubmission)")
+        text = (text.replace("{slurm_header}", site.slurm_header("drive_" + reaction.replace("+", ""), slots, "drive_slurm.log",
+                                                               "a", time_minutes=tmin))
+                    .replace("{setup_lines}", site.setup_lines()).replace("{leg_note}", note))
+        max_minutes = leg
+    guard = enginepin.guard_lines_sh if slurm else enginepin.guard_lines_csh
+    text = (text
             .replace("{mail_line}", site.mail_line())
             .replace("{jobname}", "drive_" + reaction.replace("+", ""))
             .replace("{campaign_dir}", os.path.abspath(directory))
             .replace("{slots}", str(slots))
             .replace("{max_minutes}", str(int(max_minutes)))
-            .replace("{engine_guard}", enginepin.guard_lines_csh(rec))
+            .replace("{engine_guard}", guard(rec))
             .replace("{pythonpath}", os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
     with open(path, "w") as fh:
         fh.write(text)

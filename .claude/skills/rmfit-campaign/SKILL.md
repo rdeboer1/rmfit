@@ -5,7 +5,7 @@ description: The rmfit process for global R-matrix fitting with AZURE2 -- start 
 
 # The rmfit process
 
-`rmfit` (this repository, README there) does what an
+`rmfit` (this repository; the module table is in README.md) does what an
 evaluator does by hand -- polish, flip interference signs, add or remove levels, switch
 suspect data sets off -- as resumable steps that a script runs on one cluster node and a
 fresh session can pick up from `STATUS.md`. It is not installed as a package:
@@ -16,7 +16,7 @@ python3 -m rmfit.cli <campaign_dir> <command> [options]
 ```
 
 Read this file top to bottom before the first command on a new reaction; for resuming a
-campaign, "Read the state" and "The loop" are enough. Refinements go in the log at the end.
+campaign, "Read the state" and "The loop" are enough. The design and its open items are in DESIGN.md.
 
 ## 1. Read the state, never recompute it
 
@@ -25,7 +25,7 @@ A campaign directory carries everything a fresh session needs:
 - `STATUS.md` -- best verified objective per structure, recent rounds and log lines.
   Regenerate with `status`; `status --json` for a compact dump.
 - `readme` -- the lab notebook (rmfit appends one paragraph per round; add your own
-  with `log "..."`). Archive convention: read it before touching anything.
+  with `log "..."`). Read it before touching anything.
 - `campaign.log` -- every line the driver printed; `rmfit_sge.log` / `rmfit_*.log` --
   cluster job logs.
 - `ledger.sqlite` + `candidates/*.npz` -- every candidate vector and score. The
@@ -45,8 +45,8 @@ Prerequisites (do these in the reaction's fit directory, not in the campaign):
 
 1. A `.azr` that opens in the GUI, with `data/`, an `output/` directory, and a `readme`.
    Know the CLI-mode flags this reaction uses (`--use-brune`, `--ignore-externals`,
-   `--no-long-wavelength`, ...): they are not in the `.azr`, they vary per reaction
-   (`~/R-matrix/CLAUDE.md`), and rmfit needs them as `--flags` JSON.
+   `--no-long-wavelength`, ...): they are not stored in the `.azr`, they vary per reaction
+   (record them in the readme), and rmfit needs them as `--flags` JSON.
 2. Reproduce the last finished fit before building on it: load its `param.sav` by name
    (`pyazr`), confirm the objective matches `chiSquared.out` (chi2 + norm penalty), then
    bake it into a clean file (`rmfit.engine.bake`) and check it with the CLI in mode 1
@@ -59,28 +59,27 @@ Prerequisites (do these in the reaction's fit directory, not in the campaign):
    new file: a single negative or spiked cross section can dominate the objective.
 4. Record all of that in the reaction directory's `readme`.
 
-### First fits: the build phase of `rmfit drive` (the evaluator's procedure of 2026-10-25, encoded 2026-11-08/09)
+### First fits: the build phase of `rmfit drive`
 
-the evaluator's instruction of 2026-10-25 is the build phase of `rmfit drive` (section 3a).  One line per
-item, with the state that enforces it:
+The build phase of `rmfit drive` (section 3a) encodes how an evaluator starts a new model.  One line per step, with the
+state that enforces it:
 
 1. **Fix the scale with one representative data set** -> `SCALE_ANCHOR` (spec `data_sets[].role`: `anchor` = norm fixed at
-   the nominal, `free` with `prior_sigma`; `drive.Driver._s_scale_anchor`).  Why: with every norm free, 10B+α stage 1 traded
-   missing strength for norms of 0.38-0.68 (an archived campaign).
+   the nominal, `free` with `prior_sigma`; `drive.Driver._s_scale_anchor`).  Why: with every norm free, a first fit traded
+   missing strength for norms of 0.4-0.7.
 2. **Seed the lowest-L channel of every pair on every level** at `model.seed_frac` (0.01) γ_W, placeholders for free widths
-   at exactly zero, photon channels at `model.photon_seed_ev` -> `SEED_CHANNELS` (`_s_seed_channels`).  Exercised on a from-scratch demo
-   (20 background channels seeded).
+   at exactly zero, photon channels at `model.photon_seed_ev` -> `SEED_CHANNELS` (`_s_seed_channels`).  Exercised on a
+   from-scratch model (20 background channels seeded).
 3. **Every channel that opens inside the fit range is in the model** -> `PAIR_COMPLETENESS` lists the ENSDF states of the
-   residual nuclei below the window top that have no pair (`_s_pair_completeness`) -- it REPORTS; the pair is still added by
-   hand (builder an archived campaign).  Never cap a data window at a threshold instead.
-4. **Level by level, from low energy up** -> `LADDER` (`model.ladder_Ex`; skipped without it -- not exercised on any campaign yet).
-5. **Then add levels where a resonance has no known level** -> `CANDIDATES` (ENSDF broad first, every entry with a
+   residual nuclei below the window top that have no pair (`_s_pair_completeness`).  It only reports: the pair is still
+   added by hand.  Never cap a data window at a threshold to avoid adding the pair.
+4. **Level by level, from low energy up** -> `LADDER` (`model.ladder_Ex`; skipped without it, and not yet exercised).
+5. **Then add levels where a resonance has no known level** -> `CANDIDATES` (ENSDF, broad levels first, every entry with a
    `hypothesis`) and, inside the loop, `LEVELSCAN` / `STRUCTURE_ADD` (section 3a).
 6. **Only then a global fit** -> `INIT` (`Campaign.init --spec`, baseline verified, engine pinned).
 
-Re-evaluation the evaluator asked for (2026-10-25, "RE-EVALUATE LATER"): items 1, 2, 5 and 6 ran end to end on the from-scratch demos
-(section 7); 3 and 4 only report.  A campaign initialised before the drive (`init` first, as the bench does) skips 1-2:
-roles and seeds belong before `init`.
+Steps 1, 2, 5 and 6 have run end to end on from-scratch models; 3 and 4 only report.  A campaign initialised before the
+drive (`init` first, as the bench does) skips steps 1-2, so data-set roles and seeds belong in the model before `init`.
 
 Then, in a new dated campaign directory (`<reaction>/<M>-<D>-<YY>_rmfit_campaign/`):
 
@@ -116,32 +115,33 @@ underestimated". The objective
 is a property of a campaign: candidates verified under different objectives are not
 comparable, so a change of objective means a new campaign directory (seed it with the
 previous export). `REPORT.md` and `segment_scores` keep the plain per-dataset chi-squared
-whatever the objective. Verified in `rmfit/tests/test_objective_13n.py`.
+whatever the objective. Test: `tests/test_objective_13n.py`.
 
-`init` verifies the baseline (one full-model evaluation), registers the structure,
-writes `STATUS.md` and the job script `run_crc_rmfit` (24-core `long` node, mails
-`$USER@nd.edu`, `-m abe`). Re-running `init` keeps an existing config unless new values
-are given. Policy meanings: `theta2_cap` is the Wigner-limit box for physical levels,
-`bg_theta2_cap` for background poles (levels with Ex >= `bg_energy`, whose energies stay
-fixed) -- 3.0 is a starting guess, not a physics default: check where the baseline's
-background amplitudes already sit (`init`'s cap audit) before trusting it; one alpha
-elastic fit needed ~100; photon channels have no Wigner limit, so the theta2 caps never touch
-them: `photon_width_max_ev` (1e4) and `bg_photon_width_max_ev` (1e5) cap |Gamma_gamma| of physical levels and background
-poles instead (2026-11-10: a from-scratch background pole had polished to 1e12 eV; generous stops, not Weisskopf
-limits -- set them per reaction, 0 = unbounded); `e_window` is the energy freedom of a level per polish (MeV); `norm_range`
-multiplies the nominal normalization. `narrow_window` (optional, e.g.
-`{"gamma_kev": 5, "factor": 3, "min_kev": 1}`) keeps a level whose free partial widths sum
-to less than `gamma_kev` within ±max(`min_kev`, `factor`·Γ) of its current energy instead of
-±`e_window`, so a polish cannot carry a narrow level away from its peak (a narrow level
-drifted 180 keV in one tightening polish). Shard count = cores; sharding is exact
-(chi-squared is additive over segments), so more shards only buy speed.
+`init` verifies the baseline (one full-model evaluation), registers the structure, and writes `STATUS.md` and the job
+script `run_crc_rmfit` (an SGE script for a 24-core node that mails the submitting user at start, end and abort; adapt it
+to your site).  Re-running `init` keeps an existing configuration unless new values are given.
+
+Policy meanings:
+
+- `theta2_cap` is the Wigner-limit box for physical levels; `bg_theta2_cap` is the box for background poles (levels with
+  Ex >= `bg_energy`, whose energies stay fixed).  3.0 is a starting guess, not a physics default: check where the
+  baseline's background amplitudes already sit (`init`'s cap audit) before trusting it.  One alpha elastic fit needed ~100.
+- Photon channels have no Wigner limit, so the theta2 caps never touch them.  `photon_width_max_ev` (1e4) and
+  `bg_photon_width_max_ev` (1e5) cap |Gamma_gamma| of physical levels and background poles instead.  They are generous
+  stops against runaways (a from-scratch background pole once polished to 1e12 eV), not Weisskopf limits: set them per
+  reaction (0 = unbounded).
+- `e_window` is the energy freedom of a level per polish (MeV); `norm_range` multiplies the nominal normalization.
+- `narrow_window` (optional, e.g. `{"gamma_kev": 5, "factor": 3, "min_kev": 1}`) keeps a level whose free partial widths
+  sum to less than `gamma_kev` within ±max(`min_kev`, `factor`·Γ) of its current energy instead of ±`e_window`, so a
+  polish cannot carry a narrow level away from its peak (one narrow level drifted 180 keV in a single tightening polish).
+- Shard count = cores.  Sharding is exact (chi-squared is additive over segments), so more shards only buy speed.
 
 Cost check on a new model (`campaign.log` after `init`): one sharded objective should
 be a few seconds and a Jacobian tens of seconds. If a segment with target-effect
 convolution dominates, rmfit folds it itself (`model.ConvSpec`);
 composite "sum" segments are allowed as convolution pieces.
 
-### 2b. Spec, audit, decisions (2026-11-07; Phase 1 of DESIGN.md)
+### 2b. Spec, audit, decisions
 
 Before `init`, write the campaign's **spec** (`spec.json`, template `rmfit/templates/SPEC_TEMPLATE.json`, schema in
 `rmfit/spec.py`): every data set with its role (`anchor` = norm fixed at the nominal; `free` with `prior_sigma`; `excluded`
@@ -160,10 +160,9 @@ the stop rules and the **standing decisions** with their owner and date.  Then:
 A HIGH audit finding is fixed (or recorded as accepted in the spec's standing decisions) before the baseline.  During the
 campaign, anything the spec does not answer goes to **`DECISIONS.md`** (`rmfit decisions` lists, `rmfit decide D-003
 "adopt" --by evaluator` answers); a level add whose `accept` the spec does not pre-authorize is recorded as `accept-pending`
-with a queued decision and is NOT adopted (the old automatic adoption only applies to campaigns without a spec).  Spec
-drafts to copy from: an archived campaign, an archived campaign.
+with a queued decision and is NOT adopted (automatic adoption applies only to campaigns without a spec).
 
-The three idle-time reviews of section 3b are generated, not hand-written, since 2026-11-07:
+The prompts for the three idle-time reviews of section 3b are generated:
 
     python3 -m rmfit.cli <dir> audit --kind all            # audits/{input,data,literature}/PROMPT.md + empty FINDINGS.md
     # hand each PROMPT.md to a background subagent (Agent tool, a cheaper model, at most three at once); it writes FINDINGS.md
@@ -188,7 +187,7 @@ readme; read both before the next step.
 | 2 | `round --rounds 2` (repeat) | interference-sign rounds: screen every canonical flip (singles, exposure pairs, same-channel pairs, optional channel patterns), polish the top-k sign-locked then released, greedy union, verify | improving-on-screen and accepted counts fall round over round; stop after two rounds with nothing accepted |
 | 3 | `polish --nfev 150 --shifts-free` | warm-start continuation with energy shifts free | gain < 0.05% |
 | 4 | `structure add --candidate i` (per entry of `candidates.json`) | forward addition: window J^pi scan at pinned energy, pinned then released full-model polish, control polish without the level, classify, adopt if accepted | all candidates classified |
-| 5 | `structure dataset-off --file <substr>` for the worst chi2/N sets | deactivate + refit; reports the extra recovery of the *other* sets beyond the set's own chi2 (the Botek test) | a table for the evaluator |
+| 5 | `structure dataset-off --file <substr>` for the worst chi2/N sets | deactivate + refit; reports the extra recovery of the *other* sets beyond the set's own chi2 (the data-set-off or "Botek" test) | a table for the evaluator |
 | 6 | `round --rounds 2` after any structure change | signs may change with the structure | as in 2 |
 | 6b | `crossover --donor <cid> [--donor-dir <other campaign>]` | basin crossover: apply another good fit's sign pattern per channel / J^pi group / all and polish every proposal; use it whenever the ledger (or a sibling campaign, e.g. a recovery benchmark) holds a second verified basin | every donor pattern polished; verified union |
 | 7 | `review [--grid-check]`, `export`, then GUI review | bake the incumbent to `<reaction>.azr` + `.sav`, verified in a fresh process | CLI mode 1 with the `.sav` as external file reproduces the totals |
@@ -201,18 +200,14 @@ readme; read both before the next step.
 (`diagnose.residual_runs`) in the fit's worst segments. Omitted channels are seeded at a
 small fraction of the Wigner limit.
 
-**Default J^pi of `levelscan` / `structure add` (fixed 2026-11-04).** With no `--jpi` (or `"jpi": null`)
-these now use the model's OWN active J^pi groups (`structure.default_jpis`), and any requested J^pi that no
-particle pair can couple to raises (`structure.resolve_jpis`; e.g. 1/2+ on an integer-J compound nucleus). The log names the
-list and warns about any NEW group: its channels are partial waves the model lacks, and their hard-sphere
-terms change the elastic channels even at zero width. BEFORE the fix the default was the half-integer
-half-integer list (1/2+ ... 11/2-), unphysical for integer-J compound nuclei (14N, 16O, 20Ne, ...) without
-any warning. **A campaign's `run_snapshot/` copied before 2026-11-04 still has the old default: pass
-`--jpi` explicitly there** (e.g. `--jpi 0+ 0- 1+ 1- 2+ 2- 3+ 3- 4+ 4- 5+ 5- 6+ 6-`). In every case, check
-the template screen's log line `template screen at Ex ...: incumbent <obj>`: it must equal the
-campaign's verified incumbent. Details in the dated entry of 2026-11-04 at the end.
+**Default J^pi of `levelscan` / `structure add`.**  With no `--jpi` (or `"jpi": null`) these use the model's own
+active J^pi groups (`structure.default_jpis`), and a requested J^pi that no particle pair can couple to raises an error
+(`structure.resolve_jpis`; e.g. 1/2+ on an integer-J compound nucleus).  The log names the list and warns about any NEW
+group: its channels are partial waves the model lacks, and their hard-sphere terms change the elastic channels even at
+zero width.  In every case, check the template screen's log line `template screen at Ex ...: incumbent <obj>`: it must
+equal the campaign's verified incumbent.
 
-Residual-driven level search (Phase 7, `rmfit levelscan [--ex E ...] [--top K] [--gamma keV]
+Residual-driven level search (`rmfit levelscan [--ex E ...] [--top K] [--gamma keV]
 [--scales 0.5,1,2] [--ex-offsets -0.04,0,0.04] [--jpi ...] [--refit N]`): candidate energies
 from the incumbent's residual runs clustered in Ex across segments (plus dispersion-shaped
 pairs: two adjacent clusters of opposite sign with the level between them); at each, one
@@ -223,7 +218,7 @@ best per J^pi is reported (ledger round kind `levelscan`); `--refit N` sends the
 the ordinary level-add refit. Photon channels get a small trial width with both signs.
 Validated on 13N: a level removed with the other parameters untouched is found (its J^pi
 ranks first, gain ~90% of the loss); after the rest of the model has re-polished without it
-the single-level signature is gone (the compensation limit in the plan) and only the refit
+the single-level signature is gone (the compensation limit) and only the refit
 of the top candidates can recover it. Template amplitudes are the engine's own conversion
 of a tiny reference width scaled by sqrt(Gamma); candidate energies are rounded to 1 eV
 before writing (see the AZURE2 skill's add_level gotcha).
@@ -239,11 +234,11 @@ narrow level that has drifted from its peak (see `narrow_window` above for keepi
 there afterwards). 13N test: a level shifted by 60 keV comes back and recovers the full
 model's objective.
 
-Ordinary additions: `touch <dir>/STOP` ends a `round --rounds N` loop after the current
+Other commands: `touch <dir>/STOP` ends a `round --rounds N` loop after the current
 round; `verify <cid>` re-scores a candidate; `log "..."` appends to the readme;
 `report` writes `REPORT.md` (per-dataset chi2/N, theta^2 table, structure decisions).
 
-## 3a. The closed loop: `rmfit drive` (2026-11-08; DESIGN.md Phase 2)
+## 3a. The closed loop: `rmfit drive`
 
 `rmfit <dir> drive` runs sections 2-4 as a resumable state machine instead of a session choosing every step.  It needs
 `<dir>/spec.json` (section 2b): the spec's `budget`, `stop_rules` and `pre_authorized` are the thresholds, and anything the
@@ -258,64 +253,78 @@ spec does not answer becomes a `DECISIONS.md` entry.
     python3 -m rmfit.cli <dir> decide D-003 "adopt" --by evaluator; qsub <dir>/run_crc_drive     # after a WAITING leg
     touch <dir>/STOP_DRIVE                       # stop cleanly after the current state
 
-States: build phase `PIN_CHECK AUDIT REPRODUCE SPEC_CHECK SCALE_ANCHOR SEED_CHANNELS PAIR_COMPLETENESS LADDER CANDIDATES
-INIT RECALL` (section 2 prerequisites and "First fits": AUDIT runs the machine checks and then, on a new campaign, writes the
-three subagent audit prompts (section 3b) and WAITS for their verified FINDINGS.md -- decision `audit-subagents`, 'done' or
-'skip', `pre_authorized.skip_subagent_audits` for fixtures; rows left 'decision' become one wait decision each (2026-11-10:
-a from-scratch demo had fitted a lab-frame error for an hour before the idle-time data audit found it); the archived
-chiSquared.out must reproduce, the spec's data-set roles are applied to a working copy `<stem>_drive.azr`, free widths at exactly zero are seeded at `model.seed_frac` (0.01) gamma_W,
-ENSDF states of the residual nuclei that open below the window top without a pair are listed, `candidates.json` is built
-from ENSDF broad-first when absent -- every candidate needs a `hypothesis`; RECALL (2026-11-09, `structure.recall_levels`)
-removes the broadest known levels one at a time and asks the level-add procedure to find them again with no J^pi given --
-below `recall_min_pass` every add of the run is queued as a decision instead of adopted), then the loop `TIGHTEN SIGN POPULATION
-SHIFTS_FREE LEVELSCAN STRUCTURE_ADD SIGN_POST DATASET_OFF REVIEW EXPORT CYCLE` (section 3 steps 1-7 with section 4's stopping rules: polish rounds
-until the gain is below `polish_gain_rel_min` -- size `budget.polish_nfev` to the model, 150 is far too few for 200 free
-parameters; sign rounds only once the polish converged (`sign_after_converged_polish`, else they are deferred to the next
-cycle: in one benchmark 18 rounds accepted nothing on a moving incumbent -- deferred at most once and never in the last cycle,
-after which they run on the unconverged incumbent and the readme says the polish budget is too small: in a from-scratch
-demo 162 free parameters never converged in 6 x 300 evaluations) and until `sign_rounds_without_accept`; then
-POPULATION, the basin-crossing stage (`Campaign.run_population`, CLI `population`): `budget.restarts_per_cycle` sign-perturbed
-restarts of the incumbent (random 6-12 high-exposure flips, <= 3 per J^pi, 20 % jitter), each polished sign-locked then
-released to convergence in rounds of `restart_nfev` (0 = `polish_nfev`), plus the control, then `crossover_passes` passes of
-`crossover` moves from the best member with every other as donor, each pattern polished, the winner polished to convergence
--- judged on polished objectives only; an improvement is a new basin and SIGN_POST finishes its last signs; a round gaining
-less than `population_gain_rel_min` switches the stage off until a structure change (`population_rounds_max` caps it).  Why
-(a development benchmark): the sign rounds left a basin 13.5 % above the reference, sign distance 17; the
-reference's 17-flip pattern starts at three times the incumbent's objective and polishes down to it, while no single, pair,
-channel or group flip gained more than 2.6 even with a 600-evaluation polish -- local proposals do not cross basins, a
-population of polished basins and crossover between them does (six restarts + one pass: 6002.6 -> 5325.7); the structure
-search per the spec's `structure` section (2026-11-09): candidates broad first -- a known width below `broad_first_kev` (10)
-waits until the broad queue and the residual scan are exhausted, then the narrow-alignment phase (`narrow_phase`); when the
-broad queue is empty LEVELSCAN (`levelscan_per_cycle`, `levelscan_top`, `levelscan_gamma_kev` null = the run width) screens
-the residual-run clusters with one level of every J^pi and appends the best (J^pi, pattern) to `candidates.json` with the
-screen as hypothesis and the next two J^pi as alternatives; every add polishes the neighbourhood first (`local_release_mev`,
-`local_nfev`); level adds until `level_adds_marginal_in_a_row`, adoption per `pre_authorized.adopt_level`; the Botek test on the worst chi2/N sets, result
-recorded, never excluded; review HIGH flags wait for the evaluator; another pass while a cycle gains `cycle_gain_rel_min`
-and `cycles_max` allows).  `DRIVE.md` is rewritten after every state; `drive_state.json` is the checkpoint (`--state S`
-jumps, `--reset` starts over and keeps the old file).  Engine states refuse the login node (`--local` is for fixtures).
+**Build phase** (section 2's prerequisites and "First fits"):
+`PIN_CHECK AUDIT REPRODUCE SPEC_CHECK SCALE_ANCHOR SEED_CHANNELS PAIR_COMPLETENESS LADDER CANDIDATES INIT RECALL`
 
-What the supervising session does: read `DRIVE.md`, `STATUS.md`, `DECISIONS.md`, `REVIEW.md`; relay the pending decisions
-to the evaluator with the evidence files; `decide`; resubmit.  It does not pick a step the spec answers, and it does not
-answer a data-treatment decision itself (section 5).  Limits (2026-11-10): no channel lines or pairs are added automatically (PAIR_COMPLETENESS and SEED_CHANNELS report what is
-missing), LADDER needs `model.ladder_Ex`, multi-compound-nucleus models are outside the sign rounds / levelscan, and no live
-evaluation has run under it yet -- what has: the 13N fixture (`tests/test_drive_13n.py`, every queue change is rerun there,
-~70 min on 3 slots), the bench cases of section 7 and the from-scratch demos.
+- `AUDIT` runs the machine checks.  On a new campaign it then writes the three subagent audit prompts (section 3b) and waits
+  for their verified `FINDINGS.md` (decision `audit-subagents`: 'done' or 'skip'; `pre_authorized.skip_subagent_audits`
+  for fixtures).  Each row left as 'decision' becomes one wait decision.  Why: a from-scratch model once fitted a
+  lab-frame error for an hour before the data audit found it.
+- `REPRODUCE`: the archived `chiSquared.out` must reproduce.
+- The spec's data-set roles are applied to a working copy `<stem>_drive.azr`; free widths at exactly zero are seeded at
+  `model.seed_frac` (0.01) gamma_W; ENSDF states of the residual nuclei that open below the window top without a pair are
+  listed; `candidates.json` is built from ENSDF, broad levels first, when it is absent.  Every candidate needs a
+  `hypothesis`.
+- `RECALL` (`structure.recall_levels`) removes the broadest known levels one at a time and asks the level-add procedure to
+  find them again with no J^pi given.  Below `recall_min_pass`, every add of the run is queued as a decision instead of
+  adopted.
+
+**Loop** (section 3 steps 1-7 with section 4's stopping rules):
+`TIGHTEN SIGN POPULATION SHIFTS_FREE LEVELSCAN STRUCTURE_ADD SIGN_POST DATASET_OFF REVIEW EXPORT CYCLE`
+
+- **Polish** rounds run until the gain is below `polish_gain_rel_min`.  Size `budget.polish_nfev` to the model: 150 is far
+  too few for 200 free parameters.
+- **Sign rounds** start only once the polish has converged (`sign_after_converged_polish`) and run until
+  `sign_rounds_without_accept`.  On a moving incumbent they are deferred to the next cycle (in one benchmark 18 rounds on an
+  unconverged incumbent accepted nothing).  They are deferred at most once and never in the last cycle; after that they run
+  on the unconverged incumbent and the readme says the polish budget is too small (one from-scratch model with 162 free
+  parameters never converged in 6 x 300 evaluations).
+- **POPULATION** is the basin-crossing stage (`Campaign.run_population`, CLI `population`).  It makes
+  `budget.restarts_per_cycle` sign-perturbed restarts of the incumbent (6-12 random high-exposure flips, at most 3 per
+  J^pi, 20 % jitter) and polishes each sign-locked, then released, to convergence in rounds of `restart_nfev`
+  (0 = `polish_nfev`), together with a control.  Then `crossover_passes` passes of `crossover` moves run from the best
+  member with every other member as donor; each pattern is polished and the winner polished to convergence.  Members are
+  judged on polished objectives only.  An improvement is a new basin, and SIGN_POST finishes its last signs.  A round
+  gaining less than `population_gain_rel_min` switches the stage off until the next structure change
+  (`population_rounds_max` caps it).
+  Why: in a development benchmark the sign rounds stopped in a basin 13.5 % above the reference, at sign distance 17.  The
+  reference's pattern, applied to the incumbent, started at three times its objective and polished down to the reference,
+  while no single, pair, channel or group flip gained more than 2.6 even with a 600-evaluation polish.  Local proposals
+  do not cross basins; a population of polished basins and crossover between them does (six restarts and one crossover
+  pass recovered the reference).
+- **Structure search** follows the spec's `structure` section.  Candidates go broad first: a known width below
+  `broad_first_kev` (10) waits until the broad queue and the residual scan are exhausted, then the narrow-alignment phase
+  (`narrow_phase`) takes them.  When the broad queue is empty, LEVELSCAN (`levelscan_per_cycle`, `levelscan_top`,
+  `levelscan_gamma_kev`; null = the run's width) screens the residual-run clusters with one level of every J^pi and appends
+  the best (J^pi, pattern) to `candidates.json`, with the screen as hypothesis and the next two J^pi as alternatives.
+  Every add polishes the neighbourhood first (`local_release_mev`, `local_nfev`).  Level adds continue until
+  `level_adds_marginal_in_a_row`; adoption follows `pre_authorized.adopt_level`.
+- **DATASET_OFF** runs the data-set-off test (the "Botek test" in the logs) on the worst chi2/N sets.  The result is
+  recorded; a data set is never excluded by the drive.
+- **REVIEW**: HIGH flags wait for the evaluator.
+- **CYCLE**: another pass while a cycle gains `cycle_gain_rel_min` and `cycles_max` allows; then UQ if `spec.uq.enabled`
+  (section 3d).
+
+`DRIVE.md` is rewritten after every state; `drive_state.json` is the checkpoint (`--state S` jumps, `--reset` starts over
+and keeps the old file).  Engine states refuse the login node (`--local` is for fixtures).
+
+What the supervising session does: read `DRIVE.md`, `STATUS.md`, `DECISIONS.md` and `REVIEW.md`; relay the pending
+decisions to the evaluator with the evidence files; `decide`; resubmit.  It does not pick a step the spec answers, and it
+does not answer a data-treatment decision itself (section 5).
+
+Limits: no channel lines or pairs are added automatically (PAIR_COMPLETENESS and SEED_CHANNELS report what is missing);
+LADDER needs `model.ladder_Ex`; multi-compound-nucleus models are outside the sign rounds and levelscan.  The drive has run
+on the 13N fixture (`tests/test_drive_13n.py`, ~70 min on 3 slots; rerun it after every change to the state machine), on
+the bench cases of section 7 and on from-scratch models, but not yet on a full evaluation.
 
 ## 3b. While jobs run: audit and read (idle time is work time)
 
-the evaluator, 2026-10-02: "You're spending most of your time thinking about just doing the fit
-minimization, but what about spending some of the idle time doing things like checking over the
-data and input file for mistakes or looking through the literature to try to identify ways to
-improve the fitting technique?" -- and, asked whether this belongs in the process: "add this type
-of activity to the skill files so you start doing this type of things for all of our projects."
-
-A polish or a sign round takes hours and needs no attention between milestones.  Whenever a job
-is running and nothing is actionable, do NOT just wait for the next log line: run the three
-reviews below.  They are read-only, they cost no node, and on a large evaluation every large gain of the
-merged fit came from this kind of work rather than from more minimization (a free unpenalized
-normalization on the n-total data, a 2019 data file with statistical-only errors, a width window
-that swallowed a neighbouring level, a wrong elastic / inelastic partition that only independent
-data exposed).
+Minimization is only part of the work.  A polish or a sign round takes hours and needs no attention between milestones.
+Whenever a job is running and nothing is actionable, do NOT just wait for the next log line: run the three reviews below.
+They are read-only and cost no node, and on a large evaluation every large gain of the merged fit came from this kind of
+work rather than from more minimization (a free unpenalized normalization on the neutron total data, a data file with
+statistical-only errors, a width window that swallowed a neighbouring level, a wrong elastic / inelastic partition that
+only independent data exposed).
 
 **When.**  At the first idle window of every campaign, and again whenever data are added, a
 structure change is adopted, or a fit stalls.  Mandatory, not optional, when: a fitted
@@ -330,8 +339,8 @@ re-reported), each writing ONE report into `<reaction>/<M-D-YY>_audit/` next to 
 quotes why it was run.  The reviews never edit a fit directory, never submit jobs.  A report's
 findings are CANDIDATES: verify each one against the files yourself (numbers, line, segment key)
 before telling the evaluator, and change nothing in a fit on the strength of a report alone --
-data treatment stays the evaluator's decision (section 5).  Worked example with the three prompts:
-an archived campaign.
+data treatment stays the evaluator's decision (section 5).  Start from the prompts that `rmfit audit --kind all`
+writes (section 2b).
 
 **1. Input-file audit** (the `.azr` of the current seed):
 - particle pairs: mass, charge, spin, parity, excitation and separation energy, radius identical
@@ -353,7 +362,7 @@ an archived campaign.
   with their fitted values and ask whether each is intended; list fitted norms outside 0.7-1.4;
   check every norm / shift setting against the evaluator's recorded decisions;
 - `<targetInt>` keys bind to the intended segments; in sharded runs a convolved segment must be angle-integrated or at
-  ONE fixed angle (minA == maxA; fixed-angle conv pieces since the 2026-10-15 entry); an angular distribution with a
+  ONE fixed angle (minA == maxA); an angular distribution with a
   `<targetInt>` line still needs a single session.
 
 **2. Data audit** (every file of an active segment):
@@ -372,8 +381,7 @@ an archived campaign.
   SKILL, "Fitting a data set's energy scale"); a shift freed afterwards must be SEEDED at the scan
   optimum -- MIGRAD from zero stalls in a local minimum next to zero (-193
   from zero vs -795 seeded in one case);
-- against the source: re-fetch the EXFOR entry (`pyazr.nds`, skill `nds-explorer`; fallback in
-  an archived campaign) and compare values, units and error columns row by row.
+- against the source: re-fetch the EXFOR entry (`pyazr.nds`, AZURE2's `nds-explorer` skill) and compare values, units and error columns row by row.
 
 **3. Literature review**: earlier evaluations of the same compound system (what data, channels,
 radii, energy limits, how they treated normalizations and backgrounds), measurements of channels
@@ -386,78 +394,99 @@ test, not a survey.
 - decompose a summed observable into its partial cross sections by extrapolation and compare each
   partial with independent data -- a total can be right with the wrong partition;
 - the clip check before every qsub: sanity + bounds + clipped objective of the seed under the
-  policy the job will use (an archived campaign); a start-up clip that costs more
-  than a fraction of a per cent means a window or a cap is wrong;
-- a coverage plot of what EXFOR holds against what the fit uses
-  (an archived campaign).
+  policy the job will use; a start-up clip that costs more than a fraction of a
+  per cent means a window or a cap is wrong;
+- a coverage plot of what EXFOR holds against what the fit uses.
 
-## 3c. A structure you can see but no search finds: the width-floor recipe (13C+α, Ex 9.4 MeV, 2026-10-05/07)
+## 3c. A structure you can see but no search finds: the width-floor recipe
 
-The evaluator pointed at a broad backward-angle (α,n₀) resonance near Ex 9.4 MeV ("see segment 25") that every tool had declared
-null: levelscan at 9.47/9.51/9.56 (all J^π, 50-400 keV), sign rounds over the groups there, a seed/re-partition test, and the first
-local-release level add (all 11 J^π: every candidate collapsed to 11-183 eV and came out "marginal", best +239).  The level that was
-finally accepted (1/2⁻, 9.348 MeV, Γ_n0 198 keV, Γ_α0 15 eV, +10,950 vs its control) had been within reach of the very first test: it
-was lost because a released polish lets a broad seed shrink to nothing while the neighbours re-absorb the misfit, and a collapsed
-candidate is then scored as "nothing there".  The recipe that found it:
+The recipe comes from a broad resonance in the backward angles of one excitation function that every tool had declared
+null: levelscan at three energies (all J^pi, 50-400 keV), sign rounds over the groups there, a seed / re-partition test,
+and a first local-release level add in which every J^pi candidate collapsed to eV widths and came out "marginal".  The
+level finally accepted (a width of about 200 keV in the exit channel, a large gain over its control) had been within reach
+of the very first test.  It was lost because a released polish lets a broad seed shrink to nothing while the neighbours
+re-absorb the misfit, and a collapsed candidate is then scored as "nothing there".  The recipe that found it:
 
-1. **Localise and characterise the deficit before fitting anything.**  Band map of χ² per 0.2 MeV of Ex by data set (from the
-   incumbent's per-point residuals, e.g. a summary page's curves json), then per 10 keV with the MEAN PULL per band and per angle group.
-   A broad deficit shows as the model under the data by 2-3 σ at EVERY angle over ≥ 50 keV with the same pull sign (9.74-9.78 here;
-   at 9.4 it was the backward angles 0.35-0.71 of the data over 400 keV).  A narrow spike (two 10 keV bands, pull changing sign) is a
-   lineshape / resolution question, not a level search.  Write the anatomy into the readme first.
-2. **Width-floor level add, every J^π, with the local release and a same-budget control.**  `structure add --local-release 0.5
-   --local-nfev 80 --pinned-nfev 60 --nfev 150` with `total_width_floor_windows: [[E-0.0005, E+0.0005, 100000]]` and `setenv RMFIT_SEED_OMITTED 1` so every open channel of the group exists
-   and can take width; seeds Γ_n0 150 + Γ_α0 30 keV in the lowest L; one campaign directory per J^π (an accepted level is
-   adopted into its base, so groups must not share one), three groups per node job.  The floor is one-sided on the sign the amplitude
-   starts with and never above 0.95 of the cap; it is skipped for an amplitude that is exactly 0 (the control's "level off" state --
-   the first run had the control carrying the floored level, start 42k too high; a control whose start differs from the incumbent is
-   broken, check it before reading any delta).  Verdict = delta vs the control, tau from k; "at_bound" empty at the end means the data,
-   not the floor, chose the width.
-3. **Cross-checks that make the verdict believable.**  (a) The same recipe on the OTHER plausible hypotheses: widen the existing
-   neighbour instead (a floor on its width: here the 3/2⁻ 9.36 → pinned at 400/500 keV, +2,349/+9,938 = rejected); (b) a data-only
-   window multi-start on the complaining data set (`10-5-26_an0_only`: ±0.5 MeV window, norms fixed, random a₀ sign patterns, 11 J^π
-   with a level, 250 evaluations each, ~1 h on one node) -- a SCREEN that must agree on J^π and width (it did: 1/2⁻ ≈ 5/2⁻ tied; the full
-   data broke the tie 1/2⁻ +10,950 vs 5/2⁻ -14,965), never a start vector (transplants came back +3k..+83k, see the 10-06 entry);
-   (c) per-dataset and per-angle attribution of the gain (here 72 % ND 2021, all at the backward angles -- the symptom the evaluator named).
-4. **Full free refit of the accepted fit** (every parameter, no floor, 400 evaluations): the level must hold on its own (it did:
-   9.3474 / 198.8 keV / 16 eV, objective -312, nothing else moved) -- then that export is the incumbent.
-5. **Propagate.**  Any model that freezes this block (the merged fit's Ex < 10) gets a NEW seed with the refreshed levels
-   (10-6-26_merged_refresh/refresh_frozen.py: copy energies and channel gamma fields by (J^π, energy order), add new levels fixed, keep
-   fixed flags, partial .sav, frozen check, recentre the policy windows) and a refit; the splice cost is normal (0.25M here) because
-   the free levels above the cut were tuned to the old block.
-6. **Then the next region**, by the band map, with the SAME recipe -- and expect most J^π to be rejected quickly (the high-spin ones by
-   10⁴-10⁵: a 100 keV floor is above their Wigner limit); a candidate that passes on a data set other than the one you aimed at still
-   counts (the evaluator 2026-10-07: "our goal is to fit the entirety of the data sets").
+1. **Localise and characterise the deficit before fitting anything.**  Map chi2 per 0.2 MeV of Ex by data set (from the
+   incumbent's per-point residuals), then per 10 keV with the MEAN PULL per band and per angle group.  A broad deficit
+   shows as the model below the data by 2-3 sigma over >= 50 keV with the same pull sign, at every angle or in one angle
+   range.  A narrow spike (two 10 keV bands, the pull changing sign) is a lineshape or resolution question, not a level
+   search.  Write the anatomy into the readme first.
+2. **Width-floor level add, every J^pi, with the local release and a same-budget control.**  `structure add --local-release
+   0.5 --local-nfev 80 --pinned-nfev 60 --nfev 150` with the policy's `total_width_floor_windows: [[E-0.0005, E+0.0005,
+   100000]]` (a floor on the TOTAL width over the level's open channels; the older per-channel `width_floor_windows` forces
+   the width into one named channel) and `setenv RMFIT_SEED_OMITTED 1`, so that every open channel of the group exists and
+   can take width.  Seed the lowest-L channels broad (e.g. 150 keV in the exit channel, 30 keV in the entrance channel).
+   Use one campaign directory per J^pi (an accepted level is adopted into its base, so groups must not share one), three
+   groups per node job.  The floor is one-sided on the sign the amplitude starts with and never above 0.95 of the cap; it
+   is skipped for an amplitude that is exactly 0 (the control's "level off" state).  A control whose start differs from
+   the incumbent is broken (for example because it carries the floored level): check it before reading any delta.  The
+   verdict is the delta against the control, with tau from k; an empty "at_bound" list at the end means the data, not the
+   floor, chose the width.
+3. **Cross-checks that make the verdict believable.**
+   (a) Run the same recipe on the other plausible hypotheses, e.g. widen an existing neighbour of the same region (a floor
+   on its width) instead of adding a level.
+   (b) A data-only window multi-start on the data set that shows the resonance (±0.5 MeV window, norms fixed, random
+   sign patterns, every J^pi with a level, 250 evaluations each, ~1 h on one node).  It is a SCREEN that must agree with the
+   full-data result on J^pi and width, never a start vector: vectors transplanted from it into the full model came back far
+   worse.  When the screen ties two J^pi, the full data break the tie.
+   (c) Attribute the gain per data set and per angle: it should sit where the deficit was.
+4. **Full free refit of the accepted fit** (every parameter, no floor, 400 evaluations): the level must hold on its own,
+   with nothing else moving much.  That export is then the incumbent.
+5. **Propagate.**  Any model that freezes this block of levels gets a NEW seed with the refreshed levels (copy energies and
+   channel widths by (J^pi, energy order), add the new levels as fixed, keep the fixed flags, write a partial .sav, check
+   the frozen objective, recentre the policy windows) and a refit.  A splice cost is normal, because the free levels above
+   the cut were tuned to the old block.
+6. **Then the next region**, chosen from the band map, with the SAME recipe.  Expect most J^pi to be rejected quickly (the
+   high-spin ones by orders of magnitude: a 100 keV floor is above their Wigner limit).  A candidate that improves a data
+   set other than the one you aimed at still counts: the goal is to fit all the data.
 
-Cost: 11 J^π = 4 node jobs × 6-8 h; the anatomy and the window screen are login-node work.  Full narrative: an archived campaign
-(and 10-3-26_ex94_local, 10-5-26_an0_only, 10-5-26_an0_reconcile, 10-6-26_32m_widen, 10-6-26_lowE_12m_refit, 10-6-26_merged_refresh).
+Cost: eleven J^pi = 4 node jobs of 6-8 h; the anatomy and the window screen are login-node work.
 
-## 3d. Uncertainty quantification: `rmfit uq` (2026-11-10; DESIGN.md Phase 4)
+## 3d. Uncertainty quantification: `rmfit uq`
 
-`rmfit <dir> uq [--uq uq.json|JSON] [--nprocs N] [--threads T]` (as a job: `qsub -v RMFIT_CMD="uq --uq uq.json --nprocs 4
---threads 6" run_crc_rmfit`; the drive runs it after its last cycle when `spec.uq.enabled`) is `rmfit/uq.py`: EXPORT the
-incumbent to `uq/<name>.azr` + `.sav` -> SETUP (Park's J of every level from a Park session on the same file; levels with
-J < `j_saturated` 0.01 are saturated -- their widths sit at the channel-radius ceiling, the data do not set them, the Brune
-Hessian is singular along them -- and are HELD; Laplace covariance of the sampled block) -> SAMPLE (`pyazr.sampling` NUTS,
-`chains` x (`warmup` + `draws`), dense metric from the Laplace covariance, `target_accept` 0.9) -> GATES (split R-hat <=
-1.01, min bulk ESS >= 400, divergences <= 1 %, E-BFMI >= 0.3; a failure re-runs with 2x the draws once, then it is a
-decision `uq-gates`) -> BANDS (the spec's `uq.bands` grids or the model's own `<segmentsTest>` energy scans: the LINEAR
-band from the Laplace covariance on the free R-matrix block, the same x sqrt(chi2/nu) printed beside it and NOT adopted,
-and the SAMPLED band from `band_draws` posterior draws, percentiles 2.5/16/50/84/97.5) -> `UQ.md`.  Norms are sampled
-(the full posterior) unless `sample_norms` is false; `uq.priors` {engine name: [mean, sigma]} adds Gaussian priors beyond
-the objective's own penalties.  BOUNDS (2026-11-12): the chains run inside the campaign's theta^2 box -- every sampled
-particle amplitude at |gamma| <= sqrt(cap) gamma_W with the policy's cap for its level (`bounds: "policy"`, the default;
-NUTS on x = c + h tanh(u) with the Jacobian, draws stored in x, the metric in u from the Hessian of -log p(u) at the
-mode -- not the Laplace / (dx/du)^2, which froze the chains of a validation run), because the data alone need not bound a background
-pole: in one validation with no box an amplitude left its Wigner limit in two thirds of the draws and emcee's acceptance fell to 0.11
-(an archived campaign).  `bounds: "none"` lifts it; `theta2_cap` gives one cap to a bare .azr + .sav that has no policy.  The
-box is the campaign's (the polish ran in it); a different prior on an amplitude is the evaluator's.  RE-RUN GUARDS (2026-11-14): no automatic re-run when split R-hat > `rerun_rhat_max` (1.5) or when the re-run would exceed `rerun_max_hours` (12, estimated as extend_factor x the attempt's wall time) -- the stage reports FAIL with the reason and the drive asks `uq-gates`; each chain prints its rate and hours left after 100 draws (a run with R-hat 2 whose second attempt would have taken ~60 h).  Read it as: half-width / linear sigma near 1 and a small median offset = the linear band
-is adequate there; a ratio well above 1 or an offset of a sigma = the posterior is skewed along a direction the Jacobian
-misses (a saturating width, a sign-ambiguous amplitude).  Everything is conditional on the model and the spec's data
-decisions.  Cost: a gradient is ~2 objective evaluations; a model with 195 free parameters ~25-50 gradients per draw.  Pitfalls: a script
-that spawns the chains must guard `if __name__ == "__main__"` (spawn re-imports it; without the guard it recurses);
-`pyazr.bands.extrapolation_bands` opens its session with pyazr's DEFAULT flags, so `uq` trims the model and opens the
-extrapolation session with the campaign's flags itself.  Validation: section 7.
+`rmfit <dir> uq [--uq uq.json|JSON] [--nprocs N] [--threads T]` runs `rmfit/uq.py`, as a job (`qsub -v RMFIT_CMD="uq --uq
+uq.json --nprocs 4 --threads 6" run_crc_rmfit`) or as the drive's last state when `spec.uq.enabled` is set:
+
+1. **EXPORT** the incumbent to `uq/<name>.azr` + `.sav`.
+2. **SETUP**: Park's J of every level from a Park session on the same file.  Levels with J < `j_saturated` (0.01) are
+   saturated -- their widths sit at the channel-radius ceiling, the data do not set them, and the Brune Hessian is
+   singular along them -- and are HELD.  Laplace covariance of the sampled block.
+3. **SAMPLE**: `pyazr.sampling` NUTS, `chains` x (`warmup` + `draws`), dense metric from the Laplace covariance,
+   `target_accept` 0.9.
+4. **GATES**: split R-hat <= 1.01, minimum bulk ESS >= 400, divergences <= 1 %, E-BFMI >= 0.3.  A failure re-runs once
+   with 2x the draws (subject to the guards below); after that it is the decision `uq-gates`.
+5. **BANDS** on the spec's `uq.bands` grids or the model's own `<segmentsTest>` energy scans: the LINEAR band from the
+   Laplace covariance on the free R-matrix block, the same band times sqrt(chi2/nu) printed beside it and NOT adopted, and
+   the SAMPLED band from `band_draws` posterior draws (percentiles 2.5/16/50/84/97.5).
+6. **REPORT**: `UQ.md`.
+
+Norms are sampled (the full posterior) unless `sample_norms` is false; `uq.priors` {engine name: [mean, sigma]} adds
+Gaussian priors beyond the objective's own penalties.
+
+**Bounds.**  The chains run inside the campaign's theta^2 box: every sampled particle amplitude stays at
+|gamma| <= sqrt(cap) gamma_W with the policy's cap for its level (`bounds: "policy"`, the default).  NUTS runs on
+x = c + h tanh(u) with the Jacobian; draws are stored in x, and the metric in u comes from the Hessian of -log p(u) at the
+mode (the Laplace covariance divided by (dx/du)^2 froze the chains of a validation run).  The box is needed because the
+data alone need not bound a background pole: in one validation without it, an amplitude left its Wigner limit in two
+thirds of the draws and emcee's acceptance fell to 0.11.  `bounds: "none"` lifts the box; `theta2_cap` gives one cap to a
+bare .azr + .sav that has no policy.  The box is the campaign's (the polish ran in it); a different prior on an amplitude
+is the evaluator's.
+
+**Re-run guards.**  There is no automatic re-run when split R-hat > `rerun_rhat_max` (1.5) -- chains in different regions
+do not merge with longer runs -- or when the re-run would exceed `rerun_max_hours` (12, estimated as extend_factor x the
+attempt's wall time).  The stage then reports FAIL with the reason and the drive asks `uq-gates`.  Each chain prints its
+rate and the hours left after 100 draws.  (The guards came from a run with R-hat 2 whose second attempt would have taken
+~60 h.)
+
+**Reading the bands.**  A half-width / linear sigma near 1 and a small median offset mean the linear band is adequate
+there.  A ratio well above 1, or an offset of a sigma, means the posterior is skewed along a direction the Jacobian misses
+(a saturating width, a sign-ambiguous amplitude).  Everything is conditional on the model and the spec's data decisions.
+
+Cost: a gradient is ~2 objective evaluations; a model with 195 free parameters needs ~25-50 gradients per draw.
+Pitfalls: a script that spawns the chains must guard `if __name__ == "__main__"` (spawn re-imports it; without the guard it
+recurses).  `pyazr.bands.extrapolation_bands` opens its session with pyazr's DEFAULT flags, so `uq` trims the model and
+opens the extrapolation session with the campaign's flags itself.  Validation: section 7.
 
 ## 4. Judging results
 
@@ -474,7 +503,7 @@ extrapolation session with the campaign's flags itself.  Validation: section 7.
   / unphysical / collapse (widths -> 0) / blowup / relocated (energy left its window)
   / live-harmful / crashed.
 - Convergence of the sign search: improving-on-screen counts decay geometrically
-  (archive history 16 -> 4 -> 3 -> 1). Two rounds without an acceptance = converged for
+  (typically 16 -> 4 -> 3 -> 1). Two rounds without an acceptance = converged for
   the present structure.
 - `sanity` flags theta^2 over the cap, |E| > 60 MeV, norms outside (0, 100), a
   non-finite Brune transform, and parameters at a bound (listed in the readme entry).
@@ -484,7 +513,7 @@ extrapolation session with the campaign's flags itself.  Validation: section 7.
   chi2/N is far above the rest, or whose removal recovers more than its own chi2 in
   the others, is an evaluation question (normalization, energy calibration, resolution),
   not a fitting question.
-- **Run `rmfit <dir> review` before judging a fit by eye** (2026-11-07, DESIGN.md 1.3): `REVIEW.md` + `figures/review_*.png`
+- **Run `rmfit <dir> review` before judging a fit by eye**: `REVIEW.md` + `figures/review_*.png`
   hold the checks the evaluator makes in the GUI -- per-point summary per data set (fraction within 1 / 2 sigma, median |r|, how
   many points carry half of the chi2 and where), the top chi2 carriers, every norm against its segment's own optimum n*
   (a free norm on the other side of 1 from n* was pulled by a group / covariance / prior), n* trends with angle or energy
@@ -495,10 +524,10 @@ extrapolation session with the campaign's flags itself.  Validation: section 7.
   any finished CLI run: `python3 -m rmfit.review <file.azr> [--output DIR]`.  Flags are candidates, not verdicts: look
   at the figure before writing a readme line, and leave data treatment to the evaluator.
 - **Check every fitted norm against the set's fit/data ratio** (the norm multiplies the data and its errors, so at a
-  sensible minimum fit/data ≈ norm). A norm that moved the other way (10B+α stage 1b, 2026-10-25: June ND5U25 norm 1.32
-  with the fit at 0.64 of those data) points to a data-scaled `vector` in that set's covariance acting as a hidden
-  normalization with Peelle's bias, not to an rmfit bug. Scan that one norm with the plain and the covariance χ²; the
-  fix and the numbers are in the `data-covariance` skill's Traps (analysis variants as `relvector`). Also distrust norms
+  sensible minimum fit/data ≈ norm). A norm that moved the other way (in one case a norm of 1.32
+  with the fit at 0.64 of those data) usually points to a data-scaled `vector` in that set's covariance acting as a
+  hidden normalization with Peelle's bias, not to an rmfit bug. Scan that one norm with the plain and the covariance
+  χ²; the fix is to write analysis variants as `relvector` terms (README, "Data covariances and normalization groups"). Also distrust norms
   sitting on the `norm_range` bounds while χ²/N ≫ 1: the priors are negligible there and the norms absorb shape misfit
   (see "First fits" in section 2).
 
@@ -534,11 +563,10 @@ The GUI review: `printf '1\n<reaction>.sav\n\n7\n' | AZURE2 <flags> --no-gui --n
   minimum in a sibling campaign directory, and records the target; every later
   verification there logs the sign distance and the gap. Success = back to the target
   within 1e-4. Run it once per reaction before trusting the method there.
-- The oracle script (an archived campaign) applies a
-  known target's sign pattern per channel / per group / all at once and polishes: it
-  separates "finding the pattern" from "reaching the basin from the pattern".
+- An oracle test applies a known target's sign pattern per channel / per group / all at
+  once and polishes: it separates "finding the pattern" from "reaching the basin from the pattern".
 - `diagnose.dataset_table`, `theta2_table`, `residual_runs`, `compare` feed `report`.
-- **Bench suite (2026-11-09, DESIGN.md Phase 3.1)**: `python3 -m rmfit.bench list|score|run` on `rmfit/bench/cases/<name>.json`.
+- **Bench suite**: `python3 -m rmfit.bench list|score|run` on `rmfit/bench/cases/<name>.json`.
   `score` applies the evaluator's recovery yardstick from the ledgers alone (data chi2 <= reference, objective within 0.5 %, zero wait
   decisions, no HIGH/MEDIUM review flag the reference lacks; 'exact' 1e-4 as a secondary column) and appends to `bench/results.tsv`;
   `run` writes the SGE job (reference init, `perturb`, spec, `drive`).  Supersedes "success = within 1e-4" above for drive runs: a
@@ -572,34 +600,48 @@ Still true (limits):
 
 ## 8. Gotchas
 
-- Never open two pyazr sessions in one process (parameter tables desync); rmfit runs
-  one process per session and `bake()` verifies in a fresh process. Do not use
-  `save_fit` for campaign files. `pyazr` bakes skip inactive levels since 2026-09-05;
-  older baked files may have mis-placed values in J-groups with inactive lines.
-- `bake()` writes the FIXED parameters' current physical values too since 2026-10-24 (a fixed width is fixed in rwa space,
-  so its observed value moves with the level's free amplitudes); exports made before that with mixed levels are a slightly
-  different model -- re-export from the ledger vector.  To freeze a level's observed widths, fix its closed-channel
-- `total 1` (optical-theorem neutron total, AZURE2 dev d37d4e6) is in rmfit's keyword table and in
-  bake's keyword guard; builds before d37d4e6 ignore it silently and compute elastic only.
-- Delete `output/intEC.*` whenever segments change (stale-cache rule of the AZURE2 skill).
-- Since 2026-11-04 `levelscan` / `structure add` default to the model's own J^pi groups and raise on a J^pi no
-  pair can couple to; run_snapshots copied before that still default to the half-integer list, so pass
-  `--jpi` with them (section 3, and the 2026-11-04 entry at the end).
-- New levels are appended at the end of the file and levels are removed by
-  deactivation, so every existing parameter key stays valid across structures.
-- A released polish lets amplitudes cross zero: sign patterns are not preserved by
-  polishing, and a "basin" is only defined up to the amplitudes that are near zero.
-- Frozen screens (flip, no refit) are cheap but favour flips of small amplitudes;
-  the GN screen (one damped Gauss-Newton step on the group's columns) is the ranking
-  that matters; coordinated multi-level flips need several backtracking GN iterations
-  (`search.gn_iters_multi`) and their own polish quota (`search.multi_top`).
-- Job mail: `-m abe` (start, end, abort) so a silent crash is noticed.
-- **`pkill -f` / `pgrep -f` patterns are regexes and every reaction name has a `+`**: find the pid with a fixed-string match
-  (`ps -eo pid,cmd | grep -F "11B+a_udr.azr"`), kill BY PID, confirm with `kill -0 <pid>` failing, only then remove the log;
-  launch background programs with `< /dev/null` and a size cap.  **When a batch of jobs dies at once, `df -h <group filesystem>`
-- **`init --sav` and FIXED parameters (2026-11-10)**: AZURE2's parameter-file reader sets every parameter it names, fixed level energies and widths included; rmfit seeds only the free ones and evaluates the .azr's fixed values.  The archive uses both readings: a CLI fit's `param.sav` holds the fixed values the fit ran with, a script-built base means the .azr and seeds from a stale .sav.  So init now logs every disagreement with the objective both ways and keeps the .azr's values by default; `--sav-fixed apply` (a CLI fit) writes `<stem>_sav.azr` (+ .sav) with the file applied and makes it the base (`Campaign.apply_sav_fixed`, test `tests/test_init_sav_fixed_13n.py`).  Keep the archived `chiSquared.out` in the base's output directory so init's reproduce check runs (bench: `chisq_out`).
-- **REVIEW's HIGH flags and the drive (2026-11-10)**: the init baseline is reviewed once (`REVIEW_baseline.md`); a HIGH flag the base model already carried is reported, not waited on; a flag answered 'continue' is not asked again (`drive_state` `review_continued`).  A flag the evaluator's own model carries (a broad pole the evaluator kept, with 'no extra levels' a standing decision) still queues `review-high` when the start did not have it: the spec cannot tell the drive that a standing decision answers it, so answer with the evidence.
-- **Close same-J^pi pairs: a report, not a constraint (2026-11-12)**: `review` flags two levels of one J^pi whose gap is below a fraction of the NARROWER total width (MEDIUM `level-close-width`, section "Close same-J^pi pairs"; default 10 %, `review.CLOSE_GAP_FRACTION`; `rmfit <dir> review --close-fraction f`, `python -m rmfit.review <azr> --close-fraction f`, spec budget `"close_fraction"`; 0 = off).  Nothing in rmfit enforces a minimum spacing: a centroid-plus-bounded-gap reparametrization would be a model constraint and its scale is the evaluator's to choose (not chosen as of 2026-11-12), and MEDIUM does not make the drive wait.  The flag is a question, never a verdict: it has marked a same-J^pi pair 1 keV apart with widths of 240 and 280 keV that merge tests found NOT redundant (one data set needs both).  The test of a flagged pair has two halves: a merged refit, AND a refit of the pair started from the merged solution (both from the same start); a merged model that only wins against a two-level fit stuck in a worse minimum proves nothing.
-- **Park-mode campaigns (`"use_park": true`)**: (1) the J > 0 wall is carried as residual rows since 2026-10-24
-  (`engine.ParkWall`, test `tests/test_park_wall_13n.py`; check `m.park_norms(x)` on any older Park result); (2) `--sav` seeds
-  are applied by NAME with no basis conversion -- convert a Brune `.sav` through a CLI mode-1 run in Park mode first;
+- Never open two pyazr sessions in one process (the parameter tables desynchronize); rmfit runs one process per session,
+  and `bake()` verifies in a fresh process.  Do not use `save_fit` for campaign files.  `bake()` skips inactive levels.
+- `bake()` also writes the FIXED parameters' current physical values: a fixed width is fixed in rwa space, so its observed
+  value moves with the level's free amplitudes.  To freeze a level's observed widths, fix its closed-channel amplitudes
+  too.  Test: `tests/test_bake_fixed_13n.py`.
+- `total 1` (the optical-theorem neutron total, AZURE2 commit d37d4e6) is in rmfit's keyword table and in bake's keyword
+  guard; AZURE2 builds before d37d4e6 ignore it silently and compute the elastic cross section only.
+- Delete `output/intEC.*` whenever the segments change (the stale-cache rule of the AZURE2 skill).
+- New levels are appended at the end of the file and levels are removed by deactivation, so every existing parameter key
+  stays valid across structures.
+- A released polish lets amplitudes cross zero: sign patterns are not preserved by polishing, and a "basin" is only
+  defined up to the amplitudes that are near zero.
+- Frozen screens (flip, no refit) are cheap but favour flips of small amplitudes; the GN screen (one damped Gauss-Newton
+  step on the group's columns) is the ranking that matters.  Coordinated multi-level flips need several backtracking GN
+  iterations (`search.gn_iters_multi`) and their own polish quota (`search.multi_top`).
+- Job mail: `-m abe` (start, end, abort), so that a silent crash is noticed.
+- **`pkill -f` / `pgrep -f` patterns are regexes, and every reaction name has a `+`.**  Find the pid with a fixed-string
+  match (`ps -eo pid,cmd | grep -F "<name>.azr"`), kill BY PID, confirm with `kill -0 <pid>` failing, and only then remove
+  the log.  Launch background programs with `< /dev/null` and a size cap.  **When a batch of jobs dies at once, check the
+  group's disk quota (`df -h <group filesystem>`) first.**
+- **`init --sav` and FIXED parameters.**  AZURE2's parameter-file reader sets every parameter it names, fixed level
+  energies and widths included; rmfit seeds only the free ones and evaluates the .azr's fixed values.  Both readings
+  occur in practice: a CLI fit's `param.sav` holds the fixed values the fit ran with, while a script-built base means the
+  .azr's values and may come with a stale .sav.  So `init` logs every disagreement with the objective both ways and keeps
+  the .azr's values by default; `--sav-fixed apply` (for a CLI fit) writes `<stem>_sav.azr` (+ .sav) with the file applied
+  and makes it the base (`Campaign.apply_sav_fixed`, test `tests/test_init_sav_fixed_13n.py`).  Keep the archived
+  `chiSquared.out` in the base's output directory so that init's reproduce check runs (bench: `chisq_out`).
+- **REVIEW's HIGH flags and the drive.**  The init baseline is reviewed once (`REVIEW_baseline.md`); a HIGH flag the base
+  model already carried is reported, not waited on, and a flag answered 'continue' is not asked again (`drive_state`
+  `review_continued`).  A flag that the evaluator's own model carries (a broad pole the evaluator kept, with "no extra
+  levels" a standing decision) still queues `review-high` when the start did not have it: the spec cannot tell the drive
+  that a standing decision answers it, so answer it with the evidence.
+- **Close same-J^pi pairs: a report, not a constraint.**  `review` flags two levels of one J^pi whose gap is below a
+  fraction of the NARROWER total width (MEDIUM `level-close-width`; default 10 %, `review.CLOSE_GAP_FRACTION`;
+  `rmfit <dir> review --close-fraction f`, `python -m rmfit.review <azr> --close-fraction f`, spec budget
+  `"close_fraction"`; 0 = off).  Nothing in rmfit enforces a minimum spacing: a centroid-plus-bounded-gap
+  reparametrization would be a model constraint whose scale is the evaluator's to choose, and a MEDIUM flag does not make
+  the drive wait.  The flag is a question, never a verdict: it has marked a same-J^pi pair 1 keV apart, with widths of 240
+  and 280 keV, that merge tests found NOT redundant (one data set needs both).  The test of a flagged pair has two halves,
+  both from the same start: a merged refit, AND a refit of the pair started from the merged solution.  A merged model that
+  only wins against a two-level fit stuck in a worse minimum proves nothing.
+- **Park-mode campaigns (`"use_park": true`).**  (1) The J > 0 wall is carried as residual rows (`engine.ParkWall`, test
+  `tests/test_park_wall_13n.py`).  (2) `--sav` seeds are applied by NAME with no basis conversion: convert a Brune `.sav`
+  through a CLI mode-1 run in Park mode first.  (3) `theta2_cap` bounds the observed theta^2 in Park mode and the formal
+  one in Brune mode.

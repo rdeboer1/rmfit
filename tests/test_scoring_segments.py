@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """levelscan.scoring_segments: which segments a candidate level is judged on locally.
 Regression for 2026-09-18: CM-frame differential data (isDiff 4, e.g. secondary gamma rays
-such as 13C(a,a1 gamma) and (a,n2 gamma)) were left out because only the literal observable
+such as (a,a1 gamma) and (a,n2 gamma)) were left out because only the literal observable
 "differential" was accepted."""
 import os, sys
 HERE = os.path.dirname(os.path.abspath(__file__))

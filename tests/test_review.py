@@ -53,11 +53,11 @@ def main():
     # 5. synthetic norm-opposite case (norm 1.32 while the fit is 0.64 x the data)
     n = 40
     ex = np.linspace(8.0, 9.0, n); d = np.full(n, 10.0); e = np.full(n, 0.3); c = 0.64 * d
-    tab2 = rv.PointTable(key=np.full(n, 1), name=np.array(["ND5U25"] * n, dtype=object), ecm=ex, ex=ex, ang=np.full(n, np.nan),
+    tab2 = rv.PointTable(key=np.full(n, 1), name=np.array(["SETB25"] * n, dtype=object), ecm=ex, ex=ex, ang=np.full(n, np.nan),
                          fit=c, data=d, err=e, norm=np.full(n, 1.32))
 
     class Seg:
-        key = 1; observable = "angle-integrated"; vary_norm = True; norm_error = 9.7; norm_group = "ND5U25"; covariance = None; data_file = "ND5U25.dat"
+        key = 1; observable = "angle-integrated"; vary_norm = True; norm_error = 9.7; norm_group = "SETB25"; covariance = None; data_file = "SETB25.dat"
         entrance_key = 1; exit_key = 2
 
     class Segs(list):

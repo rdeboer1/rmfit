@@ -680,7 +680,7 @@ def write_shard(base_azr: str, name: str, pieces: List[Piece], workdir: str) -> 
             c = p.conv
             fname = f"conv_seg{p.base_key}_{name}.dat"
             # the angle column must pass the segment's angle filter: a fixed-angle (differential) segment keeps only
-            # rows at its angle, so the grid rows carry it (2026-10-15: Heil / ND 2021 conv pieces came out empty with 0.0);
+            # rows at its angle, so the grid rows carry it (fixed-angle conv pieces once came out empty with 0.0);
             # an angle range (angle-integrated data, 0-180) keeps 0.0 as before
             a_lo, a_hi = float(p.tokens[5]), float(p.tokens[6])
             ang = a_lo if a_lo == a_hi else 0.0

@@ -130,7 +130,7 @@ def dataset_name(path: str) -> str:
 
 
 def family_name(stem: str) -> str:
-    """``meyer_84`` / ``meyer_114`` -> ``meyer``; ``ND5U25_a1_30deg`` -> ``ND5U25_a1`` (trailing numeric tokens
+    """``meyer_84`` / ``meyer_114`` -> ``meyer``; ``SETB25_a1_30deg`` -> ``SETB25_a1`` (trailing numeric tokens
     with an optional unit are dropped)."""
     return re.sub(r"([_-]\d+(\.\d+)?(deg|MeV|keV|mev|kev)?)+$", "", stem) or stem
 

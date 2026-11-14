@@ -1,4 +1,4 @@
-"""``PYTHONPATH=~/R-matrix python3 -m rmfit.cli <campaign_dir> <command> [options]``
+"""``PYTHONPATH=<directory containing rmfit> python3 -m rmfit.cli <campaign_dir> <command> [options]``
 
 Commands (all idempotent and resumable from the ledger):
 

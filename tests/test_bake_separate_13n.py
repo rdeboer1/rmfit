@@ -16,6 +16,10 @@ import os, sys, shutil, tempfile, io, contextlib
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.normpath(os.path.join(HERE, "..", "..")))
 sys.path.insert(0, os.environ.get("AZURE2_ROOT", os.path.expanduser("~/AZURE2")))
+from rmfit.backend import PYAZR3 as _PYAZR3  # noqa: E402
+if _PYAZR3:
+    print("SKIP: a pyazr 2 test; this process runs pyazr 3 (its pyazr 3 version is test_p3_bake_separate_13n.py)")
+    sys.exit(77)
 import numpy as np
 from pyazr import AzrModel
 import rmfit.enginepin as enginepin

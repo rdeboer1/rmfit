@@ -29,7 +29,12 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.normpath(os.path.join(HERE, "..", "..")))
-FIX = os.path.join(HERE, "fixtures", "shift_fn_groups")
+from rmfit.backend import PYAZR3 as _PYAZR3  # noqa: E402
+if _PYAZR3:
+    print("SKIP: a pyazr 2 test; this process runs pyazr 3 (its pyazr 3 version is test_p3_jac_skip_columns.py)")
+    sys.exit(77)
+from _fixtures import fixture  # noqa: E402  (fixtures/ or fixtures_p3/ by backend)
+FIX = fixture("shift_fn_groups")
 failures = []
 SHIFT_KINDS = ("shift", "shift_sqrt", "shift_fn", "density")
 

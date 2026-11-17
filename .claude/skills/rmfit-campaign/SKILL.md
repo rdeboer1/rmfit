@@ -18,6 +18,31 @@ python3 -m rmfit.cli <campaign_dir> <command> [options]
 Read this file top to bottom before the first command on a new reaction; for resuming a
 campaign, "Read the state" and "The loop" are enough. The design and its open items are in DESIGN.md.
 
+## 0. Two backends: pyazr 2 and pyazr 3
+
+rmfit runs on the pyazr that `AZURE2_ROOT` provides (`rmfit/backend.py` reads its version): pyazr 2 (AZURE2 `dev`,
+`.azr` text projects) or pyazr 3 (AZURE2 `feature/upgrade`, project format 3 only).  A campaign is pinned to one engine
+build, so it stays on the backend it started with.  What pyazr 3 changes for an operator:
+
+- **Convert first.** A format-1/2 `.azr` is converted once, `AZURE2 --convert OLD NEW` or `pyazr.convert_azr(old,
+  new)`; read the converter's report.  A parameter file of the old project is renamed with
+  `AZURE2 --convert-params OLD.par NEW.par --project OLD.azr`.
+- **Data sets are named records**, numbered in file order for the outputs; rmfit's segment keys are those numbers.
+  Edit a project through `pyazr.Project` (or `rmfit.azr3.Model` for level and data-set moves), never by position in
+  a line.
+- **Normalizations, shifts and their priors are the engine's** (a record's `norm 1 fit prior 1 5%`, a shared
+  `normalization` or `energy_scale` record); rmfit takes every prior from the session's parameter rows.
+- **The engine folds** target, beam and detector effects: such a data set is never split across shards, and there
+  are no convolution pieces.  An extrapolation is folded only if its own record names a target, a beam or a detector
+  (the audit reports `extrapolation-folded`; the old `<targetInt>` trap is gone).
+- **Model data** (a measured scattering length, a width, a branching ratio), a prior covariance (single session
+  only), abundance sums and decay priors are rows of rmfit's objective, taken from the engine.
+- **Not on pyazr 3**: `rmfit.mixture` (several compound nuclei in one project replace it).  `rmfit uq` samples with
+  rmfit's own NUTS (`rmfit/sampling.py`); a `uq.bands` grid is the fields of an `extrapolation` record plus
+  `quantity_band` and `label`.
+- **Audit codes on pyazr 3**: `engine-validate` (the engine's validator: masses, separation energies, data files),
+  `model-setup`, `norm-prior-tight` (pyazr 2: `norm-error-units`), `extrapolation-folded` (pyazr 2: `targetint-test`).
+
 ## 1. Read the state, never recompute it
 
 A campaign directory carries everything a fresh session needs:

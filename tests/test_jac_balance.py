@@ -22,6 +22,11 @@ import tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.normpath(os.path.join(HERE, "..", "..")))
 os.environ.setdefault("OMP_NUM_THREADS", "1")
+from rmfit.backend import PYAZR3 as _PYAZR3  # noqa: E402
+if _PYAZR3:
+    print("SKIP: a pyazr 2 test; this process runs pyazr 3 (its pyazr 3 version is test_p3_jac_balance.py)")
+    sys.exit(77)
+from _fixtures import fixture  # noqa: E402  (fixtures/ or fixtures_p3/ by backend)
 import numpy as np
 
 failures = []
@@ -123,7 +128,7 @@ def main():
     tmp = tempfile.mkdtemp(prefix="rmfit_jacbal_")
     try:
         if "shiftfngroup" in getattr(ds, "_KEYWORDS", {}):
-            fix = os.path.join(HERE, "fixtures", "shift_fn_groups")
+            fix = fixture("shift_fn_groups")
             d = os.path.join(tmp, "sfg")
             shutil.copytree(fix, d)
 
@@ -150,7 +155,7 @@ def main():
                   f"{where}")
         else:
             print("SKIP (b)/(c): this pyazr does not know shiftfngroup")
-        fix = os.path.join(HERE, "fixtures", "relvector_p12c")
+        fix = fixture("relvector_p12c")
         d = os.path.join(tmp, "p12c")
         shutil.copytree(fix, d)
 

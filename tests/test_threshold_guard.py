@@ -3,6 +3,10 @@
 plus particle_thresholds on the 13N fixture."""
 import os, sys
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, os.path.normpath(os.path.join(HERE, "..", "..")))
+from rmfit.backend import PYAZR3 as _PYAZR3  # noqa: E402
+if _PYAZR3:
+    print("SKIP: a pyazr 2 test; this process runs pyazr 3 (its pyazr 3 version is test_p3_threshold_guard.py)")
+    sys.exit(77)
 from rmfit.local import keep_off_thresholds, particle_thresholds, BoundsPolicy
 ok = True
 def check(name, cond, detail=""):

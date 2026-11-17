@@ -35,6 +35,8 @@ from typing import Tuple, Dict, List, Optional, Sequence
 
 import numpy as np
 
+from .backend import PYAZR3
+
 
 def jpi_string(J, parity) -> str:
     """``"5/2+"`` style, the same text :class:`pyazr.azrfile.AzrLevel.jpi` uses."""
@@ -113,9 +115,9 @@ def jgroup_nucleus_tags(m) -> Dict[int, str]:
     if len(set(nuc.values())) <= 1:
         return {}
     try:
-        from pyazr.nuclei import Nucleus
+        from .backend import Nucleus                     # pyazr.nuclei (pyazr 2) / pyazr.system (pyazr 3)
         name = lambda za: Nucleus(*za).label
-    except ImportError:                                  # pyazr without nuclei.py
+    except ImportError:                                  # pyazr 2 without nuclei.py
         name = lambda za: f"Z{za[0]}A{za[1]}"
     tags: Dict[int, str] = {}
     for p in m.parameters:
@@ -140,7 +142,7 @@ def build_keys(m, seg_map: Optional[Dict[int, int]] = None) -> List[ParamKey]:
     """
     pairkey = {p.number: p.key for p in m.pairs}
     tags = jgroup_nucleus_tags(m)
-    n = len(m.params_rwa)
+    n = len(m.parameters.x0) if PYAZR3 else len(m.params_rwa)
     keys: List[Optional[ParamKey]] = [None] * n
     for p in m.parameters:
         if p.fixed or p.free_index is None:

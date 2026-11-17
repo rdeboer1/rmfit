@@ -21,12 +21,40 @@ hand, on a schedule a script can follow and an LLM agent can resume:
 Process guide (the Claude skill `rmfit-campaign`): `.claude/skills/rmfit-campaign/SKILL.md` in this repository,
 linked as `~/.claude/skills/rmfit-campaign`.  It lived in the AZURE2 repository until 2026-11-07.
 
+**Two backends.**  rmfit runs on pyazr 2 (AZURE2 `dev`: `.azr` text projects, `pyazr.azure2`, `AzrModel`) and on
+pyazr 3 (AZURE2 `feature/upgrade`: project format 3 only, `Session`, `Objective`, `Evaluation`, `Parameters`,
+`Project`).  `backend.py` reads the version of the pyazr that `AZURE2_ROOT` provides; everything that does not touch
+the engine or the project file (search, ledger, driver logic, review criteria, keys) is one code, and the contact
+points branch on `backend.PYAZR3`.  On pyazr 3:
+
+- every project is format 3 (`AZURE2 --convert OLD NEW` first); rmfit reads it through `azr3.py` and never parses a
+  line of it;
+- the rows are the engine's: data rows from `Objective.residuals`, the priors of normalizations, shifts and the
+  other nuisances from the session's parameter rows, and the engine's model rows (model data such as a measured
+  scattering length, a prior covariance, Park's wall with them, decay priors, abundance sums) as one block
+  (`engine.ModelRows`); a single session's objective is `Session.objective()` exactly;
+- shards are record edits (`azr3.write_variant`); a data set the engine folds (it names a target, a beam or a
+  detector) or one of a shared energy scale is never split, and there are no convolution pieces;
+- `bake` writes its files with `Session.save_fit` and keeps rmfit's own fresh-session check;
+- `audit` takes masses, separation energies and file problems from the engine's validator;
+- `uq` samples with `sampling.py` (pyazr 2's NUTS, kept in rmfit because pyazr 3 has no sampling module; on pyazr 2
+  `uq` uses `pyazr.sampling`);
+- `mixture.py` is pyazr 2 only (superseded by several compound nuclei in one project).
+
+Tests: a script that is the same on both backends is `tests/test_<name>.py`; where they differ,
+`tests/test_<name>.py` is the pyazr 2 version and `tests/test_p3_<name>.py` the pyazr 3 one, each skipped (exit 77)
+on the other backend.  `tests/fixtures_p3/` holds the fixture models converted to format 3.
+
 Layout (design rationale and roadmap: `DESIGN.md` in this directory; the plan file the first campaign readme cites is gone):
 
 | module | role |
 |---|---|
 | `keys.py` | structured parameter keys (energy, width, norm, shift, shift_sqrt, shift_fn, abundance, density, doppler, thickness, screening) and index maps between model variants; canonical sign patterns; `sign_distance` (minimal flips between two patterns modulo the gauge symmetries) |
-| `model.py` | model variants written as new `.azr` files (shards, windows, with/without level) |
+| `backend.py` | the backend switch: `PYAZR3`, and `AzrModel` / `SegmentSet` / `Nucleus` of the pyazr in use |
+| `azr3.py` | (pyazr 3) the project as rmfit reads and edits it: `SegmentTable` (data sets), `write_variant`, `Model` (level and data-set edits through `pyazr.Project`) |
+| `model.py` | model variants written as new model files (shards, windows, with/without level): the shared planning here, the file work in `_model_p2.py` (pyazr 2) / `_model_p3.py` (pyazr 3) |
+| `_worker.py` | one engine session per process: `_worker_p2.py` (`pyazr.azure2`) or `_worker_p3.py` (`pyazr.Session`) |
+| `sampling.py` | (pyazr 3) NUTS, R-hat and ESS (pyazr 2's `pyazr/sampling.py`), `AzurePosterior` on `Session.objective()` |
 | `engine.py` | `SingleSession` (authoritative) and `Sharded` evaluators; `ObjectiveSpec` (plain chi2, reduced-chi2 per data set, Sivia loss) |
 | `local.py` | bounded trust-region polishes, staged fits, sanity checks |
 | `ledger.py` | candidate store, rounds, status |
@@ -46,7 +74,7 @@ Layout (design rationale and roadmap: `DESIGN.md` in this directory; the plan fi
 | `audit_subagent.py` | `rmfit audit --kind input\|data\|literature`: the three idle-time reviews of skill section 3b as self-contained subagent prompts (`audits/<kind>/PROMPT.md`, from `templates/audit_*.md`: segment table, data files, machine findings, spec roles and standing decisions, readme head); parser of their `FINDINGS.md` (`--findings`, `--status KIND N confirmed`) |
 | `audit.py` | `rmfit audit`: engine-free pre-flight checks of the model and data -> `AUDIT.md` (zero free widths, 1 keV level merges, nominal norms != 1, normError as a fraction, FLAG columns as errors, tiny errors, duplicates, spikes, cross-file duplicates, thresholds, `<targetInt>` on test segments, legacy .sav names, output path, engine pin) |
 | `covariance.py` | data covariance matrices (`covariance <file>`) and normalization groups (`normgroup <label>`): the engine's whitening redone on the evaluator's rows, the normgroup leader map (2026-10-22) |
-| `mixture.py` | joint fit of several projects (one compound nucleus each) to data they share -- natural-abundance or compound targets: one worker per member, member-tagged keys, abundance weights (fixed or free with a sum-to-one row), one normalization per shared data set; `freeze_and_exchange` writes every member back as a standalone stage-1 file with the others as `mixture` tables (`python3 -m rmfit.mixture <dir> init|polish|freeze|status`) |
+| `mixture.py` | (pyazr 2 only) joint fit of several projects (one compound nucleus each) to data they share -- natural-abundance or compound targets: one worker per member, member-tagged keys, abundance weights (fixed or free with a sum-to-one row), one normalization per shared data set; `freeze_and_exchange` writes every member back as a standalone stage-1 file with the others as `mixture` tables (`python3 -m rmfit.mixture <dir> init|polish|freeze|status`) |
 
 
 Running: `rmfit` is not installed as a package; put its parent on the path:

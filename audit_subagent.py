@@ -20,6 +20,7 @@ import time
 from typing import List, Optional
 
 from .spec import Finding, pair_lines
+from .backend import PYAZR3
 
 KINDS = ("input", "data", "literature")
 STATUSES = ("candidate", "confirmed", "rejected", "decision")
@@ -48,7 +49,7 @@ def _pairs_text(model):
         try:
             light = f"Z={c.Z1} M={c.M1:g} J={c.J1:g}"
             heavy = f"Z={c.Z2} M={c.M2:g} J={c.J2:g}"
-            thr = c.entrance_sep_energy - c.sep_energy + c.excitation      # Ex of the pair's threshold
+            thr = c.threshold if PYAZR3 else c.entrance_sep_energy - c.sep_energy + c.excitation      # Ex of the pair's threshold
             rows.append(f"- pair {key}: ({light}) + ({heavy}), separation energy {c.sep_energy:.4f} MeV, Ex(heavy) = {c.excitation:.4f}, "
                         f"threshold at Ex = {thr:.4f} MeV, a = {c.channel_radius:g} fm")
         except Exception as err:
@@ -57,6 +58,10 @@ def _pairs_text(model):
 
 
 def _segment_table(segs, base):
+    """The data-set table of a subagent prompt (pyazr 3 / pyazr 2 versions below)."""
+    return (_segment_table_p3(segs, base) if PYAZR3 else _segment_table_p2(segs, base))
+
+def _segment_table_p2(segs, base):
     head = ("| key | active | in->out | observable | file | E window (lab) | angle | norm (nominal, vary, err %) | shift | cov | group |\n"
             "|---|---|---|---|---|---|---|---|---|---|---|")
     rows = []
@@ -67,6 +72,18 @@ def _segment_table(segs, base):
         obs = s.observable + (" SUM" if s.total else "") + (" composite" if s.composite else "")
         rows.append(f"| {s.key} | {'1' if s.active else '0'} | {s.entrance_key}->{s.exit_key} | {obs} | {s.data_file} | "
                     f"{s.energy_min:g}-{s.energy_max:g} | {ang} | {norm} | {shift} | {s.covariance or '-'} | {s.norm_group or '-'} |")
+    return head + "\n" + "\n".join(rows)
+
+def _segment_table_p3(segs, base):
+    head = ("| key | name | active | reaction (pairs in->out) | quantity | file | E window (lab) | angle | norm (as written) | "
+            "shift (as written) | cov | shared norm |\n|---|---|---|---|---|---|---|---|---|---|---|---|")
+    rows = []
+    for s in segs:
+        ang = f"{s.angle_min:g}-{s.angle_max:g}" if s.differential else "-"
+        obs = s.observable + (f" ({s.operation} of {len(s.terms)} reactions)" if s.composite else "")
+        rows.append(f"| {s.key} | {s.name} | {'1' if s.active else '0'} | {s.tree} ({s.entrance_key}->{s.exit_key}) | {obs} | "
+                    f"{s.data_file} | {s.energy_min:g}-{s.energy_max:g} | {ang} | {s.norm_text or '-'} | {s.shift_text or '-'} | "
+                    f"{s.covariance or '-'} | {s.norm_group or '-'} |")
     return head + "\n" + "\n".join(rows)
 
 
@@ -140,8 +157,7 @@ def subagent_prompt(kind: str, azr_path: str, campaign_dir: Optional[str] = None
                     machine_findings: Optional[List[Finding]] = None, out_dir: Optional[str] = None) -> str:
     if kind not in KINDS:
         raise ValueError(f"kind must be one of {KINDS}")
-    from pyazr import AzrModel
-    from pyazr.datasets import SegmentSet
+    from .backend import AzrModel, SegmentSet
     azr_path = os.path.abspath(azr_path)
     base = os.path.dirname(azr_path)
     segs = SegmentSet.from_file(azr_path)

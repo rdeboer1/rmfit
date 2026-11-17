@@ -4,6 +4,10 @@ back-mapping, and _box from a BoundsPolicy.  Login node, seconds:  python3 rmfit
 import os, sys, tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.normpath(os.path.join(HERE, "..", "..")))
+from rmfit.backend import PYAZR3 as _PYAZR3  # noqa: E402
+if _PYAZR3:
+    print("SKIP: a pyazr 2 test; this process runs pyazr 3 (its pyazr 3 version is test_p3_uq_bounds.py)")
+    sys.exit(77)
 import numpy as np
 from rmfit.uq import BoundedTarget, _box, _chains_from_checkpoints
 from rmfit.local import BoundsPolicy

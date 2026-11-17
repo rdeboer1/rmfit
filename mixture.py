@@ -51,6 +51,10 @@ from typing import Dict, List, Optional, Sequence, Tuple
 import numpy as np
 
 from . import AZURE2_ROOT, ARCHIVE_FLAGS
+from .backend import require as _require
+# pyazr 2 only (the evaluator 2026-11-16: "pyazr-2 only"): superseded since 2026-10-13 by several compound nuclei in one project,
+# and the pyazr calls it needs do not exist on pyazr 3
+_require(2, "rmfit.mixture (the joint fit of several single-nucleus projects; use one project with several compound nuclei)")
 from .engine import _Worker, Evaluator, EvalError, ObjectiveSpec, Penalties
 from .keys import ParamKey
 from .model import single_variant, replace_block, set_output_dir_text, block_lines

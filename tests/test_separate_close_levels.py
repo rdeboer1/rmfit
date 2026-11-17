@@ -6,6 +6,10 @@ sanity's runaway limit) and the transform returns eV.  Run: python3 rmfit/tests/
 import os, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.normpath(os.path.join(HERE, "..", "..")))
+from rmfit.backend import PYAZR3 as _PYAZR3  # noqa: E402
+if _PYAZR3:
+    print("SKIP: a pyazr 2 test; this process runs pyazr 3 (its pyazr 3 version is test_p3_separate_close_levels.py)")
+    sys.exit(77)
 from types import SimpleNamespace as NS
 import numpy as np
 from rmfit.local import separate_close_levels, sanity, BoundsPolicy

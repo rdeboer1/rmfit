@@ -3,6 +3,10 @@
 just those near the n1 threshold").  Pure checks of BoundsPolicy.cap_for, then default_bounds on the 13N fixture."""
 import os, sys
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, os.path.normpath(os.path.join(HERE, "..", "..")))
+from rmfit.backend import PYAZR3 as _PYAZR3  # noqa: E402
+if _PYAZR3:
+    print("SKIP: a pyazr 2 test; this process runs pyazr 3 (its pyazr 3 version is test_p3_cap_windows.py)")
+    sys.exit(77)
 import numpy as np
 from rmfit.local import BoundsPolicy, default_bounds
 ok = True

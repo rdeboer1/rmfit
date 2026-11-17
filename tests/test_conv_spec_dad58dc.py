@@ -10,6 +10,10 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.normpath(os.path.join(HERE, "..", "..")))
+from rmfit.backend import PYAZR3 as _PYAZR3  # noqa: E402
+if _PYAZR3:
+    print("SKIP: a pyazr 2 test; this process runs pyazr 3: pyazr 2 only")
+    sys.exit(77)
 from rmfit.model import build_conv_spec, parse_target_effect  # noqa: E402
 
 failures = []

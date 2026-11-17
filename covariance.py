@@ -52,7 +52,9 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
-# -- segment lines -----------------------------------------------------------------
+from .backend import PYAZR3
+
+# -- segment lines (pyazr 2: the .azr text format; pyazr 3 reads records through rmfit.azr3) -----------------------------------------------------------------
 
 #: The keyword blocks a segment line may end with and their token counts
 #: (pyazr.datasets._KEYWORDS of AZURE2 dev; shiftfn takes a variable number).
@@ -132,6 +134,10 @@ def segment_lines(azr: str) -> List[List[str]]:
 
 
 def has_keyword(azr: str, kw: str) -> bool:
+    """True when a data segment of ``azr`` carries keyword ``kw`` (pyazr 3: a ``dataset`` record has the field)."""
+    if PYAZR3:
+        from .azr3 import has_field
+        return has_field(azr, kw)
     return any(line_keyword(t, kw) is not None for t in segment_lines(azr))
 
 
@@ -149,6 +155,10 @@ def strip_text(text: str, drop: Sequence[str] = ("covariance",)) -> str:
     return text[:start] + "".join(l + "\n" for l in lines) + text[b:]
 
 
+#: pyazr 3: the record field behind each of the old segment-line keywords
+_GROUP_FIELD = {"normgroup": "norm_group", "shiftgroup": "shift_group", "shiftfngroup": "shift_group"}
+
+
 @dataclass
 class NormGroups:
     """``normgroup`` (or, with ``kw="shiftgroup"``, shift-group) membership of a model:
@@ -158,7 +168,14 @@ class NormGroups:
     label: Dict[int, str] = field(default_factory=dict)         # member key -> label
 
     @classmethod
-    def from_azr(cls, azr: str, kw: str = "normgroup") -> "NormGroups":
+    def from_azr(cls, azr: str, kw: str = "normgroup", segments=None) -> "NormGroups":
+        """The groups of model ``azr``.  pyazr 2: the ``normgroup`` / ``shiftgroup`` / ``shiftfngroup`` keyword of
+        its segment lines.  pyazr 3: the data sets whose ``norm`` names one shared ``normalization`` record, or whose
+        ``shift`` one shared ``energy_scale`` record (``segments``: the data-set table, if already read)."""
+        return cls._from_azr_p3(azr, kw, segments) if PYAZR3 else cls._from_azr_p2(azr, kw)
+
+    @classmethod
+    def _from_azr_p2(cls, azr: str, kw: str = "normgroup") -> "NormGroups":
         out = cls()
         first: Dict[str, int] = {}
         for i, t in enumerate(segment_lines(azr), start=1):
@@ -172,6 +189,27 @@ class NormGroups:
                 out.leader[i] = first[lab]
             else:
                 first[lab] = i
+        return out
+
+    @classmethod
+    def _from_azr_p3(cls, azr: str, kw: str = "normgroup", segments=None) -> "NormGroups":
+        """The groups of project ``azr``: the data sets whose ``norm`` names one shared ``normalization`` record
+        (``kw="normgroup"``), or whose ``shift`` names one shared ``energy_scale`` record (``"shiftgroup"``,
+        ``"shiftfngroup"``: in format 3 one record holds the offset, the sqrt(E) coefficient and the shift
+        function, so the two are the same groups)."""
+        from .azr3 import segments as _segments
+        attr = _GROUP_FIELD[kw]
+        out = cls()
+        first: Dict[str, int] = {}
+        for s in (segments if segments is not None else _segments(azr)):
+            lab = getattr(s, attr)
+            if not s.active or not lab:
+                continue
+            out.label[s.key] = lab
+            if lab in first:
+                out.leader[s.key] = first[lab]
+            else:
+                first[lab] = s.key
         return out
 
     def owner(self, key: int) -> int:
@@ -622,14 +660,19 @@ class RowBlock:
     order: str = "file"
 
 
+
 def segment_records(seg, path: str, e_lo: float, e_hi: float, order: str = "file") -> np.ndarray:
     """1-based records of ``path`` that the engine loads for segment ``seg`` restricted
     to ``[e_lo, e_hi]`` (the filter of rmfit.model.rows_in_segment), in point order."""
-    from .model import DIFFERENTIAL
     rec = read_records(path)
     e, ang = rec[:, 0], rec[:, 1]
     sel = (e >= e_lo) & (e <= e_hi) & (e >= seg.energy_min) & (e <= seg.energy_max)
-    if seg.observable in DIFFERENTIAL:
+    if PYAZR3:
+        differential = seg.differential
+    else:
+        from .model import DIFFERENTIAL
+        differential = seg.observable in DIFFERENTIAL
+    if differential:
         sel &= (ang >= seg.angle_min - 1e-6) & (ang <= seg.angle_max + 1e-6)
     idx = np.nonzero(sel)[0]
     if order == "energy":
@@ -649,12 +692,15 @@ class Covariance:
     def build(cls, azr: str, cwd: str, segments, blocks: Sequence[RowBlock], npts: int) -> Optional["Covariance"]:
         """The covariance groups of model ``azr`` (paths relative to ``cwd``, where the engine
         would run) on the evaluator rows ``blocks``; None if no active segment names one."""
-        lines = segment_lines(azr)
-        cov_of = {}
-        for i, t in enumerate(lines, start=1):
-            c = line_keyword(t, "covariance")
-            if c is not None and int(float(t[0])) == 1:
-                cov_of[i] = c
+        if PYAZR3:
+            cov_of = {int(s.key): s.covariance for s in segments if s.active and s.covariance}
+        else:
+            lines = segment_lines(azr)
+            cov_of = {}
+            for i, t in enumerate(lines, start=1):
+                c = line_keyword(t, "covariance")
+                if c is not None and int(float(t[0])) == 1:
+                    cov_of[i] = c
         if not cov_of:
             return None
         files: Dict[str, CovFile] = {}

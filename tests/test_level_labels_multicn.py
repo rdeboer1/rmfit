@@ -27,7 +27,12 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.normpath(os.path.join(HERE, "..", "..")))
-FIX = os.path.join(HERE, "fixtures", "multicn_labels")
+from rmfit.backend import PYAZR3 as _PYAZR3  # noqa: E402
+if _PYAZR3:
+    print("SKIP: a pyazr 2 test; this process runs pyazr 3 (its pyazr 3 version is test_p3_level_labels_multicn.py)")
+    sys.exit(77)
+from _fixtures import fixture  # noqa: E402  (fixtures/ or fixtures_p3/ by backend)
+FIX = fixture("multicn_labels")
 failures = []
 
 

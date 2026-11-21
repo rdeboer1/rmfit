@@ -2166,6 +2166,12 @@ class Campaign:
                                                else "a different sign basin"))
         # the new campaign: same config, its baseline = the perturbed, polished vector (verified there)
         cfg = dict(self.cfg); cfg["base_azr"] = base_name
+        # a fixed relvector covariance model travels with the objective: the sibling must score with the SAME reference
+        # (campaign.json named cov_reference.npz, the file stayed behind and the
+        # sibling's first session stopped with FileNotFoundError)
+        if self.objective.cov_reference:
+            shutil.copy2(self.objective.cov_reference, os.path.join(out_dir, "cov_reference.npz"))
+            cfg["objective"] = dict(cfg.get("objective") or {}, cov_reference="cov_reference.npz")
         cfg["perturbation"] = dict(parent=self.dir, parent_candidate=cid, parent_objective=obj,
                                    flips=[m.description for m in chosen], seed=seed, jitter=jitter, e_kick=e_kick)
         with open(os.path.join(out_dir, "campaign.json"), "w") as f:

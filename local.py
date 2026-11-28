@@ -768,6 +768,19 @@ def polish(ev: Evaluator, x0, free: Optional[np.ndarray] = None,
 
     n_ev = {"rows": None}             # the evaluator's own rows; the floor rows go after them
 
+    guard, guard_allowed, guard_hits, push = None, [], {"n": 0}, None
+    if getattr(policy, "pole_guard", None):
+        from .poleguard import PoleGuard, PolePush
+        guard = PoleGuard(ev, policy.pole_guard, log=say)
+        if policy.pole_guard.get("push"):
+            push = PolePush(guard, policy.pole_guard["push"], x0, n, log=say)
+            # the push rows police the bound region below e_min (v2k 2026-11-27: the full count test rejected every push
+            # step for a new 7/2+ bound zero at threshold); Gamma = 0 poles at or above e_min stay the guard's (v2m
+            # 2026-11-28: with the test off a 7/2+ pole at 4.165, 22 keV above S_n, got through -- the push cannot see it
+            # because det A^-1 is complex there).  push["guard_bound"] = "off" restores the earlier behaviour.
+            guard.bound_test = {"off": False, "all": True}.get(policy.pole_guard["push"].get("guard_bound", "continuum"),
+                                                               "continuum")
+
     def _resid(x, jac, want=None):
         r, J = _ev_residuals(ev, x, jac, want)
         n_ev["rows"] = r.size
@@ -776,6 +789,11 @@ def polish(ev: Evaluator, x0, free: Optional[np.ndarray] = None,
             r = np.concatenate([r, rf])
             if jac:
                 J = np.vstack([J, Jf])
+        if push is not None:
+            rp, Jp = push.rows(x, jac=jac, want=want)
+            r = np.concatenate([r, rp])
+            if jac:
+                J = np.vstack([J, Jp])
         return r, J
 
     try:
@@ -799,15 +817,14 @@ def polish(ev: Evaluator, x0, free: Optional[np.ndarray] = None,
     if dead:
         say(f"  {len(dead)} dead columns dropped: " + ", ".join(str(ev.keys[c]) for c in dead[:6]))
     if cols.size == 0:
+        if guard is not None:
+            guard.close()
         return FitResult(x0, start_obj, ev.rows_chi2(r0),
                          ev.penalties.value(x0) + _park_value(ev, _ev_rows(r0)), ev.prior.value(x0) if ev.prior else 0.0,
                          "converged", "nothing to fit", 1, 1, free, dead, [],
                          time.time() - t0, start_obj)
 
-    guard, guard_allowed, guard_hits = None, [], {"n": 0}
-    if getattr(policy, "pole_guard", None):
-        from .poleguard import PoleGuard
-        guard = PoleGuard(ev, policy.pole_guard, log=say)
+    if guard is not None:
         bad0 = guard(x0)
         guard_allowed = bad0
         say(f"  pole guard at the start: {PoleGuard.text(bad0)}"
@@ -896,6 +913,9 @@ def polish(ev: Evaluator, x0, free: Optional[np.ndarray] = None,
         f"nfev={counts['f']} njev={counts['j']}, {time.time()-t0:.0f}s)")
     if guard is not None:
         say(f"  pole guard at the end: {PoleGuard.text(guard(x))} ({guard_hits['n']} trial step(s) rejected)")
+        if push is not None:
+            say(f"  pole push at the end: extra bound zeros {push.text(push.zeros(x))}; above the floor "
+                f"{push.floor:g}: {push.above_floor(x) or 'none'}")
         guard.close()
     return FitResult(x, obj, chi2, pen, pri, status, res.message.strip(), counts["f"],
                      counts["j"], free, dead, hit, time.time() - t0, start_obj)

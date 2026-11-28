@@ -260,6 +260,12 @@ parameter count went up by the number seeded.  The drive's SEED_CHANNELS state d
 campaign does not get it from `init`.  What it can cost: a whole level search run with dozens of widths of the existing
 levels frozen at 0, and a later test that seeded only the new poles left well over a hundred free zeros in the physical
 levels.
+**A level ADDED by `levelscan` or `structure add` from the command line is a new zero-width trap**: the template seeds only
+its named channels ("pair 1+4 70%/30%", "channel 8 only") and pyazr `add_level` writes every other channel of the group at
+0, FIXED, unless `setenv RMFIT_SEED_OMITTED 1` is in the job script (the drive defaults `structure.seed_omitted` to True since
+2026-11-22; the CLI default is still off).  In one campaign the broad-level scan accepted two broad levels (Γ 0.5 and 1.4 MeV)
+with NO width in the entrance channel, because that pair was not in their templates; their verdicts were reached with the
+entrance channel frozen.  Set the variable for every scan and add, and list the new level's rows after an accept.
 
 | step | command | purpose | when done |
 |---|---|---|---|

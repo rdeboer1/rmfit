@@ -303,6 +303,20 @@ def table_from_evaluator(ev, x) -> PointTable:
     c = ev.cross(np.asarray(x, float))
     x = np.asarray(x, float)
     norm_of = {k.seg: float(x[j]) for j, k in enumerate(ev.keys) if k.kind == "norm"}
+    # 2026-11-27: a format-3 shared normalization record has ONE key, on its first member; the other members
+    # carry the same value (the engine applies it to all; checked with the CLI's normalizations.out on
+    # an archived campaign).  Before, followers fell back to the segment's own norm (1.0) and the plain chi2 was wrong.
+    group_norm = {}
+    for (key, _r) in ev.row_ranges:
+        seg = ev.segments.by_key(key)
+        g = getattr(seg, "norm_group", "") if seg is not None else ""
+        if g and key in norm_of and g not in group_norm:
+            group_norm[g] = norm_of[key]
+    for (key, _r) in ev.row_ranges:
+        seg = ev.segments.by_key(key)
+        g = getattr(seg, "norm_group", "") if seg is not None else ""
+        if g and key not in norm_of and g in group_norm:
+            norm_of[key] = group_norm[g]
     cols = defaultdict(list)
     angles = d.get("angles") or []
     for i, (key, (a, b)) in enumerate(ev.row_ranges):
